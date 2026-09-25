@@ -1,0 +1,39 @@
+# Services for pilot-mode work. The prototype does not need any of these —
+# `make demo` and `make test` run fully in-process.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: saathi
+      POSTGRES_PASSWORD: saathi-local
+      POSTGRES_DB: saathi
+    ports:
+      - "5432:5432"
+    volumes:
+      - saathi-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saathi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: neo4j/saathi-local
+      NEO4J_PLUGINS: '["apoc"]'
+    ports:
+      - "7474:7474"   # browser
+      - "7687:7687"   # bolt
+    volumes:
+      - saathi-neo4j:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  saathi-pg:
+  saathi-neo4j:
