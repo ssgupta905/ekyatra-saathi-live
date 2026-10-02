@@ -248,13 +248,18 @@ def record_status_evidence(
     steps: Sequence[CareStep],
     relevant_ids: Iterable[str],
 ) -> tuple:
-    """Write one ledger entry per fact the plan relies on; return the refs."""
+    """Write one ledger entry per fact the plan relies on; return the refs.
+
+    `record_once`, not `record`: planning the same unchanged patient again must
+    not grow the chain. A new row here means a fact about this patient actually
+    changed.
+    """
     wanted = set(relevant_ids)
     refs = []
     for step in steps:
         if step.id not in wanted:
             continue
-        entry = ledger.record(
+        entry = ledger.record_once(
             patient_id=patient_id,
             source=SourceSystem.ABDM if step.kind in REPORT_STEPS else SourceSystem.HOSPITAL_FEED,
             source_record_id=step.id,

@@ -30,6 +30,9 @@ class PlannerState(TypedDict, total=False):
     steps: Sequence[CareStep]
     target_kind: StepKind
     today: date
+    #: Set False to decide without calling the language layer. The live runner
+    #: plans every patient every day but only renders the ones that changed.
+    compose: bool
 
     # --- derived ---
     target: CareStep | None
@@ -45,3 +48,7 @@ class PlannerState(TypedDict, total=False):
     message: CaregiverMessage | None
     #: Set when the run ended in something a human must look at.
     escalation: str | None
+    #: Measured wall-clock cost of this run, in milliseconds. The live console
+    #: shows these, so they are timed rather than estimated.
+    plan_ms: float
+    render_ms: float

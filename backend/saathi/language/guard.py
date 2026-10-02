@@ -59,6 +59,66 @@ DATE_PROMISE = re.compile(
     re.IGNORECASE,
 )
 
+#: Indic digits, normalised to ASCII before any date is read. "৩ অক্টোবর" is
+#: exactly as much a date promise as "3/10", and a guard that can only see Latin
+#: digits is blind in the three languages this pilot actually runs in.
+_DIGIT_TABLE = {
+    ord(indic): ascii_digit
+    for group in ("०१२३४५६७८९", "০১২৩৪৫৬৭৮৯", "୦୧୨୩୪୫୬୭୮୯")
+    for indic, ascii_digit in zip(group, "0123456789", strict=True)
+}
+
+#: Month names the guard can read. Deliberately a plain list rather than a date
+#: parser: a clinician or a native speaker can extend it without reading any
+#: logic, and a name that is *missing* makes the guard fail closed — it cannot
+#: verify the date, so it blocks — which is the safe direction to be wrong in.
+MONTH_NAMES: tuple[tuple[int, tuple[str, ...]], ...] = (
+    (1, ("january", "jan", "जनवरी", "জানুয়ারি", "ଜାନୁଆରୀ")),
+    (2, ("february", "feb", "फरवरी", "ফেব্রুয়ারি", "ଫେବୃଆରୀ")),
+    (3, ("march", "mar", "मार्च", "মার্চ", "ମାର୍ଚ୍ଚ")),
+    (4, ("april", "apr", "अप्रैल", "এপ্রিল", "ଅପ୍ରେଲ")),
+    (5, ("may", "मई", "মে", "ମଇ")),
+    (6, ("june", "jun", "जून", "জুন", "ଜୁନ")),
+    (7, ("july", "jul", "जुलाई", "জুলাই", "ଜୁଲାଇ")),
+    (8, ("august", "aug", "अगस्त", "আগস্ট", "ଅଗଷ୍ଟ")),
+    (9, ("september", "sept", "sep", "सितंबर", "सितम्बर", "সেপ্টেম্বর", "ସେପ୍ଟେମ୍ବର")),
+    (10, ("october", "oct", "अक्टूबर", "অক্টোবর", "ଅକ୍ଟୋବର")),
+    (11, ("november", "nov", "नवंबर", "नवम्बर", "নভেম্বর", "ନଭେମ୍ବର")),
+    (12, ("december", "dec", "दिसंबर", "दिसम्बर", "ডিসেম্বর", "ଡିସେମ୍ବର")),
+)
+
+_MONTH_LOOKUP = {name: number for number, names in MONTH_NAMES for name in names}
+#: Longest first, so "sept" is not swallowed by "sep".
+_MONTH_ALTERNATION = "|".join(
+    sorted((re.escape(name) for name in _MONTH_LOOKUP), key=len, reverse=True)
+)
+
+_NUMERIC_DATE = re.compile(r"\b(\d{1,2})[/-](\d{1,2})\b")
+_DAY_THEN_MONTH = re.compile(rf"(\d{{1,2}})[\s,.\-]{{0,3}}({_MONTH_ALTERNATION})")
+_MONTH_THEN_DAY = re.compile(rf"({_MONTH_ALTERNATION})[\s,.\-]{{0,3}}(\d{{1,2}})")
+
+
+def stated_dates(body: str) -> frozenset[tuple[int, int]]:
+    """Every (day, month) the message can be read as naming.
+
+    Covers `3/10`, `3 October`, `October 3`, and the same written in Devanagari,
+    Bengali or Odia numerals and month names. Anything this cannot read counts
+    as *not stated*, which blocks a GO message rather than passing it.
+    """
+    text = body.translate(_DIGIT_TABLE).lower()
+    found: set[tuple[int, int]] = set()
+
+    for day, month in _NUMERIC_DATE.findall(text):
+        found.add((int(day), int(month)))
+    for day, name in _DAY_THEN_MONTH.findall(text):
+        found.add((int(day), _MONTH_LOOKUP[name]))
+    for name, day in _MONTH_THEN_DAY.findall(text):
+        found.add((int(day), _MONTH_LOOKUP[name]))
+
+    return frozenset(
+        (day, month) for day, month in found if 1 <= day <= 31 and 1 <= month <= 12
+    )
+
 
 @dataclass(frozen=True)
 class GuardVerdict:
@@ -134,14 +194,29 @@ def check_outbound(
     if plan.decision is Decision.GO:
         if plan.travel_on is None:
             return GuardVerdict(allowed=False, reason="GO plan without a travel date")
-        stated_dates = re.findall(r"\b(\d{1,2})[/-](\d{1,2})\b", body)
-        for day, month in stated_dates:
-            if (int(day), int(month)) != (plan.travel_on.day, plan.travel_on.month):
-                return GuardVerdict(
-                    allowed=False,
-                    reason="message states a date other than the planned travel date",
-                    triggers=(f"{day}/{month}",),
-                )
+
+        planned = (plan.travel_on.day, plan.travel_on.month)
+        stated = stated_dates(body)
+
+        wrong = stated - {planned}
+        if wrong:
+            return GuardVerdict(
+                allowed=False,
+                reason="message states a date other than the planned travel date",
+                triggers=tuple(f"{day}/{month}" for day, month in sorted(wrong)),
+            )
+        if planned not in stated:
+            # Absence of a readable date is not evidence of a correct one. A
+            # message whose date the guard cannot check is one a person should
+            # send — this used to pass, and a model writing the date in words or
+            # in Bengali numerals could put a family on a bus a day early.
+            return GuardVerdict(
+                allowed=False,
+                reason=(
+                    "message does not state the planned travel date in a form the "
+                    "guard can read"
+                ),
+            )
 
     return GuardVerdict(allowed=True)
 

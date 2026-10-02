@@ -87,9 +87,20 @@ class EvidenceLedger(Protocol):
         metadata: dict | None = None,
     ) -> LedgerEntry: ...
 
+    def record_once(
+        self,
+        patient_id: str,
+        source: SourceSystem,
+        source_record_id: str,
+        claim: str,
+        metadata: dict | None = None,
+    ) -> LedgerEntry: ...
+
     def get(self, ledger_id: str) -> LedgerEntry | None: ...
 
     def for_patient(self, patient_id: str) -> tuple[LedgerEntry, ...]: ...
+
+    def size(self) -> int: ...
 
     def verify(self) -> bool: ...
 
@@ -100,6 +111,9 @@ class InMemoryEvidenceLedger:
     def __init__(self) -> None:
         self._entries: list[LedgerEntry] = []
         self._by_id: dict[str, LedgerEntry] = {}
+        #: Newest entry per (patient, source record). Lets `record_once` tell a
+        #: restatement from a genuine change without rescanning the chain.
+        self._latest: dict[tuple[str, str], LedgerEntry] = {}
 
     @property
     def head_hash(self) -> str:
@@ -139,10 +153,42 @@ class InMemoryEvidenceLedger:
         )
         self._entries.append(entry)
         self._by_id[entry_id] = entry
+        self._latest[(patient_id, source_record_id)] = entry
         return entry
+
+    def record_once(
+        self,
+        patient_id: str,
+        source: SourceSystem,
+        source_record_id: str,
+        claim: str,
+        metadata: dict | None = None,
+    ) -> LedgerEntry:
+        """Record `claim` unless the newest entry for this record already says it.
+
+        The ledger stays append-only — this does not rewrite history, it declines
+        to append a row that asserts nothing new. Planning is idempotent, so
+        without this a patient re-planned once per simulated day buries the one
+        entry that changed under hundreds of identical copies, and an auditor
+        reading the chain learns nothing from it.
+        """
+        meta = dict(metadata or {})
+        existing = self._latest.get((patient_id, source_record_id))
+        if (
+            existing is not None
+            and existing.source is source
+            and existing.claim == claim
+            and existing.metadata == meta
+        ):
+            return existing
+        return self.record(patient_id, source, source_record_id, claim, meta)
 
     def get(self, ledger_id: str) -> LedgerEntry | None:
         return self._by_id.get(ledger_id)
+
+    def size(self) -> int:
+        """Entries in the chain. The live console watches this grow."""
+        return len(self._entries)
 
     def for_patient(self, patient_id: str) -> tuple[LedgerEntry, ...]:
         return tuple(e for e in self._entries if e.patient_id == patient_id)

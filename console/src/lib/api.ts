@@ -77,6 +77,13 @@ export interface PlanResponse {
   message_body: string | null;
   routed_to_care_team: boolean;
   escalation: string | null;
+  /** Provenance of the run itself — when it was decided and what it cost. Null
+   *  on a forced recompute, which has no place in the world's history. */
+  computed_at: string | null;
+  sim_date: string | null;
+  plan_ms: number | null;
+  render_ms: number | null;
+  rendered_by: string | null;
 }
 
 export interface Alert {
@@ -140,4 +147,116 @@ export const LANGUAGE_NAMES: Record<Patient["language"], string> = {
   bn: "Bengali",
   or: "Odia",
   en: "English",
+};
+
+/* ──────────────────────────────────────────────────────────────────────────
+   The live world
+   --------------------------------------------------------------------------
+   The console reads the world through these and, with two exceptions, cannot
+   change it. The exceptions are both *inputs* rather than decisions: a desk
+   clerk confirming a record, and a person putting a message in a family's
+   mouth. Everything that follows happens because the system reacted.
+   ────────────────────────────────────────────────────────────────────────── */
+
+export interface LiveSnapshot {
+  start: string;
+  current: string;
+  day: number;
+  seconds_per_day: number;
+  running: boolean;
+  patients: number;
+  watched: string[];
+  pending_reports: number;
+  desk_queue: number;
+  counters: Record<string, number>;
+  metrics: Metrics | Record<string, never>;
+  language_layer: string | null;
+  actors_enabled: boolean;
+  inbound_every_seconds: number;
+  alerts: number;
+}
+
+export interface DeskCandidate {
+  id: string;
+  patient_id: string;
+  step_id: string;
+  step_kind: string;
+  note: string;
+  parsed: Record<string, unknown>;
+  raised_on: string;
+  raised_at: string;
+  ticks_until_auto: number;
+  drafted_by: "groq" | "template";
+}
+
+export interface InboundMessage {
+  id: string;
+  patient_id: string;
+  text: string;
+  gloss: string | null;
+  language: string;
+  answerable: boolean;
+  reason: string | null;
+  triggers: string[];
+  received_at: string;
+  sim_date: string;
+  origin: "actor" | "typed";
+}
+
+export interface BriefLine {
+  text: string;
+  ledger_ids: string[];
+}
+
+export interface CallBrief {
+  available: boolean;
+  lines: BriefLine[];
+  reason?: string;
+  model?: string;
+}
+
+export interface NarratedNode {
+  id: string;
+  text: string;
+  held: boolean;
+  reason: string | null;
+  language: string;
+}
+
+export interface Narration {
+  available: boolean;
+  nodes: NarratedNode[];
+  reason?: string;
+  language?: string;
+  model?: string;
+}
+
+export type ControlAction = "play" | "pause" | "step" | "reset" | "speed";
+
+export const live = {
+  snapshot: () => request<LiveSnapshot>("/live"),
+  control: (action: ControlAction, seconds_per_day?: number) =>
+    request<LiveSnapshot>("/live/control", {
+      method: "POST",
+      body: JSON.stringify({ action, seconds_per_day }),
+    }),
+  deskQueue: () => request<DeskCandidate[]>("/desk/queue"),
+  confirm: (candidate_id: string) =>
+    request<{ confirmed: boolean }>("/desk/confirm", {
+      method: "POST",
+      body: JSON.stringify({ candidate_id }),
+    }),
+  inject: (patient_id: string, kind?: string, text?: string) =>
+    request<InboundMessage>("/live/inject", {
+      method: "POST",
+      body: JSON.stringify({ patient_id, kind, text }),
+    }),
+  inbound: (patientId?: string) =>
+    request<InboundMessage[]>(patientId ? `/inbound?patient_id=${patientId}` : "/inbound"),
+  brief: (patientId: string) => request<CallBrief>(`/patients/${patientId}/brief`),
+  narration: (patientId: string, nodes: { id: string; text: string }[]) =>
+    request<Narration>(`/patients/${patientId}/narration`, {
+      method: "POST",
+      body: JSON.stringify({ nodes }),
+    }),
 };

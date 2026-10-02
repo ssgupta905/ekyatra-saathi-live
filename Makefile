@@ -18,7 +18,7 @@ install:
 	$(PY) -m pip install -e ".[dev]"
 
 demo:
-	$(PY) -m saathi.demo
+	PYTHONPATH=backend $(PY) -m saathi.demo
 
 test:
 	$(PY) -m pytest -q
@@ -28,7 +28,7 @@ lint:
 	$(PY) -m ruff format --check backend tests
 
 api:
-	$(PY) -m uvicorn saathi.main:app --reload --port 8000
+	PYTHONPATH=backend $(PY) -m uvicorn saathi.main:app --reload --port 8000
 
 console:
 	cd console && npm install && npm run dev

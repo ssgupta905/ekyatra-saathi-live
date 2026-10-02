@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date
+from time import perf_counter
 
 from langgraph.graph import END, START, StateGraph
 
@@ -133,13 +134,21 @@ class VisitPlanner:
         plan = state.get("plan")
         if plan is None or self.language_layer is None:
             return {}
+        if state.get("compose", True) is False:
+            # Deciding and speaking are separable, and the live runner decides
+            # for everyone but speaks only to the families whose answer changed.
+            return {}
+        started = perf_counter()
         message = self.language_layer.render(
             plan=plan,
             language=state["patient"].language,
             channel=Channel.WHATSAPP,
             ledger=self.ledger,
         )
-        update: PlannerState = {"message": message}
+        update: PlannerState = {
+            "message": message,
+            "render_ms": (perf_counter() - started) * 1000,
+        }
         if message.routed_to_care_team:
             update["escalation"] = message.routing_reason
         return update
@@ -190,14 +199,19 @@ class VisitPlanner:
         steps: list[CareStep],
         target_kind: StepKind,
         today: date | None = None,
+        compose: bool = True,
     ) -> PlannerState:
         initial: PlannerState = {
             "patient": patient,
             "steps": steps,
             "target_kind": target_kind,
             "today": today or date.today(),
+            "compose": compose,
         }
-        return self._compiled.invoke(initial)
+        started = perf_counter()
+        result = self._compiled.invoke(initial)
+        result["plan_ms"] = (perf_counter() - started) * 1000
+        return result
 
 
 def _rationale(state: PlannerState) -> str:

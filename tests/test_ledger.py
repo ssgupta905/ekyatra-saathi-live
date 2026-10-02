@@ -56,3 +56,61 @@ def test_patient_scoping():
     ledger.record("P0002", SourceSystem.ABDM, "rec-x", "biopsy is completed")
     assert len(ledger.for_patient("P0001")) == 3
     assert len(ledger.for_patient("P0002")) == 1
+
+
+def test_record_once_does_not_restate_an_unchanged_fact():
+    """Re-planning an unchanged patient must not grow the chain.
+
+    The live demo re-plans every patient every simulated day. Without this the
+    one entry that matters is buried under hundreds of identical copies.
+    """
+    ledger = InMemoryEvidenceLedger()
+    first = ledger.record_once(
+        "P0001", SourceSystem.ABDM, "rec-1", "pathology_report is pending_result"
+    )
+    again = ledger.record_once(
+        "P0001", SourceSystem.ABDM, "rec-1", "pathology_report is pending_result"
+    )
+
+    assert again.id == first.id
+    assert len(ledger.for_patient("P0001")) == 1
+    assert ledger.verify() is True
+
+
+def test_record_once_appends_when_the_fact_actually_changes():
+    ledger = InMemoryEvidenceLedger()
+    ledger.record_once(
+        "P0001", SourceSystem.ABDM, "rec-1", "pathology_report is pending_result"
+    )
+    changed = ledger.record_once(
+        "P0001", SourceSystem.ABDM, "rec-1", "pathology_report is result_available"
+    )
+
+    entries = ledger.for_patient("P0001")
+    assert len(entries) == 2
+    assert entries[-1].id == changed.id
+    assert entries[-1].previous_hash == entries[0].entry_hash
+    assert ledger.verify() is True
+
+
+def test_record_once_separates_patients_sharing_a_record_id():
+    ledger = InMemoryEvidenceLedger()
+    ledger.record_once("P0001", SourceSystem.ABDM, "rec-1", "scan is completed")
+    ledger.record_once("P0002", SourceSystem.ABDM, "rec-1", "scan is completed")
+
+    assert len(ledger.for_patient("P0001")) == 1
+    assert len(ledger.for_patient("P0002")) == 1
+
+
+def test_record_once_notices_a_metadata_change():
+    """Same claim, different supporting detail, is still a new fact."""
+    ledger = InMemoryEvidenceLedger()
+    ledger.record_once(
+        "P0001", SourceSystem.HOSPITAL_FEED, "rec-1", "review_consult is scheduled",
+        {"scheduled_for": "2026-10-04"},
+    )
+    ledger.record_once(
+        "P0001", SourceSystem.HOSPITAL_FEED, "rec-1", "review_consult is scheduled",
+        {"scheduled_for": "2026-10-11"},
+    )
+    assert len(ledger.for_patient("P0001")) == 2

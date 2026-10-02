@@ -128,3 +128,58 @@ def test_message_with_unresolvable_evidence_is_blocked(ledger_and_ref):
     forged = refs[0].model_copy(update={"ledger_id": "does-not-exist"})
     verdict = guard.check_outbound("Come on 12/3.", _go_plan(), (forged,), ledger)
     assert verdict.allowed is False
+
+
+# ---------------------------------------------------------------- dates
+
+
+def test_the_planned_date_is_accepted_in_every_pilot_language(ledger_and_ref):
+    """The guard has to read the languages the pilot actually runs in."""
+    ledger, refs = ledger_and_ref
+    plan = _go_plan(date(2026, 10, 3))
+    for body in (
+        "Please come on 3/10.",
+        "Please travel on 3 October.",
+        "कृपया 3 अक्टूबर को आएं।",
+        "আপনি ৩ অক্টোবর তারিখে যাত্রা করবেন।",
+        "ଦୟାକରି ୩ ଅକ୍ଟୋବର ଆସନ୍ତୁ।",
+    ):
+        assert guard.check_outbound(body, plan, refs, ledger).allowed is True, body
+
+
+def test_a_wrong_date_is_blocked_in_every_pilot_language(ledger_and_ref):
+    """The failure this exists to catch: a family sent a day early.
+
+    Found against a real model, which rendered "২ অক্টোবর" for a plan that said
+    the 3rd. The old check only read `D/M` in Latin digits and passed it.
+    """
+    ledger, refs = ledger_and_ref
+    plan = _go_plan(date(2026, 10, 3))
+    for body in (
+        "Please come on 2/10.",
+        "Please travel on 2 October.",
+        "कृपया 2 अक्टूबर को आएं।",
+        "আপনি ২ অক্টোবর, শুক্রবারে যাত্রা করবেন।",
+    ):
+        verdict = guard.check_outbound(body, plan, refs, ledger)
+        assert verdict.allowed is False, body
+        assert "other than the planned" in (verdict.reason or "")
+
+
+def test_a_go_message_with_no_readable_date_is_blocked(ledger_and_ref):
+    """Absence of a readable date is not evidence of a correct one."""
+    ledger, refs = ledger_and_ref
+    plan = _go_plan(date(2026, 10, 3))
+    for body in ("Please come to the hospital.", "Please come on Saturday."):
+        verdict = guard.check_outbound(body, plan, refs, ledger)
+        assert verdict.allowed is False, body
+        assert "cannot read" in (verdict.reason or "") or "does not state" in (
+            verdict.reason or ""
+        )
+
+
+def test_indic_numerals_are_read_as_numbers():
+    assert guard.stated_dates("৩ অক্টোবর") == frozenset({(3, 10)})
+    assert guard.stated_dates("३ अक्टूबर") == frozenset({(3, 10)})
+    assert guard.stated_dates("October 3") == frozenset({(3, 10)})
+    assert guard.stated_dates("no date here") == frozenset()

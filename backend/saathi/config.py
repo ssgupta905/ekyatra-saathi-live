@@ -28,8 +28,33 @@ class Settings(BaseSettings):
     neo4j_password: str | None = None
 
     # --- language layer ---
+    #: Groq is the live demo's backend: constrained-decoding structured output
+    #: at roughly 1000 tok/s, so a rendered message lands inside a tick.
+    groq_api_key: str | None = Field(default=None, alias="GROQ_API_KEY")
+    #: Must be a model that supports `strict: true` structured outputs.
+    groq_model: str = "openai/gpt-oss-20b"
+    #: Actors write prose rather than fill a template, so they get more room.
+    groq_actor_model: str = "openai/gpt-oss-120b"
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     claude_model: str = "claude-opus-5"
+
+    # --- the live world ---
+    #: Real seconds per simulated day.
+    live_seconds_per_day: float = 4.0
+    #: Families whose messages are rendered and whose actors run. Every patient
+    #: is still planned every day; this caps API spend, not scope.
+    live_watched: int = 8
+    #: Ticks a desk candidate waits before it is assumed confirmed, so an
+    #: unattended demo still moves.
+    live_auto_confirm_ticks: int = 2
+    #: Real seconds between caregiver messages from the actor.
+    live_inbound_every_seconds: float = 15.0
+    #: Days to rewind the world at startup, so reports land while anyone is
+    #: watching instead of having all landed before the demo begins.
+    live_start_offset_days: int = 3
+    #: Start the clock on boot. Off by default: `make api` should behave as it
+    #: always has until an operator presses play.
+    live_autostart: bool = False
 
     # --- readiness model ---
     #: 1 - alpha is the coverage guarantee on readiness windows. 0.1 means we
@@ -54,7 +79,11 @@ class Settings(BaseSettings):
 
     @property
     def language_layer_enabled(self) -> bool:
-        return bool(self.anthropic_api_key)
+        return bool(self.groq_api_key or self.anthropic_api_key)
+
+    @property
+    def actors_enabled(self) -> bool:
+        return bool(self.groq_api_key)
 
     @property
     def neo4j_enabled(self) -> bool:

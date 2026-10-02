@@ -35,16 +35,29 @@ class PlanResponse(BaseModel):
     message_body: str | None = None
     routed_to_care_team: bool = False
     escalation: str | None = None
+    #: Provenance of the run itself, so the console can say when this was
+    #: decided and what it cost rather than implying it is instantaneous.
+    computed_at: str | None = None
+    sim_date: str | None = None
+    plan_ms: float | None = None
+    render_ms: float | None = None
+    rendered_by: str | None = None
 
 
 @router.get("/health")
 async def health(request: Request) -> dict:
     state = _state(request)
+    layer = state.planner.language_layer
     return {
         "status": "ok",
         "ledger_intact": state.ledger.verify(),
+        "ledger_entries": state.ledger.size(),
         "language_layer": state.settings.language_layer_enabled,
+        "language_model": layer.describe() if layer else None,
+        "actors": state.runner.actors is not None,
         "patients": len(state.cohort.patients),
+        "sim_date": state.world.today.isoformat(),
+        "running": state.world.clock.running,
     }
 
 
@@ -62,24 +75,48 @@ async def patient_steps(request: Request, patient_id: str) -> list[CareStep]:
 
 
 @router.post("/plan", response_model=PlanResponse)
-async def plan(request: Request, body: PlanRequest) -> PlanResponse:
+async def plan(request: Request, body: PlanRequest, recompute: bool = False) -> PlanResponse:
+    """The current plan for this patient.
+
+    By default this *reads* the runner's latest real planning run rather than
+    planning on request. In a live world the console must reflect the world, not
+    cause it — a navigator opening a family should not be the reason its ledger
+    grows. `?recompute=true` forces a fresh run for scripted use and tests.
+    """
     state = _state(request)
     patient = state.patient(body.patient_id)
     if patient is None:
         raise HTTPException(404, "unknown patient")
 
-    result = state.planner.plan_visit(
-        patient=patient,
-        steps=list(state.steps_for(body.patient_id)),
-        target_kind=body.target_kind,
-        today=body.today,
-    )
-    message = result.get("message")
+    run = state.runner.plans.get(body.patient_id)
+    if recompute or run is None or body.today is not None:
+        result = state.planner.plan_visit(
+            patient=patient,
+            steps=list(state.steps_for(body.patient_id)),
+            target_kind=body.target_kind,
+            today=body.today,
+        )
+        message = result.get("message")
+        return PlanResponse(
+            plan=result.get("plan"),
+            message_body=(
+                message.body if message and not message.routed_to_care_team else None
+            ),
+            routed_to_care_team=bool(message and message.routed_to_care_team),
+            escalation=result.get("escalation"),
+        )
+
+    message = run.message
     return PlanResponse(
-        plan=result.get("plan"),
+        plan=run.plan,
         message_body=message.body if message and not message.routed_to_care_team else None,
         routed_to_care_team=bool(message and message.routed_to_care_team),
-        escalation=result.get("escalation"),
+        escalation=run.escalation,
+        computed_at=run.computed_at.isoformat(),
+        sim_date=run.sim_date,
+        plan_ms=run.plan_ms,
+        render_ms=run.render_ms,
+        rendered_by=run.rendered_by,
     )
 
 
@@ -172,9 +209,15 @@ async def ledger_for_patient(request: Request, patient_id: str) -> dict:
 
 
 @router.get("/metrics")
-async def metrics(request: Request) -> dict:
-    """Plan every patient and score against the planted ground truth."""
+async def metrics(request: Request, recompute: bool = False) -> dict:
+    """Score the cohort against planted ground truth.
+
+    The runner rescores on every change, so this normally reads that result.
+    `?recompute=true` re-plans the whole cohort from scratch.
+    """
     state = _state(request)
+    if not recompute and state.runner.metrics:
+        return state.runner.metrics
     decisions: dict[str, date | None] = {}
     for patient in state.cohort.patients:
         result = state.planner.plan_visit(
