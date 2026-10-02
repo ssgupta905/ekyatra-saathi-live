@@ -14,11 +14,13 @@ import contextlib
 import json
 import logging
 from collections.abc import AsyncIterator
+from datetime import date
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from ..domain.enums import DisruptionKind, Role
 from ..live.events import QUEUE_LIMIT as _QUEUE_LIMIT
 
 logger = logging.getLogger(__name__)
@@ -97,8 +99,10 @@ async def live_snapshot(request: Request) -> dict:
 
 
 class ControlRequest(BaseModel):
-    action: str = Field(description="play | pause | step | reset | speed")
+    action: str = Field(description="play | pause | step | reset | speed | advance_story")
     seconds_per_day: float | None = None
+    #: For action="advance_story": which scripted story to advance.
+    story: str | None = None
 
 
 @router.post("/live/control")
@@ -119,6 +123,14 @@ async def control(request: Request, body: ControlRequest) -> dict:
             if body.seconds_per_day is None:
                 raise HTTPException(422, "speed needs seconds_per_day")
             await runner.set_speed(body.seconds_per_day)
+        case "advance_story":
+            if not body.story:
+                raise HTTPException(422, "advance_story needs story")
+            try:
+                beat = await runner.advance_story(body.story)
+            except LookupError as exc:
+                raise HTTPException(404, str(exc)) from exc
+            return {**runner.snapshot(), "story_beat": beat}
         case _:
             raise HTTPException(422, f"unknown action {body.action!r}")
     return runner.snapshot()
@@ -179,6 +191,114 @@ async def inbound(request: Request, patient_id: str | None = None) -> list[dict]
     if patient_id:
         rows = [r for r in rows if r.patient_id == patient_id]
     return [r.to_json() for r in rows[-50:]]
+
+
+# ---------------------------------------------------------------- disruptions
+
+
+class DisruptionRequest(BaseModel):
+    resource_id: str
+    kind: DisruptionKind
+    unavailable_from: date
+    unavailable_to: date | None = None
+    note: str = ""
+
+
+@router.post("/disruptions")
+async def raise_disruption(request: Request, body: DisruptionRequest) -> dict:
+    """A desk's one-tap report. Everything downstream — the holding message,
+    the re-solve, the options — happens because the runner reacted to this,
+    not because this endpoint decided anything."""
+    disruption, affected = await _runner(request).raise_disruption(
+        resource_id=body.resource_id,
+        kind=body.kind,
+        unavailable_from=body.unavailable_from,
+        unavailable_to=body.unavailable_to,
+        note=body.note,
+    )
+    return {"disruption": disruption.model_dump(mode="json"), "affected_patient_ids": affected}
+
+
+@router.get("/disruptions")
+async def list_disruptions(request: Request) -> list[dict]:
+    return [d.model_dump(mode="json") for d in _state(request).world.open_disruptions()]
+
+
+@router.get("/disruptions/pending")
+async def pending_options(request: Request) -> list[dict]:
+    """Every option set currently waiting on a human — the navigator's and
+    doctor's call list for the disruption loop, without needing to already
+    know a disruption or patient id."""
+    runner = _runner(request)
+    rows = []
+    for option_set in runner.options.values():
+        requires_doctor = any(
+            runner.touches_treatment(option) for option in option_set.options
+        )
+        rows.append(
+            {
+                "patient_id": option_set.patient_id,
+                "disruption_id": option_set.disruption_id,
+                "option_count": len(option_set.options),
+                "requires_doctor": requires_doctor,
+                "created_at": option_set.created_at.isoformat(),
+            }
+        )
+    return rows
+
+
+@router.get("/disruptions/{disruption_id}/options/{patient_id}")
+async def disruption_options(request: Request, disruption_id: str, patient_id: str) -> dict:
+    """Ranked options for one patient. Order is the only ranking — there is
+    no score field anywhere in the response."""
+    option_set = _runner(request).options.get(patient_id)
+    if option_set is None or option_set.disruption_id != disruption_id:
+        return {"options": []}
+    return option_set.to_json()
+
+
+class ApproveRequest(BaseModel):
+    patient_id: str
+    option_index: int
+    approved_by_role: Role
+    approved_by: str
+
+
+@router.post("/disruptions/{disruption_id}/approve")
+async def approve_disruption_option(
+    request: Request, disruption_id: str, body: ApproveRequest
+) -> dict:
+    """The brief's single approval action. A navigator approving an option
+    that touches treatment or dose timing is rejected — structurally, not
+    by a UI hint — exactly as the model's own travel decision is bound."""
+    try:
+        approval = await _runner(request).approve_option(
+            patient_id=body.patient_id,
+            option_index=body.option_index,
+            approved_by_role=body.approved_by_role,
+            approved_by=body.approved_by,
+        )
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    return approval.model_dump(mode="json")
+
+
+class IVRConfirmRequest(BaseModel):
+    confirmation_id: str
+    digit: str
+
+
+@router.post("/live/ivr-confirm")
+async def ivr_confirm(request: Request, body: IVRConfirmRequest) -> dict:
+    """The family's own "press 1" — logged like any other fact. In the
+    credential-free live demo this is a simulated digit press, never a real
+    Exotel callback."""
+    ok = await _runner(request).confirm_ivr(body.confirmation_id, body.digit)
+    if not ok:
+        raise HTTPException(404, "no such confirmation, or it was already confirmed")
+    return {"confirmed": True}
 
 
 # ---------------------------------------------------------------- the actors

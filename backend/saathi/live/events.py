@@ -45,6 +45,18 @@ class EventKind:
     METRICS_UPDATED = "metrics.updated"
     WORLD_RESET = "world.reset"
     RUNNER_STATE = "runner.state"
+    #: A desk's one-tap report that a resource is unavailable.
+    DISRUPTION_RAISED = "disruption.raised"
+    #: Sent to an affected family before any new date is computed.
+    HOLDING_MESSAGE_SENT = "holding_message.sent"
+    #: Ranked options are ready for a navigator/doctor to choose from.
+    OPTIONS_READY = "options.ready"
+    #: A navigator/doctor picked an option; the approval itself was logged.
+    APPROVAL_RECORDED = "approval.recorded"
+    #: A family confirmed a message — IVR press-1 or a WhatsApp reply.
+    CONFIRMATION_RECEIVED = "confirmation.received"
+    #: A process-only answer was sent in reply to an inbound question.
+    PROCESS_ANSWERED = "process.answered"
 
 
 @dataclass(frozen=True)

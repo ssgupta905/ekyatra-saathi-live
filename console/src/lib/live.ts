@@ -28,7 +28,13 @@ export type EventKind =
   | "alert.raised"
   | "metrics.updated"
   | "world.reset"
-  | "runner.state";
+  | "runner.state"
+  | "disruption.raised"
+  | "holding_message.sent"
+  | "options.ready"
+  | "approval.recorded"
+  | "confirmation.received"
+  | "process.answered";
 
 export interface WorldEvent {
   kind: EventKind;
@@ -59,6 +65,12 @@ const ALL_KINDS: EventKind[] = [
   "metrics.updated",
   "world.reset",
   "runner.state",
+  "disruption.raised",
+  "holding_message.sent",
+  "options.ready",
+  "approval.recorded",
+  "confirmation.received",
+  "process.answered",
 ];
 
 /** Events that change something about one family's page. */
@@ -70,6 +82,11 @@ const PATIENT_KINDS = new Set<EventKind>([
   "ledger.appended",
   "inbound.received",
   "guard.blocked",
+  "holding_message.sent",
+  "options.ready",
+  "approval.recorded",
+  "confirmation.received",
+  "process.answered",
 ]);
 
 /** Events that change the cohort view, the desk queue or the alert list. */
@@ -80,6 +97,8 @@ const COHORT_KINDS = new Set<EventKind>([
   "desk.confirmed",
   "world.reset",
   "clock.tick",
+  "disruption.raised",
+  "approval.recorded",
 ]);
 
 export interface LiveWorldState {
@@ -198,6 +217,12 @@ export const EVENT_TONE: Record<EventKind, "go" | "wait" | "critical" | "info" |
   "metrics.updated": "info",
   "world.reset": "neutral",
   "runner.state": "neutral",
+  "disruption.raised": "critical",
+  "holding_message.sent": "wait",
+  "options.ready": "wait",
+  "approval.recorded": "go",
+  "confirmation.received": "go",
+  "process.answered": "info",
 };
 
 export const EVENT_LABEL: Record<EventKind, string> = {
@@ -215,6 +240,12 @@ export const EVENT_LABEL: Record<EventKind, string> = {
   "metrics.updated": "Score",
   "world.reset": "World",
   "runner.state": "Clock",
+  "disruption.raised": "Disruption",
+  "holding_message.sent": "Holding",
+  "options.ready": "Options",
+  "approval.recorded": "Approval",
+  "confirmation.received": "Confirmed",
+  "process.answered": "Process",
 };
 
 /** Milliseconds, rendered the way a navigator reads them. */

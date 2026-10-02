@@ -90,6 +90,7 @@ def build_state(settings: Settings | None = None, today: date | None = None) -> 
         seconds_per_day=settings.live_seconds_per_day,
         n_watched=settings.live_watched,
         auto_confirm_ticks=settings.live_auto_confirm_ticks,
+        scripted=settings.live_scripted,
     )
 
     predictor = ConformalReadinessPredictor(alpha=settings.conformal_alpha)

@@ -233,6 +233,115 @@ export interface Narration {
 
 export type ControlAction = "play" | "pause" | "step" | "reset" | "speed";
 
+/* ──────────────────────────────────────────────────────────────────────────
+   Disruptions
+   --------------------------------------------------------------------------
+   A desk's one-tap report, the ranked options it produces, and the single
+   approval action that fans them out. Order in `options` is the only
+   ranking — there is no score field anywhere here, by design.
+   ────────────────────────────────────────────────────────────────────────── */
+
+export type DisruptionKind = "machine_down" | "staff_unavailable" | "stock_delay";
+export type Role = "navigator" | "doctor" | "desk" | "admin" | "patient" | "caregiver";
+
+export interface Disruption {
+  id: string;
+  resource_id: string;
+  kind: DisruptionKind;
+  raised_by: string;
+  raised_at: string;
+  unavailable_from: string;
+  unavailable_to: string | null;
+  note: string;
+}
+
+export interface PlanOption extends VisitPlan {
+  nights_added: number;
+  extra_trips: number;
+  dose_delay_days: number;
+}
+
+export interface OptionSet {
+  patient_id: string;
+  disruption_id: string;
+  created_at: string;
+  options: PlanOption[];
+}
+
+export interface PendingOption {
+  patient_id: string;
+  disruption_id: string;
+  option_count: number;
+  requires_doctor: boolean;
+  created_at: string;
+}
+
+export const disruptions = {
+  pending: () => request<PendingOption[]>("/disruptions/pending"),
+  raise: (body: {
+    resource_id: string;
+    kind: DisruptionKind;
+    unavailable_from: string;
+    unavailable_to?: string | null;
+    note?: string;
+  }) =>
+    request<{ disruption: Disruption; affected_patient_ids: string[] }>("/disruptions", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  list: () => request<Disruption[]>("/disruptions"),
+  options: (disruptionId: string, patientId: string) =>
+    request<OptionSet>(`/disruptions/${disruptionId}/options/${patientId}`),
+  approve: (
+    disruptionId: string,
+    body: { patient_id: string; option_index: number; approved_by_role: Role; approved_by: string },
+  ) =>
+    request<unknown>(`/disruptions/${disruptionId}/approve`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+};
+
+export const ivr = {
+  confirm: (confirmation_id: string, digit: string) =>
+    request<{ confirmed: boolean }>("/live/ivr-confirm", {
+      method: "POST",
+      body: JSON.stringify({ confirmation_id, digit }),
+    }),
+};
+
+export interface AdminConfig {
+  readiness: {
+    conformal_alpha: number;
+    coverage: number;
+    queue_turnaround_profiles: Record<
+      string,
+      { median_days: number; tail_probability: number; tail_extra_days: number }
+    >;
+  };
+  staff: {
+    watched_families: number;
+    auto_confirm_ticks: number;
+    inbound_every_seconds: number;
+  };
+  languages: string[];
+  channels: string[];
+  language_layer_enabled: boolean;
+  actors_enabled: boolean;
+}
+
+export const admin = {
+  config: () => request<AdminConfig>("/admin/config"),
+  ledger: (params?: { source?: string; since?: string }) => {
+    const qs = params
+      ? "?" + new URLSearchParams(Object.entries(params).filter(([, v]) => v) as string[][])
+      : "";
+    return request<LedgerView & { entries: (LedgerEntry & { patient_id: string })[] }>(
+      `/ledger${qs}`,
+    );
+  },
+};
+
 export const live = {
   snapshot: () => request<LiveSnapshot>("/live"),
   control: (action: ControlAction, seconds_per_day?: number) =>

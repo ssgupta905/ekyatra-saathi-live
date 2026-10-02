@@ -136,6 +136,52 @@ def _matches(text: str, terms: Iterable[str]) -> tuple[str, ...]:
     return tuple(term for term in terms if term in lowered)
 
 
+#: Process questions — "what happens to my date/dose/visit" — that have a
+#: safe, content-free answer ("the doctor/navigator decides, by when"),
+#: distinct from a question that wants a clinical answer. Deliberately
+#: narrow and English/Hindi/transliteration-only for now: extending this to
+#: Bengali and Odia natively, and getting the boundary right against
+#: `CLINICAL_TERMS`, is the same clinician-vocabulary judgement call the
+#: README's Known Gap #1 defers for the inbound clinical guard — this is a
+#: starter set, not a finished one.
+PROCESS_QUESTION_PATTERNS: tuple[str, ...] = (
+    "what happens to", "what about my", "kya hoga mera", "mera kya hoga",
+    "when will i know", "kab pata chalega", "is it still happening",
+    "will it still happen", "what happens now",
+)
+
+
+class InboundCategory:
+    CLINICAL = "clinical"
+    PROCESS = "process"
+    OTHER = "other"
+
+
+#: "dose 13" names which cycle of a maintenance schedule, not a clinical
+#: amount — without this, every maintenance process question would trip the
+#: generic "dose"/"dosage" clinical term and never reach a process answer.
+_DOSE_NUMBER = re.compile(r"\bdose\s*#?\s*\d+\b", re.IGNORECASE)
+
+
+def classify_inbound(text: str) -> str:
+    """Which of the three shapes an inbound message is.
+
+    Checked in this order on purpose: a question that is *both* process- and
+    clinical-shaped ("what happens to my diagnosis") must be routed as
+    clinical, never answered — `screen_inbound`'s existing behaviour is
+    unchanged by this function; this only adds a second classification
+    alongside it.
+    """
+    clinical_hits = set(_matches(text, CLINICAL_TERMS))
+    if _DOSE_NUMBER.search(text):
+        clinical_hits -= {"dose", "dosage"}
+    if clinical_hits:
+        return InboundCategory.CLINICAL
+    if _matches(text, PROCESS_QUESTION_PATTERNS):
+        return InboundCategory.PROCESS
+    return InboundCategory.OTHER
+
+
 def screen_inbound(text: str) -> GuardVerdict:
     """Decide whether a caregiver's message is answerable by Saathi at all.
 

@@ -45,6 +45,15 @@ def test_dependent_steps_do_not_share_a_trip_by_default(graph):
     assert not graph.can_share_trip(StepKind.BIOPSY, StepKind.REVIEW_CONSULT)
 
 
+def test_maintenance_dose_follows_treatment_and_is_still_acyclic(graph):
+    ancestors = graph.transitive_prerequisites(StepKind.MAINTENANCE_DOSE)
+    assert StepKind.TREATMENT in ancestors
+
+
+def test_maintenance_dose_and_echo_review_share_a_trip(graph):
+    assert graph.can_share_trip(StepKind.MAINTENANCE_DOSE, StepKind.ECHO_REVIEW)
+
+
 def test_cyclic_edges_are_rejected():
     with pytest.raises(CycleError):
         InMemoryDependencyGraph(

@@ -193,6 +193,22 @@ class InMemoryEvidenceLedger:
     def for_patient(self, patient_id: str) -> tuple[LedgerEntry, ...]:
         return tuple(e for e in self._entries if e.patient_id == patient_id)
 
+    def all_entries(
+        self, source: SourceSystem | None = None, since: datetime | None = None
+    ) -> tuple[LedgerEntry, ...]:
+        """Every entry across every patient — the admin audit log's read.
+
+        A read-only filter over the same storage `for_patient` already reads;
+        no new state, so there is nothing new here for `record_once` to get
+        wrong.
+        """
+        rows = self._entries
+        if source is not None:
+            rows = [e for e in rows if e.source is source]
+        if since is not None:
+            rows = [e for e in rows if e.recorded_at >= since]
+        return tuple(rows)
+
     def verify(self) -> bool:
         """Recompute the chain. False means an entry was altered or reordered."""
         previous = GENESIS_HASH

@@ -14,7 +14,11 @@ from .enums import (
     AlertKind,
     Channel,
     Decision,
+    DisruptionKind,
+    FamilyMemberRole,
     Language,
+    ResourceKind,
+    Role,
     SourceSystem,
     StepKind,
     StepStatus,
@@ -23,6 +27,22 @@ from .enums import (
 
 class Base(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class FamilyMember(Base):
+    """One person in a family, each with their own channel and language.
+
+    A caregiver and the patient themself are not the same person and may
+    legitimately be told the same fact on different channels.
+    """
+
+    id: str
+    patient_id: str
+    role: FamilyMemberRole
+    name: str
+    phone: str
+    preferred_channel: Channel
+    language: Language
 
 
 class Patient(Base):
@@ -34,6 +54,7 @@ class Patient(Base):
     language: Language
     caregiver_phone: str
     hospital_id: str
+    family_members: tuple[FamilyMember, ...] = ()
 
 
 class CareStep(Base):
@@ -50,6 +71,10 @@ class CareStep(Base):
     result_available_on: date | None = None
     #: Which department/hospital queue this sits in; turnaround is per-queue.
     queue: str | None = None
+    #: The specific bookable resource (machine, staff, supply) this step
+    #: needs, when disruption tracking cares which one. None for steps that
+    #: don't book against a named resource.
+    resource_id: str | None = None
 
 
 class ReadinessWindow(Base):
@@ -103,6 +128,114 @@ class VisitPlan(Base):
     where_to_go_first: str | None = None
     evidence: tuple[EvidenceRef, ...] = ()
     rationale: str = ""
+
+
+class Resource(Base):
+    """A named, bookable hospital thing: a machine, a staff role, a supply.
+
+    Disruptions are raised against a resource; `affected_patients` matches
+    steps to it by id or by department/kind, never by report content.
+    """
+
+    id: str
+    kind: ResourceKind
+    display_name: str
+    hospital_id: str
+    department: str
+
+
+class Disruption(Base):
+    """A desk's one-tap report that a resource is unavailable for a window.
+
+    `note` is logistics text only ("MRI-2 down for service") — the same
+    content boundary as everywhere else in this module.
+    """
+
+    id: str
+    resource_id: str
+    kind: DisruptionKind
+    raised_by: SourceSystem
+    raised_at: datetime
+    unavailable_from: date
+    unavailable_to: date | None = None
+    note: str = ""
+
+
+class PlanOption(Base):
+    """One candidate re-plan for a disrupted patient, with its tradeoffs.
+
+    Shaped like `VisitPlan` plus the numbers a person needs to pick between
+    options. There is no score field: the list's order is the only
+    ranking, produced by a documented deterministic sort, never a stored
+    composite number a navigator could mistake for the system deciding.
+    """
+
+    patient_id: str
+    target_step_id: str
+    decision: Decision
+    travel_on: date | None = None
+    bundled_step_ids: tuple[str, ...] = ()
+    blocked_by: tuple[BlockedPrerequisite, ...] = ()
+    what_to_bring: tuple[str, ...] = ()
+    where_to_go_first: str | None = None
+    evidence: tuple[EvidenceRef, ...] = ()
+    rationale: str = ""
+    #: Nights added to the family's stay versus the pre-disruption plan.
+    #: Negative when the option shortens the stay.
+    nights_added: int = 0
+    #: Extra trips versus the pre-disruption plan. Negative when the option
+    #: removes a trip (the stock-late "better than before" case).
+    extra_trips: int = 0
+    #: Days a maintenance dose is delayed by this option. 0 outside
+    #: maintenance.
+    dose_delay_days: int = 0
+
+
+class MaintenanceCycle(Base):
+    """A patient's repeating post-treatment dosing schedule."""
+
+    patient_id: str
+    dose_index: int
+    total_doses: int = 17
+    interval_days: int = 21
+    anchor_date: date
+    #: True on the doses that require an echo + review bundled first.
+    requires_echo: bool = False
+
+
+class ApprovalDecision(Base):
+    """The one human action that turns a chosen `PlanOption` into a plan.
+
+    `option_summary` is a copy, not a reference, so the audit trail reads
+    correctly even if the option list is recomputed later.
+    """
+
+    id: str
+    patient_id: str
+    disruption_id: str
+    option_summary: PlanOption
+    approved_by_role: Role
+    approved_by: str
+    approved_at: datetime
+    evidence: tuple[EvidenceRef, ...] = ()
+
+
+class HoldingMessage(Base):
+    """"Don't travel yet" — sent before any new date is known.
+
+    Distinct from `CaregiverMessage`: it is not bound to a `VisitPlan`
+    because, by construction, no new plan exists yet when it is sent. It
+    still carries evidence — the disruption itself — so the guard's "no
+    source, no message" rule holds here too.
+    """
+
+    patient_id: str
+    disruption_id: str
+    language: Language
+    channel: Channel
+    body: str
+    evidence: tuple[EvidenceRef, ...]
+    sent_at: datetime
 
 
 class CaregiverMessage(Base):

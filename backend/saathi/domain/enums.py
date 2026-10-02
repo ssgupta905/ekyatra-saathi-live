@@ -21,6 +21,10 @@ class StepKind(StrEnum):
     RADIOLOGY_REPORT = "radiology_report"
     REVIEW_CONSULT = "review_consult"
     TREATMENT = "treatment"
+    #: One dose of a repeating maintenance schedule (see `MaintenanceCycle`).
+    MAINTENANCE_DOSE = "maintenance_dose"
+    #: The echo + review bundled before every fourth maintenance dose.
+    ECHO_REVIEW = "echo_review"
 
 
 #: Steps that produce a result the family never travels for, but that later
@@ -38,6 +42,8 @@ TRAVEL_STEPS = frozenset(
         StepKind.SCAN,
         StepKind.REVIEW_CONSULT,
         StepKind.TREATMENT,
+        StepKind.MAINTENANCE_DOSE,
+        StepKind.ECHO_REVIEW,
     }
 )
 
@@ -94,3 +100,38 @@ class AlertKind(StrEnum):
     DISENGAGEMENT = "disengagement"
     CLINICAL_QUESTION = "clinical_question"
     UNCERTAIN_PLAN = "uncertain_plan"
+
+
+class ResourceKind(StrEnum):
+    """What kind of thing a hospital resource is, for disruption matching."""
+
+    MACHINE = "machine"
+    STAFF = "staff"
+    SUPPLY = "supply"
+
+
+class DisruptionKind(StrEnum):
+    """The three disruption shapes the two demo stories exercise."""
+
+    MACHINE_DOWN = "machine_down"
+    STAFF_UNAVAILABLE = "staff_unavailable"
+    STOCK_DELAY = "stock_delay"
+
+
+class Role(StrEnum):
+    """Who is acting, for the console's role-gated screens and approvals."""
+
+    NAVIGATOR = "navigator"
+    DOCTOR = "doctor"
+    DESK = "desk"
+    ADMIN = "admin"
+    PATIENT = "patient"
+    CAREGIVER = "caregiver"
+
+
+class FamilyMemberRole(StrEnum):
+    """Which member of the family a message/confirmation belongs to."""
+
+    PATIENT_SIMPLE = "patient_simple"
+    CAREGIVER_PRIMARY = "caregiver_primary"
+    CAREGIVER_SECONDARY = "caregiver_secondary"

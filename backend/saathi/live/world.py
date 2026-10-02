@@ -25,10 +25,37 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 
-from ..domain.enums import REPORT_STEPS, StepStatus
-from ..domain.models import CareStep, Patient
+from ..domain.enums import (
+    REPORT_STEPS,
+    DisruptionKind,
+    ResourceKind,
+    SourceSystem,
+    StepKind,
+    StepStatus,
+)
+from ..domain.models import CareStep, Disruption, MaintenanceCycle, Patient, Resource
+from ..graph.dependencies import RESOURCE_REQUIREMENTS
 from ..synthetic.generate import GroundTruth, SyntheticCohort, generate_cohort
+from ..synthetic.scripted import (
+    ANITA_ID,
+    DAY_CARE_PHARMACY,
+    ECHO_CARDIOLOGIST,
+    MRI_2,
+    SHAMBHU_ID,
+    build_scripted_cohort,
+)
 from .clock import SimulationClock
+
+#: Statuses a step can still be in when a disruption might touch it. A
+#: completed or cancelled step is done — an outage announced afterwards
+#: cannot affect it.
+_DISRUPTIBLE = frozenset(
+    {
+        StepStatus.NOT_SCHEDULED,
+        StepStatus.SCHEDULED,
+        StepStatus.PENDING_RESULT,
+    }
+)
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +109,22 @@ class LiveWorld:
     #: replaced wholesale, so nothing ever holds a half-updated record.
     steps: dict[str, list[CareStep]] = field(default_factory=dict)
     desk: dict[str, DeskCandidate] = field(default_factory=dict)
+    #: Bookable hospital things (machines, staff roles, supplies) a desk can
+    #: report unavailable. Registered once, independent of cohort resets.
+    resources: dict[str, Resource] = field(default_factory=dict)
+    #: Every disruption ever raised, keyed by id, newest-affecting-state read
+    #: via `open_disruptions`.
+    disruptions: dict[str, Disruption] = field(default_factory=dict)
+    #: Patients on a repeating maintenance schedule, by patient id.
+    maintenance_cycles: dict[str, MaintenanceCycle] = field(default_factory=dict)
+    #: patient id -> disruption id, set while a patient has ranked options
+    #: waiting on a human and cleared once approved. What a process-only
+    #: inbound answer reads to say "the doctor decides" vs "still working it out".
+    pending_approval: dict[str, str] = field(default_factory=dict)
+    #: Which step kind each patient is currently planned towards. Everyone
+    #: not listed targets `REVIEW_CONSULT`, the pathway's one terminal visit;
+    #: a maintenance patient targets their next `MAINTENANCE_DOSE` instead.
+    plan_targets: dict[str, StepKind] = field(default_factory=dict)
     #: step id -> patient id. Step ids are patient-prefixed by convention, but
     #: an index means nothing here depends on that convention holding.
     index: dict[str, str] = field(default_factory=dict)
@@ -92,6 +135,13 @@ class LiveWorld:
     n_patients: int = 50
     n_watched: int = 8
     auto_confirm_ticks: int = 2
+    #: True when this world carries the two scripted demo families alongside
+    #: the cohort — see `synthetic/scripted.py`. Drives resource registration
+    #: and maintenance-cycle setup in `_load_cohort`.
+    scripted: bool = False
+
+    def target_kind_for(self, patient_id: str) -> StepKind:
+        return self.plan_targets.get(patient_id, StepKind.REVIEW_CONSULT)
 
     @classmethod
     def build(
@@ -103,9 +153,14 @@ class LiveWorld:
         n_watched: int = 8,
         seed: int = 20260925,
         auto_confirm_ticks: int = 2,
+        scripted: bool = False,
     ) -> LiveWorld:
         start = start or date.today()
-        cohort = generate_cohort(n_patients=n_patients, seed=seed, today=start)
+        cohort = (
+            build_scripted_cohort(n_patients=max(n_patients - 2, 0), seed=seed, today=start)[0]
+            if scripted
+            else generate_cohort(n_patients=n_patients, seed=seed, today=start)
+        )
         world = cls(
             clock=SimulationClock(start=start, seconds_per_day=seconds_per_day),
             cohort=cohort,
@@ -113,9 +168,38 @@ class LiveWorld:
             n_patients=n_patients,
             n_watched=n_watched,
             auto_confirm_ticks=auto_confirm_ticks,
+            scripted=scripted,
         )
         world._load_cohort(cohort)
+        if scripted:
+            world._wire_scripted_demo(start)
         return world
+
+    def _wire_scripted_demo(self, start: date) -> None:
+        from ..synthetic.scripted import seed_anita_devi
+
+        self.register_resource(
+            Resource(id=MRI_2, kind=ResourceKind.MACHINE, display_name="MRI machine 2",
+                     hospital_id="TMH-MUM", department="radiology")
+        )
+        self.register_resource(
+            Resource(id=ECHO_CARDIOLOGIST, kind=ResourceKind.STAFF,
+                     display_name="Echo cardiologist", hospital_id="HBCH-MZP",
+                     department="cardiology")
+        )
+        self.register_resource(
+            Resource(id=DAY_CARE_PHARMACY, kind=ResourceKind.SUPPLY,
+                     display_name="Day-care pharmacy stock", hospital_id="HBCH-MZP",
+                     department="day_care")
+        )
+        self.plan_targets[SHAMBHU_ID] = StepKind.REVIEW_CONSULT
+        self.plan_targets[ANITA_ID] = StepKind.MAINTENANCE_DOSE
+        _, _, _, cycle = seed_anita_devi(start)
+        self.maintenance_cycles[ANITA_ID] = cycle
+        # The two scripted families are the point of this world — put them
+        # where a viewer looks first.
+        rest = [p for p in self.watched if p not in (SHAMBHU_ID, ANITA_ID)]
+        self.watched = (SHAMBHU_ID, ANITA_ID, *rest)[: self.n_watched]
 
     # ---------------- state ----------------
 
@@ -144,9 +228,20 @@ class LiveWorld:
         """Rebuild from the same seed. The demo is reproducible on purpose."""
         start = start or self.clock.start
         self.clock.reset(start)
-        self._load_cohort(
-            generate_cohort(n_patients=self.n_patients, seed=self.seed, today=start)
-        )
+        self.disruptions.clear()
+        self.resources.clear()
+        self.maintenance_cycles.clear()
+        self.plan_targets.clear()
+        self.pending_approval.clear()
+        if self.scripted:
+            cohort, _ = build_scripted_cohort(
+                n_patients=max(self.n_patients - 2, 0), seed=self.seed, today=start
+            )
+        else:
+            cohort = generate_cohort(n_patients=self.n_patients, seed=self.seed, today=start)
+        self._load_cohort(cohort)
+        if self.scripted:
+            self._wire_scripted_demo(start)
 
     @property
     def today(self) -> date:
@@ -268,6 +363,106 @@ class LiveWorld:
             rows[index] = updated
             return updated
         return None
+
+    # ---------------- disruptions ----------------
+
+    def register_resource(self, resource: Resource) -> None:
+        """Make a named machine/staff role/supply reportable.
+
+        A no-op convenience for seeding; raising a disruption against an
+        unregistered resource id still works, it just has no display metadata.
+        """
+        self.resources[resource.id] = resource
+
+    def raise_disruption(
+        self,
+        *,
+        resource_id: str,
+        kind: DisruptionKind,
+        unavailable_from: date,
+        unavailable_to: date | None = None,
+        note: str = "",
+        raised_by: SourceSystem = SourceSystem.HOSPITAL_FEED,
+    ) -> Disruption:
+        """A desk's one-tap report. Does not touch any patient's steps —
+        `affected_patients` reads this afterwards; nothing here decides
+        anything, it only records that a desk said a resource is down."""
+        disruption = Disruption(
+            id=str(uuid.uuid4()),
+            resource_id=resource_id,
+            kind=kind,
+            raised_by=raised_by,
+            raised_at=datetime.now(UTC),
+            unavailable_from=unavailable_from,
+            unavailable_to=unavailable_to,
+            note=note,
+        )
+        self.disruptions[disruption.id] = disruption
+        return disruption
+
+    def open_disruptions(self) -> list[Disruption]:
+        return [
+            d
+            for d in self.disruptions.values()
+            if d.unavailable_to is None or d.unavailable_to >= self.today
+        ]
+
+    def affected_patients(self, disruption: Disruption) -> list[str]:
+        """Every patient with an unresolved step booked against the down
+        resource, within the outage window.
+
+        Matches by exact `resource_id` first (a specific machine), and falls
+        back to resource-kind + department when the resource is a role or a
+        supply that many steps share rather than booking individually.
+        """
+        resource = self.resources.get(disruption.resource_id)
+        affected: list[str] = []
+        for patient_id, rows in self.steps.items():
+            for row in rows:
+                if row.status not in _DISRUPTIBLE:
+                    continue
+                if not self._step_uses_resource(row, disruption, resource):
+                    continue
+                if not self._step_in_window(row, disruption):
+                    continue
+                affected.append(patient_id)
+                break
+        return affected
+
+    def _step_uses_resource(
+        self, step: CareStep, disruption: Disruption, resource: Resource | None
+    ) -> bool:
+        if step.resource_id == disruption.resource_id:
+            return True
+        if resource is None:
+            return False
+        required_kind = RESOURCE_REQUIREMENTS.get(step.kind)
+        return (
+            required_kind is not None
+            and required_kind is resource.kind
+            and step.queue == resource.department
+        )
+
+    def reschedule_steps(self, step_ids: set[str], new_date: date) -> list[CareStep]:
+        """Move a set of steps to a new date. The only path that resolves a
+        disruption's effect on a step, mirroring `apply_release` for reports."""
+        updated: list[CareStep] = []
+        for rows in self.steps.values():
+            for index, row in enumerate(rows):
+                if row.id not in step_ids:
+                    continue
+                new_row = row.model_copy(update={"scheduled_for": new_date})
+                rows[index] = new_row
+                updated.append(new_row)
+        return updated
+
+    def _step_in_window(self, step: CareStep, disruption: Disruption) -> bool:
+        when = step.scheduled_for
+        if when is None:
+            return False
+        if when < disruption.unavailable_from:
+            return False
+        return disruption.unavailable_to is None or when <= disruption.unavailable_to
 
     # ---------------- reporting ----------------
 

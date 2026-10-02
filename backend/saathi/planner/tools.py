@@ -20,7 +20,7 @@ from ..domain.enums import (
     StepKind,
     StepStatus,
 )
-from ..domain.models import BlockedPrerequisite, CareStep, ReadinessWindow
+from ..domain.models import BlockedPrerequisite, CareStep, MaintenanceCycle, ReadinessWindow
 from ..graph.dependencies import DependencyGraph
 from ..ledger.evidence import InMemoryEvidenceLedger
 from ..readiness.conformal import ConformalReadinessPredictor
@@ -210,6 +210,8 @@ STEP_DOCUMENTS: dict[StepKind, tuple[str, ...]] = {
     StepKind.BIOPSY: ("biopsy consent form", "someone to travel back with you"),
     StepKind.REVIEW_CONSULT: ("all report slips collected so far",),
     StepKind.TREATMENT: ("admission letter", "payment or scheme documents"),
+    StepKind.MAINTENANCE_DOSE: ("treatment card", "payment or scheme documents"),
+    StepKind.ECHO_REVIEW: ("treatment card",),
 }
 
 
@@ -231,6 +233,8 @@ FIRST_STOP: dict[StepKind, str] = {
     StepKind.SCAN: "radiology reception",
     StepKind.REVIEW_CONSULT: "OPD registration counter",
     StepKind.TREATMENT: "admission desk",
+    StepKind.MAINTENANCE_DOSE: "day-care centre",
+    StepKind.ECHO_REVIEW: "cardiology reception",
 }
 
 
@@ -271,3 +275,40 @@ def record_status_evidence(
         )
         refs.append(entry.ref())
     return tuple(refs)
+
+
+#: Maintenance is a recurring step: the 1-indexed dose numbers that need an
+#: echo + review bundled first, per the advising doctor's sketch.
+ECHO_GATED_DOSES = frozenset({5, 9, 13, 17})
+
+
+def requires_echo_bundle(dose_index: int) -> bool:
+    """Whether this dose number needs an echo + review bundled before it.
+
+    A plain lookup, not a clinical judgement — the doctor set the gated
+    doses; this function only remembers which ones they were.
+    """
+    return dose_index in ECHO_GATED_DOSES
+
+
+def due_dose(cycle: MaintenanceCycle, today: date) -> int | None:
+    """Which dose number is due today or earlier, if any.
+
+    None when the cycle is finished or the next dose isn't due yet.
+    """
+    if cycle.dose_index > cycle.total_doses:
+        return None
+    due_on = cycle.anchor_date + timedelta(days=cycle.interval_days * (cycle.dose_index - 1))
+    if due_on > today:
+        return None
+    return cycle.dose_index
+
+
+def next_dose_not_before(cycle: MaintenanceCycle, completed_doses: int) -> date:
+    """Earliest date the next dose after `completed_doses` may be given.
+
+    Doses are spaced by `interval_days` from the anchor, not from whenever
+    the previous one actually happened — a delayed dose does not compress
+    the gap before the one after it.
+    """
+    return cycle.anchor_date + timedelta(days=cycle.interval_days * completed_doses)

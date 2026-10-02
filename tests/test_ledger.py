@@ -18,6 +18,27 @@ def _ledger(n=3):
     return ledger
 
 
+def test_all_entries_returns_entries_across_patients():
+    ledger = InMemoryEvidenceLedger()
+    ledger.record(patient_id="P0001", source=SourceSystem.HOSPITAL_FEED,
+                   source_record_id="r1", claim="a")
+    ledger.record(patient_id="P0002", source=SourceSystem.NAVIGATOR,
+                   source_record_id="r2", claim="b")
+    all_rows = ledger.all_entries()
+    assert {e.patient_id for e in all_rows} == {"P0001", "P0002"}
+
+
+def test_all_entries_filters_by_source():
+    ledger = InMemoryEvidenceLedger()
+    ledger.record(patient_id="P0001", source=SourceSystem.HOSPITAL_FEED,
+                   source_record_id="r1", claim="a")
+    ledger.record(patient_id="P0001", source=SourceSystem.NAVIGATOR,
+                   source_record_id="r2", claim="b")
+    filtered = ledger.all_entries(source=SourceSystem.NAVIGATOR)
+    assert len(filtered) == 1
+    assert filtered[0].source is SourceSystem.NAVIGATOR
+
+
 def test_empty_ledger_starts_at_genesis():
     assert InMemoryEvidenceLedger().head_hash == GENESIS_HASH
 

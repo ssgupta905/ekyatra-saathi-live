@@ -15,7 +15,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from typing import Protocol
 
-from ..domain.enums import StepKind
+from ..domain.enums import ResourceKind, StepKind
 
 #: Default clinical-logistics DAG for a solid-tumour pathway. Edges are
 #: logistical ordering, not clinical advice: they say which step's *output*
@@ -30,6 +30,9 @@ DEFAULT_EDGES: tuple[tuple[StepKind, StepKind], ...] = (
     (StepKind.RADIOLOGY_REPORT, StepKind.REVIEW_CONSULT),
     (StepKind.BLOODS, StepKind.REVIEW_CONSULT),
     (StepKind.REVIEW_CONSULT, StepKind.TREATMENT),
+    #: Maintenance is a single repeating `StepKind`; the 21-day recurrence and
+    #: the per-dose echo gate are computed by `planner.tools`, not by edges.
+    (StepKind.TREATMENT, StepKind.MAINTENANCE_DOSE),
 )
 
 #: Steps that can share a trip when both are due. Ordered pairs are symmetric.
@@ -39,7 +42,17 @@ CO_LOCATABLE: tuple[frozenset[StepKind], ...] = (
     frozenset({StepKind.BIOPSY, StepKind.BLOODS}),
     frozenset({StepKind.SCAN, StepKind.REVIEW_CONSULT}),
     frozenset({StepKind.BLOODS, StepKind.REVIEW_CONSULT}),
+    frozenset({StepKind.MAINTENANCE_DOSE, StepKind.ECHO_REVIEW}),
 )
+
+#: Which kind of bookable resource a step needs, for matching a disruption
+#: (resource down for a window) to the patients it affects. Steps with no
+#: entry here don't book against a trackable resource.
+RESOURCE_REQUIREMENTS: dict[StepKind, ResourceKind] = {
+    StepKind.SCAN: ResourceKind.MACHINE,
+    StepKind.ECHO_REVIEW: ResourceKind.STAFF,
+    StepKind.MAINTENANCE_DOSE: ResourceKind.SUPPLY,
+}
 
 
 class CycleError(ValueError):

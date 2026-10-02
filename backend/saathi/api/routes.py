@@ -11,11 +11,11 @@ from datetime import UTC, date, datetime
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from ..domain.enums import AlertKind, Decision, StepKind
+from ..domain.enums import AlertKind, Channel, Decision, Language, SourceSystem, StepKind
 from ..domain.models import Alert, CareStep, Patient, VisitPlan
 from ..engagement.pelt import detect_disengagement
 from ..language import guard
-from ..synthetic.generate import evaluate
+from ..synthetic.generate import QUEUE_PROFILES, evaluate
 
 router = APIRouter()
 
@@ -185,6 +185,68 @@ async def inbound(request: Request, body: InboundMessage) -> InboundVerdict:
         reason=verdict.reason,
         triggers=list(verdict.triggers),
     )
+
+
+@router.get("/admin/config")
+async def admin_config(request: Request) -> dict:
+    """The admin's read-only view of the readiness rules, languages and
+    channels the system runs with. Surfaces real settings — no field here is
+    invented for the console; it is what `Settings` and `QUEUE_PROFILES`
+    already hold.
+    """
+    state = _state(request)
+    settings = state.settings
+    return {
+        "readiness": {
+            "conformal_alpha": settings.conformal_alpha,
+            "coverage": 1 - settings.conformal_alpha,
+            "queue_turnaround_profiles": {
+                queue: {
+                    "median_days": median,
+                    "tail_probability": tail_p,
+                    "tail_extra_days": tail_extra,
+                }
+                for queue, (median, tail_p, tail_extra) in QUEUE_PROFILES.items()
+            },
+        },
+        "staff": {
+            "watched_families": settings.live_watched,
+            "auto_confirm_ticks": settings.live_auto_confirm_ticks,
+            "inbound_every_seconds": settings.live_inbound_every_seconds,
+        },
+        "languages": [lang.value for lang in Language],
+        "channels": [channel.value for channel in Channel],
+        "language_layer_enabled": settings.language_layer_enabled,
+        "actors_enabled": settings.actors_enabled,
+    }
+
+
+@router.get("/ledger")
+async def ledger_all(
+    request: Request, source: SourceSystem | None = None, since: datetime | None = None
+) -> dict:
+    """The admin audit log: every action across every patient, and its source.
+
+    Read-only, like the per-patient view — opening this page cannot grow the
+    ledger any more than opening a family's page can.
+    """
+    state = _state(request)
+    entries = state.ledger.all_entries(source=source, since=since)
+    return {
+        "intact": state.ledger.verify(),
+        "entries": [
+            {
+                "id": e.id,
+                "patient_id": e.patient_id,
+                "source": e.source.value,
+                "source_record_id": e.source_record_id,
+                "claim": e.claim,
+                "recorded_at": e.recorded_at.isoformat(),
+                "entry_hash": e.entry_hash[:12],
+            }
+            for e in entries
+        ],
+    }
 
 
 @router.get("/ledger/{patient_id}")

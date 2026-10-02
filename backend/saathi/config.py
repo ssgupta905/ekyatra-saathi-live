@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     #: Start the clock on boot. Off by default: `make api` should behave as it
     #: always has until an operator presses play.
     live_autostart: bool = False
+    #: Seed the two scripted demo families (`synthetic/scripted.py`) alongside
+    #: the cohort, and enable `advance_story`. Off by default: the existing
+    #: 50-family demo is unaffected unless this is explicitly turned on.
+    live_scripted: bool = False
 
     # --- readiness model ---
     #: 1 - alpha is the coverage guarantee on readiness windows. 0.1 means we
