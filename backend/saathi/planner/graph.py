@@ -14,13 +14,14 @@ a family to travel.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from datetime import date
 from time import perf_counter
 
 from langgraph.graph import END, START, StateGraph
 
 from ..domain.enums import Channel, Decision, StepKind
-from ..domain.models import CareStep, Patient, VisitPlan
+from ..domain.models import CareStep, Disruption, Patient, VisitPlan
 from ..graph.dependencies import DependencyGraph, InMemoryDependencyGraph
 from ..language.claude import ClaudeLanguageLayer
 from ..ledger.evidence import InMemoryEvidenceLedger
@@ -62,7 +63,9 @@ class VisitPlanner:
         unmet = tools.unmet_prerequisites(target, state["steps"], self.graph)
         missing = tools.missing_prerequisite_kinds(target, state["steps"], self.graph)
         return {
-            "blockers": tools.describe_blockers(unmet, self.predictor),
+            "blockers": tools.describe_blockers(
+                unmet, self.predictor, state.get("disruptions", ())
+            ),
             "missing_kinds": missing,
         }
 
@@ -200,6 +203,7 @@ class VisitPlanner:
         target_kind: StepKind,
         today: date | None = None,
         compose: bool = True,
+        disruptions: Sequence[Disruption] = (),
     ) -> PlannerState:
         initial: PlannerState = {
             "patient": patient,
@@ -207,6 +211,7 @@ class VisitPlanner:
             "target_kind": target_kind,
             "today": today or date.today(),
             "compose": compose,
+            "disruptions": tuple(disruptions),
         }
         started = perf_counter()
         result = self._compiled.invoke(initial)

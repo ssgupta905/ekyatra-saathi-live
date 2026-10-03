@@ -1,10 +1,11 @@
-.PHONY: help install demo test lint api console docker seed clean
+.PHONY: help install demo fetch-reference test lint api console docker seed clean
 
 PY ?= .venv/bin/python
 
 help:
 	@echo "make install   create .venv and install the backend (editable, with dev extras)"
 	@echo "make demo      run the prototype on synthetic patients and score it"
+	@echo "make fetch-reference  fill the geo cache from real services (needs network)"
 	@echo "make test      run the test suite"
 	@echo "make lint      ruff check + format check"
 	@echo "make api       serve the FastAPI app on :8000"
@@ -19,6 +20,9 @@ install:
 
 demo:
 	PYTHONPATH=backend $(PY) -m saathi.demo
+
+fetch-reference:
+	PYTHONPATH=backend $(PY) -m saathi.tools.fetch
 
 test:
 	$(PY) -m pytest -q

@@ -67,6 +67,24 @@ class Settings(BaseSettings):
     #: Days of slack added after a report's predicted-latest date.
     travel_lead_days: int = 1
 
+    # --- real-world fact tools ---
+    #: Where each hospital physically is, as ID=PLACE pairs. Configuration,
+    #: not a constant in the code: a pilot at a different hospital changes
+    #: this and nothing else. Read by `tools.fetch` and the centre directory.
+    hospital_places: list[str] = Field(
+        default_factory=lambda: ["TMH-MUM=Mumbai", "HBCH-MZP=Muzaffarpur"]
+    )
+    #: Services the reference cache is filled from. Free, keyless, rate-limited;
+    #: override to point at your own instance for a pilot.
+    geocoder_url: str = "https://nominatim.openstreetmap.org"
+    router_url: str = "https://router.project-osrm.org"
+    #: Let tools call out during a live run. Off by default — a demo makes far
+    #: too many lookups for a public service, so the cache is filled once by
+    #: `make fetch-reference` and read from thereafter.
+    tools_allow_network: bool = False
+    #: Where the fetched facts live.
+    reference_cache_path: str = "data/reference_cache.json"
+
     # --- health data ---
     abdm_base_url: str | None = None
     abdm_client_id: str | None = None

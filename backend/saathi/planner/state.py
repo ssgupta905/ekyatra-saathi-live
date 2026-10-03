@@ -11,6 +11,7 @@ from ..domain.models import (
     BlockedPrerequisite,
     CaregiverMessage,
     CareStep,
+    Disruption,
     EvidenceRef,
     Patient,
     VisitPlan,
@@ -33,6 +34,9 @@ class PlannerState(TypedDict, total=False):
     #: Set False to decide without calling the language layer. The live runner
     #: plans every patient every day but only renders the ones that changed.
     compose: bool
+    #: Disruptions in force for this run. A booking on a disrupted resource is
+    #: not a date the hospital can honour, so it stops counting as one.
+    disruptions: tuple[Disruption, ...]
 
     # --- derived ---
     target: CareStep | None

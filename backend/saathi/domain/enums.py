@@ -17,9 +17,17 @@ class StepKind(StrEnum):
     BIOPSY = "biopsy"
     BLOODS = "bloods"
     SCAN = "scan"
+    #: The functional scan that follows the provisional diagnosis. Separate
+    #: from SCAN because it books a different machine and, in the brief's
+    #: story, is the step that can be pulled onto the MRI's day or left two
+    #: days behind it — which is the entire difference between two options.
+    PET_CT = "pet_ct"
     PATHOLOGY_REPORT = "pathology_report"
     RADIOLOGY_REPORT = "radiology_report"
     REVIEW_CONSULT = "review_consult"
+    #: The consultants meeting where a treatment path is chosen. The visit a
+    #: family's whole stay is anchored to, so moving it is what costs nights.
+    JOINT_CLINIC = "joint_clinic"
     TREATMENT = "treatment"
     #: One dose of a repeating maintenance schedule (see `MaintenanceCycle`).
     MAINTENANCE_DOSE = "maintenance_dose"
@@ -40,7 +48,9 @@ TRAVEL_STEPS = frozenset(
         StepKind.BIOPSY,
         StepKind.BLOODS,
         StepKind.SCAN,
+        StepKind.PET_CT,
         StepKind.REVIEW_CONSULT,
+        StepKind.JOINT_CLINIC,
         StepKind.TREATMENT,
         StepKind.MAINTENANCE_DOSE,
         StepKind.ECHO_REVIEW,

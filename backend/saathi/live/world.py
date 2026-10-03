@@ -41,6 +41,7 @@ from ..synthetic.scripted import (
     DAY_CARE_PHARMACY,
     ECHO_CARDIOLOGIST,
     MRI_2,
+    PET_CT_SCANNER,
     SHAMBHU_ID,
     build_scripted_cohort,
 )
@@ -192,7 +193,15 @@ class LiveWorld:
                      display_name="Day-care pharmacy stock", hospital_id="HBCH-MZP",
                      department="day_care")
         )
-        self.plan_targets[SHAMBHU_ID] = StepKind.REVIEW_CONSULT
+        self.register_resource(
+            Resource(id=PET_CT_SCANNER, kind=ResourceKind.MACHINE,
+                     display_name="PET-CT scanner", hospital_id="TMH-MUM",
+                     department="radiology")
+        )
+        # Shambhu's story is anchored on the consultants' meeting, not the
+        # review consult: the joint clinic is the visit his whole stay is
+        # booked around, so it is the visit the option table is measured against.
+        self.plan_targets[SHAMBHU_ID] = StepKind.JOINT_CLINIC
         self.plan_targets[ANITA_ID] = StepKind.MAINTENANCE_DOSE
         _, _, _, cycle = seed_anita_devi(start)
         self.maintenance_cycles[ANITA_ID] = cycle

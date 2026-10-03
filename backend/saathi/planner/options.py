@@ -33,13 +33,16 @@ def _build_option(
     nights_added: int = 0,
     extra_trips: int = 0,
     dose_delay_days: int = 0,
+    disruptions: Sequence[Disruption] = (),
 ) -> PlanOption | None:
     target = tools.find_step(steps, target_kind)
     if target is None:
         return None
     unmet = tools.unmet_prerequisites(target, steps, graph)
     missing = tools.missing_prerequisite_kinds(target, steps, graph)
-    blockers = tools.describe_blockers(unmet, predictor)
+    # The same disruptions the live plan is judged under: a candidate that
+    # re-books onto a machine that is still down must not come back GO.
+    blockers = tools.describe_blockers(unmet, predictor, disruptions)
     decision = tools.decide(blockers, missing, today)
     is_go = decision is Decision.GO
     travel_on = tools.earliest_safe_travel_date(blockers, today) if is_go else None

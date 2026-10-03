@@ -21,6 +21,7 @@ ANITA_ID = "P-ANITA"
 #: Resource ids the scripted disruptions are raised against. Registered on
 #: the world so a desk can report them by name, the same as a real one would.
 MRI_2 = "MRI-2"
+PET_CT_SCANNER = "PET-CT"
 ECHO_CARDIOLOGIST = "echo-cardiologist"
 DAY_CARE_PHARMACY = "day-care-pharmacy"
 
@@ -47,6 +48,7 @@ def seed_shambhu_prasad(today: date) -> tuple[Patient, tuple[CareStep, ...], Gro
         CareStep(id=f"{SHAMBHU_ID}-bloods", patient_id=SHAMBHU_ID, kind=StepKind.BLOODS,
                  status=StepStatus.COMPLETED, scheduled_for=first_visit,
                  completed_on=first_visit, queue="bloods"),
+        # The MRI, on the machine that fails this morning.
         CareStep(id=f"{SHAMBHU_ID}-scan", patient_id=SHAMBHU_ID, kind=StepKind.SCAN,
                  status=StepStatus.SCHEDULED, scheduled_for=scan_day,
                  queue="radiology", resource_id=MRI_2),
@@ -58,14 +60,25 @@ def seed_shambhu_prasad(today: date) -> tuple[Patient, tuple[CareStep, ...], Gro
                  kind=StepKind.RADIOLOGY_REPORT, status=StepStatus.PENDING_RESULT,
                  completed_on=scan_day, queue="radiology_report"),
         CareStep(id=f"{SHAMBHU_ID}-review", patient_id=SHAMBHU_ID, kind=StepKind.REVIEW_CONSULT,
-                 status=StepStatus.SCHEDULED, scheduled_for=scan_day + timedelta(days=4),
+                 status=StepStatus.SCHEDULED, scheduled_for=scan_day + timedelta(days=1),
                  queue="review_consult"),
+        # Booked four days after the MRI: the gap `care_rules.STEP_LEAD_DAYS`
+        # keeps between a scan and the functional scan that follows it.
+        CareStep(id=f"{SHAMBHU_ID}-pet_ct", patient_id=SHAMBHU_ID, kind=StepKind.PET_CT,
+                 status=StepStatus.SCHEDULED, scheduled_for=scan_day + timedelta(days=4),
+                 queue="pet_ct", resource_id=PET_CT_SCANNER),
+        # The consultants' meeting the whole stay is anchored to. It sits on a
+        # standing Tue/Fri slot, which is why a two-day scan slip can cost four
+        # nights — the next meeting is not the next day.
+        CareStep(id=f"{SHAMBHU_ID}-joint_clinic", patient_id=SHAMBHU_ID,
+                 kind=StepKind.JOINT_CLINIC, status=StepStatus.SCHEDULED,
+                 scheduled_for=scan_day + timedelta(days=8), queue="joint_clinic"),
     )
     truth = GroundTruth(
         patient_id=SHAMBHU_ID,
         true_ready_on={f"{SHAMBHU_ID}-radiology_report": scan_day + timedelta(days=1)},
-        naive_return_date=scan_day + timedelta(days=4),
-        naive_target_step_id=f"{SHAMBHU_ID}-review",
+        naive_return_date=scan_day + timedelta(days=8),
+        naive_target_step_id=f"{SHAMBHU_ID}-joint_clinic",
     )
     return patient, steps, truth
 

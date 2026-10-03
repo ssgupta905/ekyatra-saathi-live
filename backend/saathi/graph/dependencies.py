@@ -26,9 +26,18 @@ DEFAULT_EDGES: tuple[tuple[StepKind, StepKind], ...] = (
     (StepKind.CONSULT, StepKind.SCAN),
     (StepKind.BIOPSY, StepKind.PATHOLOGY_REPORT),
     (StepKind.SCAN, StepKind.RADIOLOGY_REPORT),
+    #: The doctor's sketch: the PET-CT follows the MRI and its report, and the
+    #: joint clinic cannot sit before the PET-CT it exists to discuss.
+    (StepKind.RADIOLOGY_REPORT, StepKind.PET_CT),
+    (StepKind.PET_CT, StepKind.JOINT_CLINIC),
+    (StepKind.REVIEW_CONSULT, StepKind.JOINT_CLINIC),
     (StepKind.PATHOLOGY_REPORT, StepKind.REVIEW_CONSULT),
     (StepKind.RADIOLOGY_REPORT, StepKind.REVIEW_CONSULT),
     (StepKind.BLOODS, StepKind.REVIEW_CONSULT),
+    #: Back on the spine via the review consult, not the joint clinic: the
+    #: joint clinic is a leaf. Putting it between the review and treatment
+    #: would make every patient in the cohort — none of whom have one on
+    #: record — fail `missing_prerequisite_kinds` and go UNCERTAIN.
     (StepKind.REVIEW_CONSULT, StepKind.TREATMENT),
     #: Maintenance is a single repeating `StepKind`; the 21-day recurrence and
     #: the per-dose echo gate are computed by `planner.tools`, not by edges.
@@ -41,6 +50,10 @@ CO_LOCATABLE: tuple[frozenset[StepKind], ...] = (
     frozenset({StepKind.CONSULT, StepKind.BLOODS}),
     frozenset({StepKind.BIOPSY, StepKind.BLOODS}),
     frozenset({StepKind.SCAN, StepKind.REVIEW_CONSULT}),
+    #: The pair the brief's option B turns on: the MRI at 8 am and the PET-CT
+    #: at 2 pm the same afternoon, one visit instead of two.
+    frozenset({StepKind.SCAN, StepKind.PET_CT}),
+    frozenset({StepKind.REVIEW_CONSULT, StepKind.JOINT_CLINIC}),
     frozenset({StepKind.BLOODS, StepKind.REVIEW_CONSULT}),
     frozenset({StepKind.MAINTENANCE_DOSE, StepKind.ECHO_REVIEW}),
 )

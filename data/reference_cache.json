@@ -1,0 +1,355 @@
+{
+  "schema": 1,
+  "written_at": "2026-10-03T05:18:13.408084+00:00",
+  "note": "Fetched from the named services; not authored by hand. Re-run `make fetch-reference` to refresh.",
+  "facts": [
+    {
+      "key": "geocode:Balasore|India",
+      "value": {
+        "lat": 21.5006421,
+        "lon": 86.919884,
+        "display_name": "Balasore, Station Road, Baleshwar, Baleshwar (M), Baleshwar, Odisha, 756001, India"
+      },
+      "provider": "nominatim",
+      "source_url": "https://nominatim.openstreetmap.org/search?q=Balasore%2C+India&format=json&limit=1",
+      "fetched_at": "2026-10-03T05:17:14.275024+00:00",
+      "response_hash": "83d33c19fff807e01d6a9b496c63908eaee041c2fa2fa88135dc67ecab777235"
+    },
+    {
+      "key": "geocode:Cuttack|India",
+      "value": {
+        "lat": 20.4686,
+        "lon": 85.8792,
+        "display_name": "Cuttack, Cuttack (M.Corp.) P.S, Cuttack, Odisha, 753001, India"
+      },
+      "provider": "nominatim",
+      "source_url": "https://nominatim.openstreetmap.org/search?q=Cuttack%2C+India&format=json&limit=1",
+      "fetched_at": "2026-10-03T05:17:15.760978+00:00",
+      "response_hash": "07c0ed8e6ca24c9ff55b0cfe1ce446128f79fce962590ca1496335250fdc773c"
+    },
+    {
+      "key": "geocode:Darbhanga|India",
+      "value": {
+        "lat": 26.0829899,
+        "lon": 86.0324951,
+        "display_name": "Darbhanga, Bihar, India"
+      },
+      "provider": "nominatim",
+      "source_url": "https://nominatim.openstreetmap.org/search?q=Darbhanga%2C+India&format=json&limit=1",
+      "fetched_at": "2026-10-03T05:17:18.520806+00:00",
+      "response_hash": "92ad95f6bfa8e2a9cbc3215fb0d1d7d546948449ea2e312edbd21f1b385ecf24"
+    },
+    {
+      "key": "geocode:Gaya|India",
+      "value": {
+        "lat": 24.7964355,
+        "lon": 85.0079563,
+        "display_name": "Gaya, Gaya Town C.D.Block, Gaya, Bihar, 823001, India"
+      },
+      "provider": "nominatim",
+      "source_url": "https://nominatim.openstreetmap.org/search?q=Gaya%2C+India&format=json&limit=1",
+      "fetched_at": "2026-10-03T05:17:20.600281+00:00",
+      "response_hash": "686f3a1bf4b9b1293083bc0d30a6491ff3ae77211385d18b7c78181b35c1ae16"
+    },
+    {
+      "key": "geocode:Gorakhpur|India",
+      "value": {
+        "lat": 26.6677977,
+        "lon": 83.3642334,
+        "display_name": "Gorakhpur, Uttar Pradesh, India"
+      },
+      "provider": "nominatim",
+      "source_url": "https://nominatim.openstreetmap.org/search?q=Gorakhpur%2C+India&format=json&limit=1",
+      "fetched_at": "2026-10-03T05:17:22.501576+00:00",
+      "response_hash": "91ffde760e17f294180c3dded46ce3f83913d58eb2c95a5627901c877bfe96bb"
+    },
+    {
+      "key": "geocode:Mumbai|India",
+      "value": {
+        "lat": 19.054999,
+        "lon": 72.8692035,
+        "display_name": "Mumbai, Mumbai Suburban District, Maharashtra, 400051, India"
+      },
+      "provider": "nominatim",
+      "source_url": "https://nominatim.openstreetmap.org/search?q=Mumbai%2C+India&format=json&limit=1",
+      "fetched_at": "2026-10-03T05:17:32.423069+00:00",
+      "response_hash": "dbd6669c9cf283c78e5595e41e665899331ec0d8291b386e23dc3611e047ed29"
+    },
+    {
+      "key": "geocode:Murshidabad|India",
+      "value": {
+        "lat": 24.1745993,
+        "lon": 88.2721335,
+        "display_name": "Murshidabad, Murshidabad Jiaganj, Murshidabad, West Bengal, 742149, India"
+      },
+      "provider": "nominatim",
+      "source_url": "https://nominatim.openstreetmap.org/search?q=Murshidabad%2C+India&format=json&limit=1",
+      "fetched_at": "2026-10-03T05:17:24.335684+00:00",
+      "response_hash": "0164ce918fd807be29cfc7d30dde4fb1dda712286fce24c573e8af6845286602"
+    },
+    {
+      "key": "geocode:Muzaffarpur|India",
+      "value": {
+        "lat": 26.1482548,
+        "lon": 85.3316097,
+        "display_name": "Muzaffarpur, Bihar, India"
+      },
+      "provider": "nominatim",
+      "source_url": "https://nominatim.openstreetmap.org/search?q=Muzaffarpur%2C+India&format=json&limit=1",
+      "fetched_at": "2026-10-03T05:17:34.556477+00:00",
+      "response_hash": "084d71562dcf4b90f93cc4a26c936fddc9e17eab75f364327f4507de937b1626"
+    },
+    {
+      "key": "geocode:Nadia|India",
+      "value": {
+        "lat": 23.4847374,
+        "lon": 88.5567067,
+        "display_name": "Nadia, West Bengal, India"
+      },
+      "provider": "nominatim",
+      "source_url": "https://nominatim.openstreetmap.org/search?q=Nadia%2C+India&format=json&limit=1",
+      "fetched_at": "2026-10-03T05:17:25.717076+00:00",
+      "response_hash": "167b7a353126aa6d281a53b24e248915f9f470312564731a49de22498e152338"
+    },
+    {
+      "key": "geocode:Purnia|India",
+      "value": {
+        "lat": 25.7758723,
+        "lon": 87.4087667,
+        "display_name": "Purnia, Bihar, India"
+      },
+      "provider": "nominatim",
+      "source_url": "https://nominatim.openstreetmap.org/search?q=Purnia%2C+India&format=json&limit=1",
+      "fetched_at": "2026-10-03T05:17:27.695169+00:00",
+      "response_hash": "154fe047fe5552ff807e6222dd3b40bca5533d5c91d6756325281f77a2e81574"
+    },
+    {
+      "key": "geocode:Samastipur|India",
+      "value": {
+        "lat": 25.7747885,
+        "lon": 85.8672314,
+        "display_name": "Samastipur, Bihar, India"
+      },
+      "provider": "nominatim",
+      "source_url": "https://nominatim.openstreetmap.org/search?q=Samastipur%2C+India&format=json&limit=1",
+      "fetched_at": "2026-10-03T05:17:29.759380+00:00",
+      "response_hash": "e0f5fd572798d98f02428482bd9eace5f7d5c667ae37db644cd0d20a59e9d143"
+    },
+    {
+      "key": "route:Balasore->Mumbai",
+      "value": {
+        "distance_km": 1741.8993,
+        "hours": 20.262944444444447,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/86.919884,21.5006421;72.8692035,19.054999?overview=false",
+      "fetched_at": "2026-10-03T05:17:36.327196+00:00",
+      "response_hash": "fd544ded2957f9799e3527aedbf5e0d3eb0ab8ffd88e6821d5099a6dd4f75b95"
+    },
+    {
+      "key": "route:Balasore->Muzaffarpur",
+      "value": {
+        "distance_km": 703.2213,
+        "hours": 8.417583333333333,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/86.919884,21.5006421;85.3316097,26.1482548?overview=false",
+      "fetched_at": "2026-10-03T05:17:38.589374+00:00",
+      "response_hash": "b6c5d36acf3073e42e4e70b7fcae01945e35f203a64741e505d644b4e679eeb4"
+    },
+    {
+      "key": "route:Cuttack->Mumbai",
+      "value": {
+        "distance_km": 1598.5121000000001,
+        "hours": 18.53261111111111,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/85.8792,20.4686;72.8692035,19.054999?overview=false",
+      "fetched_at": "2026-10-03T05:17:41.297815+00:00",
+      "response_hash": "f9331d796ef70e4df941f25cb316e56e448263dd369989ce3c7c0e4402236d5f"
+    },
+    {
+      "key": "route:Cuttack->Muzaffarpur",
+      "value": {
+        "distance_km": 812.7268,
+        "hours": 10.039361111111111,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/85.8792,20.4686;85.3316097,26.1482548?overview=false",
+      "fetched_at": "2026-10-03T05:17:43.792313+00:00",
+      "response_hash": "ad43576ad513794cdb7fc788ccfa4df6575a3502ae04ed0faea1059fc9a3500e"
+    },
+    {
+      "key": "route:Darbhanga->Mumbai",
+      "value": {
+        "distance_km": 1885.8245,
+        "hours": 22.090305555555556,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/86.0324951,26.0829899;72.8692035,19.054999?overview=false",
+      "fetched_at": "2026-10-03T05:17:45.512129+00:00",
+      "response_hash": "8181c11ac4d1b9749b8044616bd2327ef3be1de85bf5ba16127af30adba3a5d5"
+    },
+    {
+      "key": "route:Darbhanga->Muzaffarpur",
+      "value": {
+        "distance_km": 88.1558,
+        "hours": 1.3091388888888889,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/86.0324951,26.0829899;85.3316097,26.1482548?overview=false",
+      "fetched_at": "2026-10-03T05:17:47.885710+00:00",
+      "response_hash": "95c150c852902e942d3e9c1926e6f50664ec8302096d356898b2d6b1a9acde96"
+    },
+    {
+      "key": "route:Gaya->Mumbai",
+      "value": {
+        "distance_km": 1738.5638000000001,
+        "hours": 20.1795,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/85.0079563,24.7964355;72.8692035,19.054999?overview=false",
+      "fetched_at": "2026-10-03T05:17:49.602269+00:00",
+      "response_hash": "ebc1f6b7049b7194e1edf7d21d06dd61f4888fb621e8ac59305de759d8bef260"
+    },
+    {
+      "key": "route:Gaya->Muzaffarpur",
+      "value": {
+        "distance_km": 174.9506,
+        "hours": 2.143861111111111,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/85.0079563,24.7964355;85.3316097,26.1482548?overview=false",
+      "fetched_at": "2026-10-03T05:17:51.611752+00:00",
+      "response_hash": "10d1ac90c00b279f3014489038ab373c0029edc2209eebea9ecf8ad21b9e89ae"
+    },
+    {
+      "key": "route:Gorakhpur->Mumbai",
+      "value": {
+        "distance_km": 1658.7396,
+        "hours": 18.965,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/83.3642334,26.6677977;72.8692035,19.054999?overview=false",
+      "fetched_at": "2026-10-03T05:17:54.440976+00:00",
+      "response_hash": "bec34eaef29300f127371f6f125c44108e1d8ddd25c01eedbd889184d6f99bc4"
+    },
+    {
+      "key": "route:Gorakhpur->Muzaffarpur",
+      "value": {
+        "distance_km": 255.1359,
+        "hours": 3.0676666666666668,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/83.3642334,26.6677977;85.3316097,26.1482548?overview=false",
+      "fetched_at": "2026-10-03T05:17:56.179276+00:00",
+      "response_hash": "2c3ffbf4537cd2463850d594c9f148cb2f29ddcfb2a1395af911c38827bc856a"
+    },
+    {
+      "key": "route:Murshidabad->Mumbai",
+      "value": {
+        "distance_km": 2023.357,
+        "hours": 23.727027777777778,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/88.2721335,24.1745993;72.8692035,19.054999?overview=false",
+      "fetched_at": "2026-10-03T05:17:58.942006+00:00",
+      "response_hash": "4a82c0be14aeed1833e547a9f281a1a77d0cd942926e122f62d2a85c033680b1"
+    },
+    {
+      "key": "route:Murshidabad->Muzaffarpur",
+      "value": {
+        "distance_km": 468.36109999999996,
+        "hours": 5.6386666666666665,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/88.2721335,24.1745993;85.3316097,26.1482548?overview=false",
+      "fetched_at": "2026-10-03T05:18:00.688854+00:00",
+      "response_hash": "d7f4c2bd4ae400fbda836dede302722e48eafe5a4c2ece0b7a7eb86efba7e502"
+    },
+    {
+      "key": "route:Nadia->Mumbai",
+      "value": {
+        "distance_km": 1999.0245,
+        "hours": 23.39847222222222,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/88.5567067,23.4847374;72.8692035,19.054999?overview=false",
+      "fetched_at": "2026-10-03T05:18:02.939138+00:00",
+      "response_hash": "2715ff2060e04583054f7b5b06e3f61cd4d6f40f47346657e3bf7d2e44ca6d35"
+    },
+    {
+      "key": "route:Nadia->Muzaffarpur",
+      "value": {
+        "distance_km": 561.9834000000001,
+        "hours": 6.924361111111112,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/88.5567067,23.4847374;85.3316097,26.1482548?overview=false",
+      "fetched_at": "2026-10-03T05:18:04.681235+00:00",
+      "response_hash": "1799c8fa355837f151c429cbcfc3363636509fc308d38da05f9cd064e9d89c19"
+    },
+    {
+      "key": "route:Purnia->Mumbai",
+      "value": {
+        "distance_km": 2045.289,
+        "hours": 23.858472222222222,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/87.4087667,25.7758723;72.8692035,19.054999?overview=false",
+      "fetched_at": "2026-10-03T05:18:06.385529+00:00",
+      "response_hash": "b1bce057f729e49136ded643c7a93ba51378fc20f284146347304efa8e8eef0d"
+    },
+    {
+      "key": "route:Purnia->Muzaffarpur",
+      "value": {
+        "distance_km": 253.9924,
+        "hours": 3.489138888888889,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/87.4087667,25.7758723;85.3316097,26.1482548?overview=false",
+      "fetched_at": "2026-10-03T05:18:08.091938+00:00",
+      "response_hash": "ff8020e1ab8369cb3ed89dbdd4e806fda991d75599ee5ee25d5363e6f12e7148"
+    },
+    {
+      "key": "route:Samastipur->Mumbai",
+      "value": {
+        "distance_km": 1835.2045,
+        "hours": 21.51002777777778,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/85.8672314,25.7747885;72.8692035,19.054999?overview=false",
+      "fetched_at": "2026-10-03T05:18:09.807796+00:00",
+      "response_hash": "51a85becb28ef9044526910e18edfce16d2e4ef08e69b0c5c455888c4cec89fb"
+    },
+    {
+      "key": "route:Samastipur->Muzaffarpur",
+      "value": {
+        "distance_km": 83.16069999999999,
+        "hours": 1.1537777777777778,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/85.8672314,25.7747885;85.3316097,26.1482548?overview=false",
+      "fetched_at": "2026-10-03T05:18:12.302887+00:00",
+      "response_hash": "d4fa5b02823ab7a818b0cfe7fb6a11e3a6242394773d1a2537bf49bd5096adab"
+    }
+  ]
+}

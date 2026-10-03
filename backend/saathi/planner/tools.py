@@ -20,9 +20,16 @@ from ..domain.enums import (
     StepKind,
     StepStatus,
 )
-from ..domain.models import BlockedPrerequisite, CareStep, MaintenanceCycle, ReadinessWindow
+from ..domain.models import (
+    BlockedPrerequisite,
+    CareStep,
+    Disruption,
+    MaintenanceCycle,
+    ReadinessWindow,
+)
 from ..graph.dependencies import DependencyGraph
 from ..ledger.evidence import InMemoryEvidenceLedger
+from ..readiness.bookings import window_from_booking
 from ..readiness.conformal import ConformalReadinessPredictor
 
 #: Statuses that satisfy a prerequisite.
@@ -95,13 +102,26 @@ def readiness_for(
 def describe_blockers(
     unmet: Iterable[CareStep],
     predictor: ConformalReadinessPredictor,
+    disruptions: Iterable[Disruption] = (),
 ) -> tuple[BlockedPrerequisite, ...]:
+    """Why each unmet prerequisite is unmet, and when it is expected to clear.
+
+    Two different questions share this field. A pending *report* gets a
+    conformal forecast; a *booked* step gets the day the hospital committed to,
+    which is a record rather than a prediction. A booking the disruption list
+    has invalidated gets neither — `None` here is what drives the plan to
+    UNCERTAIN the moment a machine goes down.
+    """
+    active = tuple(disruptions)
     return tuple(
         BlockedPrerequisite(
             step_id=step.id,
             kind=step.kind,
             status=step.status,
-            expected_ready=readiness_for(step, predictor),
+            expected_ready=(
+                readiness_for(step, predictor)
+                or window_from_booking(step, active)
+            ),
         )
         for step in unmet
     )

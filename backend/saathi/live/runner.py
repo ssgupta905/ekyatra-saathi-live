@@ -487,6 +487,14 @@ class LiveRunner:
             await self._send_holding_message(patient_id, disruption, evidence)
 
         for patient_id in affected:
+            # Re-plan before re-solving. The booking on the broken resource has
+            # stopped counting as a date, so this drops the family to UNCERTAIN
+            # — which is the state the brief requires between the holding
+            # message and the approval: told first, no new date promised yet.
+            # Without it the console keeps showing a date the hospital can no
+            # longer honour, which is the one thing a holding message exists to
+            # prevent.
+            await self.plan_patient(patient_id)
             await self._resolve_disruption_for_patient(patient_id, disruption)
 
         await self.update_metrics()
@@ -804,24 +812,34 @@ class LiveRunner:
 
     # ---------------- planning ----------------
 
-    def _plan_sync(self, patient: Patient, steps: list, compose: bool) -> dict:
+    def _plan_sync(
+        self,
+        patient: Patient,
+        steps: list,
+        compose: bool,
+        disruptions: tuple = (),
+    ) -> dict:
+        # `disruptions` is passed in rather than read off the world: this runs
+        # on a worker thread and must not race the lock that owns it.
         return self.planner.plan_visit(
             patient=patient,
             steps=steps,
             target_kind=self.world.target_kind_for(patient.id),
             today=self.world.today,
             compose=compose,
+            disruptions=disruptions,
         )
 
-    def _plan_batch_sync(self, work: list[tuple[Patient, list]]) -> list[dict]:
-        return [self._plan_sync(patient, steps, False) for patient, steps in work]
+    def _plan_batch_sync(self, work: list[tuple[Patient, list]], disruptions: tuple) -> list[dict]:
+        return [self._plan_sync(patient, steps, False, disruptions) for patient, steps in work]
 
     async def plan_all(self) -> None:
+        disruptions = tuple(self.world.open_disruptions())
         work = [
             (patient, self.world.steps_for(patient.id)) for patient in self.world.patients()
         ]
         started = perf_counter()
-        results = await asyncio.to_thread(self._plan_batch_sync, work)
+        results = await asyncio.to_thread(self._plan_batch_sync, work, disruptions)
         batch_ms = (perf_counter() - started) * 1000
 
         changed: list[PlanRun] = []
@@ -877,8 +895,9 @@ class LiveRunner:
         if patient is None:
             return None
         steps = self.world.steps_for(patient_id)
+        disruptions = tuple(self.world.open_disruptions())
         before = self.ledger_size()
-        result = await asyncio.to_thread(self._plan_sync, patient, steps, False)
+        result = await asyncio.to_thread(self._plan_sync, patient, steps, False, disruptions)
         run = self._store(patient_id, result)
         self._bump("plan_runs")
 

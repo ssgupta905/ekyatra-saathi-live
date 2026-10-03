@@ -44,3 +44,4 @@ def filter_options(
     if cycle is None:
         return tuple(options)
     return tuple(o for o in options if echo_before_every_fourth_dose(o, cycle))
+
