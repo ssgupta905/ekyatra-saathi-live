@@ -1,0 +1,272 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>EKYATRA Saathi — Solution Note</title>
+<style>
+  @page { size: A4; margin: 17mm 16mm 15mm; }
+
+  :root {
+    --ink: #1a1a1c;
+    --ink-2: #3d3d40;
+    --ink-3: #6a6a6e;
+    --teal: #1c5f5a;
+    --brown: #9c5a24;
+    --rule: #d9d1c4;
+    --panel: #f7f3ec;
+    --panel-line: #e6ddcd;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: var(--sans); color: var(--ink);
+    font-size: 9.4pt; line-height: 1.5; -webkit-print-color-adjust: exact;
+  }
+
+  .toprule { height: 5px; background: var(--brown); margin: 0 0 16px; }
+
+  .kicker {
+    font-size: 7.4pt; font-weight: 700; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--brown); margin-bottom: 7px;
+  }
+  h1 { font-family: var(--serif); font-size: 25pt; margin: 0 0 3px; letter-spacing: -.01em; }
+  .lede { font-size: 10.4pt; color: var(--ink-2); margin: 0 0 2px; }
+  .byline { font-size: 8.2pt; color: var(--ink-3); margin: 0 0 18px; }
+
+  h2 {
+    font-family: var(--serif); font-size: 13.5pt; margin: 19px 0 7px;
+    padding-bottom: 3px; border-bottom: 1px solid var(--rule);
+  }
+  h3 { font-size: 9.6pt; margin: 13px 0 4px; color: var(--teal); }
+  p { margin: 0 0 7px; }
+  b, strong { font-weight: 650; }
+
+  ul { margin: 0 0 8px; padding-left: 15px; }
+  li { margin-bottom: 3.5px; }
+  li::marker { color: var(--ink-3); }
+
+  .stats { display: flex; gap: 0; border: 1px solid var(--rule); border-top: 3px solid var(--teal); margin: 11px 0 12px; }
+  .stat { flex: 1; padding: 9px 12px; border-right: 1px solid var(--rule); }
+  .stat:last-child { border-right: 0; }
+  .stat .n { font-family: var(--serif); font-size: 19pt; line-height: 1; color: var(--teal); }
+  .stat:nth-child(2) .n { color: var(--brown); }
+  .stat .l { font-size: 7.8pt; color: var(--ink-3); margin-top: 5px; line-height: 1.35; }
+
+  .panel { background: var(--panel); border: 1px solid var(--panel-line); padding: 11px 13px; margin: 11px 0; }
+  .panel h3 { margin-top: 0; }
+  .panel.brown { border-left: 3px solid var(--brown); }
+  .panel.teal { border-left: 3px solid var(--teal); }
+
+  .cols { display: flex; gap: 14px; }
+  .cols > * { flex: 1; }
+
+  table { width: 100%; border-collapse: collapse; margin: 9px 0 11px; font-size: 8.8pt; }
+  th {
+    text-align: left; font-size: 7.4pt; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 650; border-bottom: 1px solid var(--rule); padding: 0 8px 4px 0;
+  }
+  td { padding: 5px 8px 5px 0; border-bottom: 1px solid #efe9df; vertical-align: top; }
+  td:first-child { white-space: nowrap; }
+  .t { font-family: var(--mono); font-size: 8.2pt; color: var(--brown); font-weight: 600; }
+  code { font-family: var(--mono); font-size: 8.2pt; background: #f2efe9; padding: 0 3px; }
+
+  .flow { display: flex; gap: 6px; align-items: stretch; margin: 10px 0 4px; }
+  .fcol { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+  .fhead {
+    font-size: 6.9pt; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 700; text-align: center; margin-bottom: 1px;
+  }
+  .box { border: 1px solid var(--rule); padding: 6px 7px; font-size: 7.9pt; line-height: 1.3; }
+  .box b { display: block; font-size: 8.3pt; margin-bottom: 1px; }
+  .box.teal { background: #e8f0ef; border-color: #b9d2cf; }
+  .box.dark { background: var(--teal); border-color: var(--teal); color: #fff; }
+  .box.dark b { color: #fff; }
+  .box.brown { background: #faf0e6; border-color: #e8cfae; }
+  .cap { font-size: 7.6pt; color: var(--ink-3); margin: 5px 0 0; line-height: 1.4; }
+
+  .foot {
+    margin-top: auto; padding-top: 6px; border-top: 1px solid var(--rule);
+    font-size: 7.2pt; color: var(--ink-3);
+    display: flex; justify-content: space-between;
+  }
+  .page {
+    display: flex; flex-direction: column;
+    min-height: 252mm;
+    page-break-after: always;
+  }
+  .page:last-child { page-break-after: auto; }
+  .refs { font-size: 7.6pt; color: var(--ink-3); line-height: 1.45; }
+  .refs p { margin-bottom: 4px; }
+</style>
+
+<!-- ───────────────────────────── page 1 ───────────────────────────── -->
+<section class="page">
+  <div class="toprule"></div>
+  <div class="kicker">Health-a-thon 2026 · Cancer track · Patient / Caregiver · Patient follow-up &amp; continuity of care</div>
+  <h1>EKYATRA Saathi</h1>
+  <p class="lede">Readiness-driven visit planning that cuts wasted trips for families travelling for cancer care.</p>
+  <p class="byline">Solution note — what is built, how it was demonstrated, and how data is handled.</p>
+
+  <h2>1. The problem, and the mechanism</h2>
+  <div class="stats">
+    <div class="stat"><div class="n">60%</div><div class="l">of Tata Memorial Hospital's ~45,000 new patients a year come from outside Maharashtra [1]</div></div>
+    <div class="stat"><div class="n">75%+</div><div class="l">of gastric and pancreatic cancer patients studied at Tata Memorial travelled over 500 km [2]</div></div>
+    <div class="stat"><div class="n">83%</div><div class="l">faced catastrophic non-medical costs; mean ₹88,433 on travel, lodging and food [2]</div></div>
+  </div>
+  <p><b>The mechanism is the wasted trip.</b> A report is not ready. A consult is booked before the scan it needs. A return date is a guess. Each costs the family days of lodging, food and lost wages. Every department optimises its own queue; nobody counts the family's trips, because that cost appears in no hospital metric.</p>
+  <p>Saathi plans each visit so a family travels only when the visit can actually happen. One rule: <b>never travel for a step whose prerequisite is not ready.</b></p>
+
+  <h2>2. What is built</h2>
+  <p>A working system, not a mock-up: a planner, a language layer, a guard, an evidence ledger, live fact-fetching tools, and <b>two separate applications</b> — one for the family, one for the hospital.</p>
+
+  <div class="flow">
+    <div class="fcol"><div class="fhead">Inputs</div>
+      <div class="box"><b>ABDM · FHIR R4</b>report status only</div>
+      <div class="box"><b>Hospital feeds</b>slots, turnaround</div>
+      <div class="box"><b>Live tools</b>OSRM routing, Nominatim geocoding, lab and centre status — each answer carries its source</div>
+    </div>
+    <div class="fcol"><div class="fhead">Analysis</div>
+      <div class="box teal"><b>Dependency graph</b>care-step DAG, in process</div>
+      <div class="box teal"><b>Readiness window</b>split conformal prediction</div>
+      <div class="box teal"><b>Engagement monitor</b>PELT change-point</div>
+    </div>
+    <div class="fcol"><div class="fhead">Planner</div>
+      <div class="box dark"><b>Planner agent</b>LangGraph over typed tools. Places steps, counts nights and trips, ranks options.<br><br>The model never decides: it writes language and reads signals.</div>
+    </div>
+    <div class="fcol"><div class="fhead">Guard</div>
+      <div class="box dark"><b>Evidence ledger + clinical guard</b>append-only, hash-chained. Every outgoing message bound to a source record; clinical questions routed to a person, never answered.</div>
+    </div>
+    <div class="fcol"><div class="fhead">Delivery</div>
+      <div class="box brown"><b>Family app</b>one word, one date, in their language · voice in and out</div>
+      <div class="box brown"><b>Hospital app</b>worklist, pathway, approvals, audit trail</div>
+      <div class="box"><b>WhatsApp · IVR</b>to the caregiver</div>
+    </div>
+  </div>
+  <p class="cap">Figure 1. Status flows in from the left; every outgoing message passes the ledger and the guard before delivery. The two delivery surfaces are separate applications sharing one backend — they are never the same screen.</p>
+  <div class="foot"><span>EKYATRA Saathi · Health-a-thon 2026 · Cancer track · Solution note</span><span>1 / 6</span></div>
+</section>
+
+<section class="page">
+  <div class="cols">
+    <div class="panel teal">
+      <h3>Stack as built</h3>
+      <ul>
+        <li><b>Planner</b> — LangGraph over a typed tool registry; FastAPI; server-sent events.</li>
+        <li><b>Language</b> — Groq <code>gpt-oss-20b</code>, strict structured output; Claude bound identically as an alternate.</li>
+        <li><b>Speech</b> — Groq <code>whisper-large-v3-turbo</code>; system voices for read-aloud; Bhashini adapter in place.</li>
+        <li><b>Actors</b> — <code>gpt-oss-120b</code> writes what a caregiver would say: an input, never a decision.</li>
+        <li><b>Consoles</b> — React 18, Vite, strict TypeScript; three entry points.</li>
+      </ul>
+    </div>
+    <div class="panel brown">
+      <h3>Scope and safeguards</h3>
+      <p>Logistics only: status, dates, documents, directions. By design it does <b>not</b> diagnose, recommend treatment, provide clinical decision support, score clinical risk, interpret medical data or give clinical advice. Any clinical question is routed to the care team.</p>
+      <h3>Languages</h3>
+      <p>Hindi, Bengali, Odia and English end to end — verdict, plan, conversation and voice. Choosing a language changes the family's <i>record</i>, not the view.</p>
+    </div>
+  </div>
+  <h2>3. The recorded demonstration</h2>
+  <p><code>saathi-autodemo-&lt;timestamp&gt;.mov</code> — 3 min 46 s, 1920×1080. A real browser drives both applications while they talk to the running backend. Chapter times below were measured from the recording.</p>
+
+  <table>
+    <tr><th style="width:52px">Time</th><th>What happens, and why it matters</th></tr>
+    <tr><td class="t">0:01</td><td><b>Both screens.</b> A family's phone in Gaya, Bihar and the hospital's screen in Mumbai, 1,771 km apart. Two applications, one backend.</td></tr>
+    <tr><td class="t">0:11</td><td><b>The hospital has a bad day.</b> Shambhu Prasad is booked for an MRI tomorrow; his family is about to start a twenty-hour journey. The radiology desk reports MRI-2 out of service — one tap, stating a fact, deciding nothing.<br>
+      Then the order that <i>is</i> the design: every affected family is told <b>not to travel before anything has worked out a new date</b>. Silence while a system thinks is the gap a family fills by getting on a bus. The planner re-runs, having fetched the journey from Gaya live — 1,739 km, roughly twenty hours by road. Options come back ranked by nights away and extra trips, with no score field anywhere; a navigator chooses. The phone changes, in Hindi, and reads itself aloud.</td></tr>
+    <tr><td class="t">1:24</td><td><b>The family speaks.</b> A real microphone capture goes to Whisper and returns Hindi text — <i>“what happens to the medicine if we cannot come?”</i> It is not sent yet: the words go back to the family to check, because a misheard date is not a mistake anyone downstream would catch. On send, the guard screens it — a logistics question gets an answer, a question about a result goes to a person.</td></tr>
+    <tr><td class="t">1:58</td><td><b>Their language.</b> The family asks for Bengali. The message is re-written and re-checked; every message from here on is Bengali. The older messages stay Hindi and say so — they <i>were</i> sent in Hindi, and the thread is the receipt for what this family was actually told.</td></tr>
+    <tr><td class="t">2:21</td><td><b>Why.</b> Every claim behind the decision and the source each one came from, over the hash-chained ledger rows underneath it.</td></tr>
+    <tr><td class="t">2:40</td><td><b>A second family.</b> Anita Devi, 90 km away, on maintenance — 17 doses, an echo before every fourth. Two things go wrong a week apart: the only echo cardiologist is called away, then the drug delivery is late. The ending is the point: the second disruption leaves the plan <b>better than the original</b> — one trip instead of two, two steps bundled into one day.</td></tr>
+    <tr><td class="t">3:33</td><td><b>What was real.</b> The families are synthetic. Everything else ran.</td></tr>
+  </table>
+  <div class="foot"><span>EKYATRA Saathi · Health-a-thon 2026 · Cancer track · Solution note</span><span>2 / 6</span></div>
+</section>
+
+<section class="page">
+  <div class="panel">
+    <h3>What is staged, precisely</h3>
+    <p>Only the <b>inputs a human would otherwise supply</b>: which button is pressed, and what the family asks. The spoken question is a synthesised clip presented to the browser as a capture device — from <code>getUserMedia</code> onward nothing knows the difference: a real recorder captures it, the real endpoint receives it, real transcription reads it.</p>
+    <p>Everything downstream is the system: the planner really re-runs, the routing tools really fetch, the model really writes each message, the guard really reads it, the ledger really grows. Two runs differ in wording because the model's output differs — identical frames every time would mean a video, not a run.</p>
+    <p>One limitation stated plainly: the screen recorder captures no audio track, so the read-aloud is visible in the film but not audible. It works; a live run is audible.</p>
+  </div>
+
+  <h2>4. Measured in the recorded run</h2>
+  <div class="stats">
+    <div class="stat"><div class="n">2</div><div class="l">families carried end to end, 10 beats, every one a real backend call</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">server errors; no message sent that the guard had not cleared</div></div>
+    <div class="stat"><div class="n">250</div><div class="l">tests passing with no credentials present at all</div></div>
+  </div>
+  <p>The honest counters from the run: one real speech-to-text call, one real language change with a live re-render, 56 planning runs, 24 journey-tool fetches, 7 rendered messages. A planner pass completes in single-digit milliseconds; a message render in roughly 0.4–0.9 s.</p>
+  <div class="foot"><span>EKYATRA Saathi · Health-a-thon 2026 · Cancer track · Solution note</span><span>3 / 6</span></div>
+</section>
+
+<!-- ───────────────────────────── page 3 ───────────────────────────── -->
+<section class="page">
+  <h2>5. How data is handled</h2>
+
+  <h3>No clinical content ever enters the system</h3>
+  <p>The ABDM ingest drops <code>conclusion</code>, <code>presentedForm</code> and <code>result</code> at the boundary. The internal pointer type has no field that <i>could</i> hold a finding. The family-facing endpoint has a closed key set — timing and status only — asserted by a test that fails if anyone adds a field to it. Saathi reads that a report exists and whether it is ready; it never reads what the report says.</p>
+
+  <h3>Every claim names its source, and the record cannot be quietly edited</h3>
+  <p>The evidence ledger is append-only and hash-chained, so a claim cannot be altered after a family has acted on it. It grows only when a fact <i>changes</i>, so a patient re-planned every simulated day does not bury the one entry that asserts something new. The console displays chain integrity from a real verification, not a badge.</p>
+
+  <h3>Fetched facts carry provenance; hospital policy is owned by the hospital</h3>
+  <p>Distances and journey times come from live routing and geocoding services and arrive with a source URL, a fetch time and a response hash. Facts about the <i>hospital</i> — lead times, slot rules, shift tolerances — are administrator-owned configuration that ships marked unconfirmed, so nobody mistakes a default for the hospital's policy.</p>
+  <div class="foot"><span>EKYATRA Saathi · Health-a-thon 2026 · Cancer track · Solution note</span><span>4 / 6</span></div>
+</section>
+
+<section class="page">
+  <h3>A booking is a fact; a forecast is a range</h3>
+  <p>A date the hospital has committed to is shown as one date and called confirmed. A prediction is shown as a calibrated interval and never dressed up as a promise. Where there are too few comparable cases to stand behind an interval, no interval is shown — a range the system cannot defend is worse than none.</p>
+
+  <h3>Consent is enforced at the point of reading, and refusals are logged</h3>
+  <p>Grants are scoped per record pointer and checked when data is read, not when it is requested. An access attempt without a grant is recorded as an attempt rather than silently dropped. The model follows the DPDP Act 2023 and ABDM consent artefacts.</p>
+
+  <h3>The record is not retroactively tidied</h3>
+  <p>Changing language changes what is written from that moment on. Past messages keep the language they were actually sent in and are labelled accordingly, because that thread is the only record of what the family was told. A no-op change costs neither a ledger row nor an API call.</p>
+
+  <h3>The guard fails closed</h3>
+  <p>A message that cannot be validated against the plan it came from is never sent. The family's screen says a person will call, rather than substituting text nobody approved. Outbound validation includes checking that the planned date is positively present in the message, in that language's own numerals.</p>
+
+  <h3>Reading causes nothing</h3>
+  <p>Opening a family's page does not plan, re-render or write. Ordering in the worklist follows from two visible facts — whether a decision is waiting, and how far the family would travel — not from a priority score; there is no field that could hold one.</p>
+  <div class="foot"><span>EKYATRA Saathi · Health-a-thon 2026 · Cancer track · Solution note</span><span>5 / 6</span></div>
+</section>
+
+<!-- ───────────────────────────── page 4 ───────────────────────────── -->
+<section class="page">
+  <div class="panel teal">
+    <h3>Operational posture</h3>
+    <ul>
+      <li><b>No credentials in the test path.</b> The suite blanks and then asserts the absence of API keys, proving the decision path never depends on an external service. If the network dies mid-demo, the planner, the guard and the ledger still work; only the wording falls back to templates.</li>
+      <li><b>Synthetic patients throughout.</b> No real patient data exists anywhere in the prototype. Pilot data would arrive via live ABDM and one hospital's status feed.</li>
+      <li><b>Secrets stay out of the repository.</b> API keys live in an ignored environment file and are never printed.</li>
+    </ul>
+  </div>
+
+  <h2>6. How we will measure it</h2>
+  <div class="cols">
+    <div>
+      <ul>
+        <li>Wasted trips avoided</li>
+        <li>Days the family spends in the city</li>
+        <li>Non-medical out-of-pocket cost avoided (₹)</li>
+        <li>Dropout after the first visit</li>
+      </ul>
+    </div>
+    <div>
+      <p style="font-size:8.4pt;color:#6a6a6e;margin:0">Prototype: synthetic patients with planted ground truth, so every claim the planner makes can be scored against what was actually true. Pilot: live ABDM data and one hospital's status feed, with the same scoring harness.</p>
+    </div>
+  </div>
+
+  <h2>References</h2>
+  <div class="refs">
+    <p>[1] C.S. Pramesh, Director, Tata Memorial Hospital, in “India Needs Cancer Care Outside its Big Cities”, Think Global Health, Oct 2022.</p>
+    <p>[2] IIPS and Tata Memorial Centre, “Financial burden due to distance traveled to access treatment from specialized cancer hospitals in public sector in India”, Journal of Cancer Policy, 2025.</p>
+    <p>[3] CROCODILE study group, “Catastrophic expenditure and treatment attrition in patients seeking comprehensive colorectal cancer treatment in India”, The Lancet Regional Health: Southeast Asia, 2022.</p>
+    <p>[4] People's Archive of Rural India, “Locked down with cancer on Mumbai footpaths”, Mar 2020.</p>
+    <p>[5] Bhashini APIs, available models for ASR, TTS and translation.</p>
+  </div>
+  <div class="foot"><span>EKYATRA Saathi · Health-a-thon 2026 · Cancer track · Solution note</span><span>6 / 6</span></div>
+</section>
