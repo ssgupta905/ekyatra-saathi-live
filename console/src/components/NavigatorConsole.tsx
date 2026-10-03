@@ -29,13 +29,16 @@ import { CohortPanel } from "./CohortPanel";
 import { AlertsPanel } from "./AlertsPanel";
 import { OperatorControls } from "./OperatorControls";
 import { PendingApprovalsQueue } from "./PendingApprovalsQueue";
+import { PlanBoardList } from "./PlanBoardList";
 import { SegmentedControl } from "./SegmentedControl";
 import { CiteContext, Notice } from "../ui/primitives";
 import type { Citation } from "../App";
 
-type View = "journey" | "cohort" | "disruptions";
+type View = "journey" | "boards" | "cohort" | "disruptions";
 const VIEW_OPTIONS = [
   { value: "journey" as const, label: "One family" },
+  // The board view answers the question a list cannot: what is waiting on what.
+  { value: "boards" as const, label: "Plan boards" },
   { value: "cohort" as const, label: "Cohort" },
   { value: "disruptions" as const, label: "Disruptions" },
 ];
@@ -167,7 +170,14 @@ export function NavigatorConsole({
 
   return (
     <CiteContext.Provider value={focusCitation}>
-      <SegmentedControl options={VIEW_OPTIONS} value={view} onChange={setView} aria-label="View" />
+      <div className="view-tabs">
+        <SegmentedControl
+          options={VIEW_OPTIONS}
+          value={view}
+          onChange={setView}
+          aria-label="View"
+        />
+      </div>
 
       <div className="layout">
         <CallList
@@ -226,6 +236,8 @@ export function NavigatorConsole({
             ) : (
               !error && <Notice tone="calm">Loading families…</Notice>
             )
+          ) : view === "boards" ? (
+            <PlanBoardList revision={world.cohortRevision} />
           ) : view === "cohort" ? (
             <div className="widget-grid">
               <div className="span-2">

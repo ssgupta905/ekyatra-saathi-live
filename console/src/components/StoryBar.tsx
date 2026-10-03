@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { stories as storyApi, type Story, type StoryState } from "../lib/api";
 import { Chip } from "../ui/primitives";
 import { Play, Spark, StepForward } from "../ui/icons";
@@ -28,6 +28,7 @@ export function StoryBar({
   revision: number;
 }) {
   const [state, setState] = useState<StoryState | null>(null);
+  const barRef = useRef<HTMLDivElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +40,28 @@ export function StoryBar({
   }, []);
 
   useEffect(refresh, [refresh, revision]);
+
+  // Publish this bar's real height so anything else that sticks can clear it.
+  // Hardcoding the number means guessing at rendered padding, and a guess that
+  // is six pixels out puts the navigator's own tabs underneath the bar.
+  useLayoutEffect(() => {
+    const node = barRef.current;
+    const root = document.documentElement;
+    if (!node) {
+      root.style.removeProperty("--story-bar-h");
+      return;
+    }
+    const publish = () => {
+      root.style.setProperty("--story-bar-h", `${Math.ceil(node.offsetHeight)}px`);
+    };
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--story-bar-h");
+    };
+  }, [state]);
 
   if (!state || !state.scripted || state.stories.length === 0) return null;
 
@@ -61,7 +84,7 @@ export function StoryBar({
   };
 
   return (
-    <div className="story-bar">
+    <div className="story-bar" ref={barRef}>
       <div className="segmented" role="group" aria-label="Story">
         {state.stories.map((story) => (
           <button

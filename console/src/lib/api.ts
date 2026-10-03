@@ -415,3 +415,62 @@ export const stories = {
       body: JSON.stringify({ action: "advance_story", story }),
     }),
 };
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Plan boards
+   --------------------------------------------------------------------------
+   The pathway layout is computed by the backend, not here. Depth through the
+   dependency DAG is a property of the care pathway, and a console that worked
+   it out for itself would be a second place the hospital's model of care
+   lived — two copies that drift.
+   ────────────────────────────────────────────────────────────────────────── */
+
+export interface BoardNode {
+  id: string;
+  kind: string;
+  label: string;
+  status: StepStatus;
+  scheduled_for: string | null;
+  completed_on: string | null;
+  result_available_on: string | null;
+  queue: string | null;
+  resource_id: string | null;
+  column: number;
+  satisfied: boolean;
+  is_target: boolean;
+  is_blocking: boolean;
+  /** Report steps: a result arrives, nobody travels for it. */
+  no_journey: boolean;
+  depends_on: string[];
+}
+
+export interface BoardWait {
+  step_id: string;
+  label: string;
+  status: string;
+  earliest: string | null;
+  latest: string | null;
+  calibrated: boolean;
+  /** A booking is a fact, not a forecast — don't quote coverage at it. */
+  from_booking: boolean;
+}
+
+export interface PlanBoard {
+  patient: { id: string; district: string; language: string; distance_km: number };
+  decision: Decision | null;
+  travel_on: string | null;
+  rationale: string;
+  target_step_id: string | null;
+  computed_at: string | null;
+  plan_ms: number | null;
+  sim_date: string;
+  nodes: BoardNode[];
+  edges: { from: string; to: string }[];
+  columns: number;
+  waiting_on: BoardWait[];
+}
+
+export const boards = {
+  one: (patientId: string) => request<PlanBoard>(`/patients/${patientId}/board`),
+  all: () => request<{ boards: PlanBoard[]; sim_date: string }>("/boards"),
+};

@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .api.board import router as board_router
 from .api.deps import build_state
 from .api.live import router as live_router
 from .api.live import start_runner, stop_runner
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(router, prefix="/api")
     app.include_router(live_router, prefix="/api")
+    app.include_router(board_router, prefix="/api")
     return app
 
 

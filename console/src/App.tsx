@@ -170,7 +170,10 @@ export default function App() {
         revision={world.cohortRevision}
       />
 
-      <div key={showStory ? "story" : persona.id} className="panel-fade">
+      <div
+        key={showStory ? "story" : persona.id}
+        className={story ? "panel-fade has-story" : "panel-fade"}
+      >
         {body()}
       </div>
     </>

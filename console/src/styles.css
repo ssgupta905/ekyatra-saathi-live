@@ -66,6 +66,10 @@
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
 
   --header-h: 60px;
+  /* The story bar sits between the chrome and the content, so anything
+     else that sticks has to clear both or it slides underneath. */
+  --story-bar-h: 44px;
+  --chrome-h: calc(var(--header-h) + var(--story-bar-h));
 
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
     "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
@@ -172,8 +176,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 
 .rail {
   position: sticky;
-  top: var(--header-h);
-  height: calc(100vh - var(--header-h));
+  top: var(--chrome-h);
+  height: calc(100vh - var(--chrome-h));
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -1216,6 +1220,7 @@ tbody tr:hover > td { background: var(--sunken); }
 .story-bar {
   position: sticky;
   top: var(--header-h);
+  min-height: var(--story-bar-h);
   z-index: 30;
   display: flex;
   align-items: center;
@@ -1370,3 +1375,121 @@ tbody tr:hover > td { background: var(--sunken); }
   letter-spacing: 0;
   display: block;
 }
+
+/* ============================================================================
+   Plan boards
+   ----------------------------------------------------------------------------
+   A pathway is a branching thing and a list hides the branch. Columns are depth
+   through the dependency graph, so reading left to right is reading the order
+   care happens in. Same tokens as everywhere else.
+   ========================================================================== */
+
+.board-scroll { overflow-x: auto; padding: 4px 20px 16px; }
+
+.board-columns { display: grid; gap: 14px; align-items: start; min-width: min-content; }
+.board-column { display: flex; flex-direction: column; gap: 10px; }
+
+.board-step {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  padding: 10px 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+}
+.board-step.done { background: var(--sunken); border-color: var(--line-soft); }
+.board-step.blocking { border-color: rgba(168, 84, 0, 0.35); box-shadow: 0 1px 2px rgba(168, 84, 0, 0.08); }
+.board-step.target { border-color: var(--blue-400); box-shadow: 0 0 0 3px var(--blue-100); }
+.board-step.no-journey { border-style: dashed; }
+
+.board-step .bs-head { display: flex; align-items: center; gap: 7px; }
+.board-step .bs-glyph { display: flex; color: var(--ink-4); }
+.board-step .bs-glyph.go { color: var(--go); }
+.board-step .bs-glyph.wait { color: var(--wait); }
+.board-step .bs-glyph.critical { color: var(--critical); }
+.board-step .bs-label { font-size: 13.5px; font-weight: 590; letter-spacing: -0.008em; }
+.board-step .bs-when { font-size: 11.5px; color: var(--ink-3); letter-spacing: 0; margin-top: 3px; }
+.board-step .bs-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+
+.board-waiting {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: baseline;
+  padding: 11px 20px;
+  border-top: 1px solid var(--line-soft);
+  background: var(--sunken);
+  font-size: 12.5px;
+  color: var(--ink-3);
+  letter-spacing: 0;
+}
+.board-waiting .bw-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-4);
+}
+.board-waiting .bw-item strong { color: var(--ink); font-weight: 590; }
+
+.board-stamp {
+  padding: 10px 20px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 12px;
+  color: var(--ink-4);
+  letter-spacing: 0;
+}
+
+/* ── the list of boards ─────────────────────────────────────────────────── */
+
+.board-list { display: flex; flex-direction: column; }
+
+.board-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) auto auto;
+  gap: 14px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+  padding: 11px 20px;
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: 0;
+  transition: background 140ms var(--ease);
+}
+.board-row:last-child { border-bottom: 0; }
+.board-row:hover { background: var(--sunken); }
+.board-row[aria-pressed="true"] { background: var(--blue-100); }
+.board-row .br-id { font-size: 13px; font-weight: 590; }
+.board-row .br-where { font-size: 12.5px; color: var(--ink-3); }
+
+/* A one-line read of the whole pathway: filled is behind them, amber is in the
+   way, ringed is the visit being decided. */
+.board-row .br-flow { display: inline-flex; gap: 4px; align-items: center; }
+.board-row .br-pip {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--line);
+  flex: none;
+}
+.board-row .br-pip.done { background: var(--go); }
+.board-row .br-pip.blocking { background: var(--wait); }
+.board-row .br-pip.target { box-shadow: 0 0 0 2.5px var(--blue-200); background: var(--blue-500); }
+
+/* The navigator's own view tabs stay reachable under the story bar rather than
+   scrolling away — a board you cannot get back to is a board you stop using. */
+.view-tabs {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 25;
+  padding: 8px 20px;
+  background: var(--frost);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--line-soft);
+}
+.has-story .view-tabs { top: var(--chrome-h); }
