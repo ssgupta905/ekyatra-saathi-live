@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
-import { api, type Patient } from "./lib/api";
+import { useCallback, useEffect, useState } from "react";
+import { api, stories as storyApi, type Patient, type Story } from "./lib/api";
 import { useLiveWorld } from "./lib/live";
 import { useIdentity } from "./lib/identity";
 import { ClockBar } from "./components/ClockBar";
+import { StoryBar } from "./components/StoryBar";
+import { StoryView } from "./components/StoryView";
+import { StoryScorecard } from "./components/StoryScorecard";
 import { PersonaSwitcher } from "./components/PersonaSwitcher";
 import { NavigatorConsole } from "./components/NavigatorConsole";
 import { DeskConsole } from "./components/DeskConsole";
@@ -25,6 +28,29 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [persona, choosePersona] = useIdentity();
   const world = useLiveWorld();
+  const [storyId, setStoryId] = useState<string | null>(null);
+  const [story, setStory] = useState<Story | null>(null);
+  // The story view is the brief's headline presentation mode; the persona
+  // screens are the alternative it offers. Both read the same event stream.
+  const [showStory, setShowStory] = useState(true);
+
+  const refreshStory = useCallback(() => {
+    storyApi
+      .state()
+      .then((state) => {
+        if (!state.scripted || state.stories.length === 0) {
+          setStory(null);
+          return;
+        }
+        const chosen =
+          state.stories.find((s) => s.id === storyId) ?? state.stories[0];
+        setStory(chosen);
+        setStoryId((current) => current ?? chosen.id);
+      })
+      .catch(() => setStory(null));
+  }, [storyId]);
+
+  useEffect(refreshStory, [refreshStory, world.cohortRevision]);
 
   useEffect(() => {
     api
@@ -34,6 +60,14 @@ export default function App() {
   }, []);
 
   const body = () => {
+    if (showStory && story) {
+      return (
+        <main className="stage">
+          <StoryView story={story} events={world.events} />
+          <StoryScorecard story={story} events={world.events} />
+        </main>
+      );
+    }
     switch (persona.role) {
       case "navigator":
         return (
@@ -95,6 +129,27 @@ export default function App() {
           <ClockBar snapshot={world.snapshot} connected={world.connected} />
         )}
 
+        {story && (
+          <div className="segmented" role="group" aria-label="How to watch">
+            <button
+              type="button"
+              aria-pressed={showStory}
+              onClick={() => setShowStory(true)}
+              title="Family, agents and hospital side by side"
+            >
+              Story view
+            </button>
+            <button
+              type="button"
+              aria-pressed={!showStory}
+              onClick={() => setShowStory(false)}
+              title={`Work as ${persona.name}`}
+            >
+              Sign in as one person
+            </button>
+          </div>
+        )}
+
         <span className="spacer" />
 
         <PersonaSwitcher persona={persona} onChoose={choosePersona} />
@@ -105,7 +160,17 @@ export default function App() {
         </span>
       </header>
 
-      <div key={persona.id} className="panel-fade">
+      <StoryBar
+        selected={storyId}
+        onSelect={(id) => {
+          setStoryId(id);
+          setShowStory(true);
+        }}
+        onAdvanced={refreshStory}
+        revision={world.cohortRevision}
+      />
+
+      <div key={showStory ? "story" : persona.id} className="panel-fade">
         {body()}
       </div>
     </>

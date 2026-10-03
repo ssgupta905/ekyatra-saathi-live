@@ -52,22 +52,39 @@ async def test_advancing_shambhus_story_raises_a_disruption_then_approves(script
     await runner.plan_all()
 
     first = await runner.advance_story("shambhu")
-    assert first["beat"] == "disrupt"
+    # A beat now describes itself — action, who acts, which lane, the brief's
+    # clock time — so the story bar can say what is about to happen before
+    # anybody presses it.
+    assert first["beat"]["action"] == "disrupt"
+    assert first["beat"]["lane"] == "desk"
     kinds = [e.kind for e in scripted_state.bus.recent(200)]
     assert EventKind.DISRUPTION_RAISED in kinds
     assert EventKind.HOLDING_MESSAGE_SENT in kinds
 
-    second = await runner.advance_story("shambhu")
-    assert second["beat"] == "approve_first_option"
-    assert second["done"] is True
+    # Run the story out. The approval is no longer the second beat: the family
+    # writes back in between, which is the point of the beat after the first.
+    beats = [first]
+    while not beats[-1]["done"]:
+        beats.append(await runner.advance_story("shambhu"))
+
+    actions = [b["beat"]["action"] for b in beats]
+    assert actions == ["disrupt", "inbound", "approve_first_option", "confirm"]
+    assert beats[-1]["done"] is True
+
+    # The order that matters: the family is reached before anyone decides.
+    kinds = [e.kind for e in scripted_state.bus.recent(400)]
+    assert kinds.index(EventKind.HOLDING_MESSAGE_SENT) < kinds.index(
+        EventKind.APPROVAL_RECORDED
+    ), "a decision was taken before the family had been told anything"
 
 
 async def test_advancing_anitas_story_fires_the_echo_gate_exactly_at_dose_13(scripted_state):
     runner = scripted_state.runner
     await runner.plan_all()
 
-    for _ in range(4):
-        await runner.advance_story("anita")
+    done = False
+    while not done:
+        done = (await runner.advance_story("anita"))["done"]
 
     approvals = [a for a in runner.approvals if a.patient_id == ANITA_ID]
     assert len(approvals) == 2

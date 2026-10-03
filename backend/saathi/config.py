@@ -58,7 +58,9 @@ class Settings(BaseSettings):
     #: Seed the two scripted demo families (`synthetic/scripted.py`) alongside
     #: the cohort, and enable `advance_story`. Off by default: the existing
     #: 50-family demo is unaffected unless this is explicitly turned on.
-    live_scripted: bool = False
+    #: The brief's two stories are the demo, so they are the default world.
+    #: The 50-family cohort is still underneath them for scoring.
+    live_scripted: bool = True
 
     # --- readiness model ---
     #: 1 - alpha is the coverage guarantee on readiness windows. 0.1 means we

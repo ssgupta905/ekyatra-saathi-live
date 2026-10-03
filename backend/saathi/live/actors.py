@@ -331,6 +331,11 @@ class GroqActors:
                 "when to come. Ask about that only."
             ),
             "chasing": "You have not heard anything for days and you are anxious about it.",
+            "process_question": (
+                "Something you were booked for has been disturbed. You want to know "
+                "what happens to it now and when you will be told — not what it means "
+                "medically. Ask about the arrangement."
+            ),
         }.get(kind or "", "Write whatever is most on your mind right now.")
 
         prompt = (

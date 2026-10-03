@@ -369,3 +369,49 @@ export const live = {
       body: JSON.stringify({ nodes }),
     }),
 };
+
+/* ──────────────────────────────────────────────────────────────────────────
+   The two stories
+   --------------------------------------------------------------------------
+   Rendered from the backend's own beat list rather than a copy of the brief's
+   table, so what the story bar promises and what Advance actually runs cannot
+   drift apart.
+   ────────────────────────────────────────────────────────────────────────── */
+
+export type StoryLane = "desk" | "agents" | "decision" | "family";
+
+export interface StoryBeat {
+  action: string;
+  actor: string;
+  lane: StoryLane;
+  headline: string;
+  /** The brief's narration time. Durations shown elsewhere are measured. */
+  at: string;
+  patient_id: string | null;
+}
+
+export interface Story {
+  id: string;
+  title: string;
+  who: string;
+  patient_id: string;
+  total: number;
+  index: number;
+  done: boolean;
+  next: StoryBeat | null;
+  beats: StoryBeat[];
+}
+
+export interface StoryState {
+  stories: Story[];
+  scripted: boolean;
+}
+
+export const stories = {
+  state: () => request<StoryState>("/story"),
+  advance: (story: string) =>
+    request<LiveSnapshot & { story_beat?: unknown }>("/live/control", {
+      method: "POST",
+      body: JSON.stringify({ action: "advance_story", story }),
+    }),
+};

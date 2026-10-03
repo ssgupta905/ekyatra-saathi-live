@@ -9,6 +9,7 @@ on stage; they are still synthetic, same as the rest of this module's cohort.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, timedelta
 
 from ..domain.enums import DisruptionKind, Language, Role, StepKind, StepStatus
@@ -156,34 +157,153 @@ def build_scripted_cohort(
 #: them. Each beat calls a real `LiveRunner` method — see
 #: `LiveRunner.advance_story` — so advancing the story is a sequencing
 #: convenience over genuine code paths, never a scripted fake of them.
-SHAMBHU_BEATS: tuple[tuple[str, dict], ...] = (
-    ("disrupt", {
-        "resource_id": MRI_2, "kind": DisruptionKind.MACHINE_DOWN, "days": 4,
-        "note": "MRI-2 out of service",
-    }),
-    ("approve_first_option", {
-        "patient_id": SHAMBHU_ID, "role": Role.NAVIGATOR, "approved_by": "Seema Kamble",
-    }),
+#:
+#: `actor` and `lane` are presentation only: they tell the story view which
+#: row to drop the dot into and whose screen to point at. They do not affect
+#: what runs. The clock times in `at` are the brief's narration; the durations
+#: the console shows are the real measured ones.
+
+
+@dataclass(frozen=True)
+class StoryBeat:
+    """One press of Advance."""
+
+    action: str
+    params: dict
+    #: Who does this, as the brief's table names them.
+    actor: str
+    #: Which lane of the story view: family | agents | desk | decision.
+    lane: str
+    #: One line a presenter can read out.
+    headline: str
+    #: The brief's clock time for this beat, for narration only.
+    at: str = ""
+
+    def to_json(self) -> dict:
+        return {
+            "action": self.action,
+            "actor": self.actor,
+            "lane": self.lane,
+            "headline": self.headline,
+            "at": self.at,
+            "patient_id": self.params.get("patient_id"),
+        }
+
+
+SHAMBHU_BEATS: tuple[StoryBeat, ...] = (
+    StoryBeat(
+        action="disrupt",
+        params={
+            "resource_id": MRI_2, "kind": DisruptionKind.MACHINE_DOWN, "days": 4,
+            "note": "MRI-2 out of service",
+        },
+        actor="Imran Shaikh · radiology desk",
+        lane="desk",
+        headline="MRI-2 marked out of service. Every family booked on it is held.",
+        at="7:40 am",
+    ),
+    StoryBeat(
+        action="inbound",
+        params={"patient_id": SHAMBHU_ID, "kind": "chasing"},
+        actor="Vikash · caregiver",
+        lane="family",
+        headline="Vikash writes back. The caregiver actor composes it; the guard reads it.",
+        at="7:44 am",
+    ),
+    StoryBeat(
+        action="approve_first_option",
+        params={
+            "patient_id": SHAMBHU_ID, "role": Role.NAVIGATOR, "approved_by": "Seema Kamble",
+        },
+        actor="Seema Kamble · navigator",
+        lane="decision",
+        headline="Seema approves the option that keeps the stay the same length.",
+        at="9:04 am",
+    ),
+    StoryBeat(
+        action="confirm",
+        params={"patient_id": SHAMBHU_ID},
+        actor="Vikash, then Shambhu",
+        lane="family",
+        headline="Vikash confirms; Shambhu hears the new plan on the voice line.",
+        at="9:20 am",
+    ),
 )
 
-ANITA_BEATS: tuple[tuple[str, dict], ...] = (
-    ("disrupt", {
-        "resource_id": ECHO_CARDIOLOGIST, "kind": DisruptionKind.STAFF_UNAVAILABLE, "days": 7,
-        "note": "the hub's only echo cardiologist is on emergency leave",
-    }),
-    ("approve_first_option", {
-        "patient_id": ANITA_ID, "role": Role.DOCTOR, "approved_by": "Dr Amrita Sinha",
-    }),
-    ("disrupt", {
-        "resource_id": DAY_CARE_PHARMACY, "kind": DisruptionKind.STOCK_DELAY, "days": 7,
-        "note": "Monday's drug delivery has not arrived",
-    }),
-    ("approve_first_option", {
-        "patient_id": ANITA_ID, "role": Role.DOCTOR, "approved_by": "Dr Amrita Sinha",
-    }),
+ANITA_BEATS: tuple[StoryBeat, ...] = (
+    StoryBeat(
+        action="disrupt",
+        params={
+            "resource_id": ECHO_CARDIOLOGIST, "kind": DisruptionKind.STAFF_UNAVAILABLE,
+            "days": 7, "note": "the hub's only echo cardiologist is on emergency leave",
+        },
+        actor="Sanjay Verma · cardiology desk",
+        lane="desk",
+        headline="The hub's only echo cardiologist is away. Cover starts in a week.",
+        at="4:10 pm",
+    ),
+    StoryBeat(
+        action="inbound",
+        params={"patient_id": ANITA_ID, "kind": "process_question"},
+        actor="Priya · daughter",
+        lane="family",
+        headline="Priya writes in. Whatever she asks, the guard decides what may be answered.",
+        at="4:22 pm",
+    ),
+    StoryBeat(
+        action="approve_first_option",
+        params={"patient_id": ANITA_ID, "role": Role.DOCTOR, "approved_by": "Dr Amrita Sinha"},
+        actor="Dr Amrita Sinha · oncologist",
+        lane="decision",
+        headline="Dr Sinha picks the option that keeps the same lab for comparison.",
+        at="5:52 pm",
+    ),
+    StoryBeat(
+        action="disrupt",
+        params={
+            "resource_id": DAY_CARE_PHARMACY, "kind": DisruptionKind.STOCK_DELAY,
+            "days": 7, "note": "Monday's drug delivery has not arrived",
+        },
+        actor="Rekha Kumari · day-care desk",
+        lane="desk",
+        headline="The drug delivery has not arrived. Next supply is a week out.",
+        at="11:20 am",
+    ),
+    StoryBeat(
+        action="approve_first_option",
+        params={"patient_id": ANITA_ID, "role": Role.DOCTOR, "approved_by": "Dr Amrita Sinha"},
+        actor="Dr Amrita Sinha · oncologist",
+        lane="decision",
+        headline="Two trips become one: the dose moves to the day she is already at the hub.",
+        at="12:05 pm",
+    ),
+    StoryBeat(
+        action="confirm",
+        params={"patient_id": ANITA_ID},
+        actor="Manoj, then Priya",
+        lane="family",
+        headline="Manoj presses 1 on the voice call; Priya replies on WhatsApp.",
+        at="12:14 pm",
+    ),
 )
 
-STORY_BEATS: dict[str, tuple[tuple[str, dict], ...]] = {
+STORY_BEATS: dict[str, tuple[StoryBeat, ...]] = {
     "shambhu": SHAMBHU_BEATS,
     "anita": ANITA_BEATS,
 }
+
+#: What a presenter picks between, for the story bar.
+STORIES: tuple[dict, ...] = (
+    {
+        "id": "shambhu",
+        "title": "The MRI machine fails on the morning of the scan",
+        "patient_id": SHAMBHU_ID,
+        "who": "Shambhu Prasad · Gaya, Bihar · before treatment",
+    },
+    {
+        "id": "anita",
+        "title": "The hub's only echo doctor is called away",
+        "patient_id": ANITA_ID,
+        "who": "Anita Devi · Samastipur, Bihar · maintenance",
+    },
+)

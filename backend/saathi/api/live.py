@@ -136,6 +136,20 @@ async def control(request: Request, body: ControlRequest) -> dict:
     return runner.snapshot()
 
 
+# ---------------------------------------------------------------- the stories
+
+
+@router.get("/story")
+async def story_state(request: Request) -> dict:
+    """Which stories exist, where each has got to, and who acts next.
+
+    The console's story bar renders from this rather than carrying its own copy
+    of the brief's table, so the beats cannot drift out of step with what
+    `advance_story` will actually run.
+    """
+    return _runner(request).story_state()
+
+
 # ---------------------------------------------------------------- the desk
 
 

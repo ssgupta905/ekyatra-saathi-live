@@ -788,7 +788,8 @@ class LiveRunner:
         if index >= len(beats):
             return {"story": story, "done": True, "beat": None}
 
-        action, params = beats[index]
+        beat = beats[index]
+        action, params = beat.action, beat.params
         if action == "disrupt":
             await self.raise_disruption(
                 resource_id=params["resource_id"],
@@ -806,9 +807,53 @@ class LiveRunner:
                     approved_by_role=params["role"],
                     approved_by=params["approved_by"],
                 )
+        elif action == "inbound":
+            # No text here on purpose. The beat names the worry; the caregiver
+            # actor writes the message in the family's own language, and the
+            # real guard reads whatever it produced. Scripting the words would
+            # make the guard's verdict a foregone conclusion, which is the one
+            # thing this moment exists to demonstrate.
+            await self.receive_inbound(params["patient_id"], kind=params.get("kind"))
+        elif action == "confirm":
+            pending = [
+                c for c in self.ivr_confirmations.values()
+                if c.patient_id == params["patient_id"] and not c.confirmed
+            ]
+            for confirmation in pending:
+                await self.confirm_ivr(confirmation.id, "1")
 
         self.story_progress[story] = index + 1
-        return {"story": story, "done": index + 1 >= len(beats), "beat": action}
+        return {
+            "story": story,
+            "done": index + 1 >= len(beats),
+            "beat": beat.to_json(),
+            "index": index,
+        }
+
+    def story_state(self) -> dict:
+        """Where each story has got to, and who acts next.
+
+        The story bar reads this to say "next: Seema approves" before anybody
+        presses anything — the brief's table, rendered from the beats rather
+        than retyped into the console.
+        """
+        from ..synthetic.scripted import STORIES, STORY_BEATS
+
+        stories = []
+        for meta in STORIES:
+            beats = STORY_BEATS[meta["id"]]
+            index = self.story_progress.get(meta["id"], 0)
+            stories.append(
+                {
+                    **meta,
+                    "total": len(beats),
+                    "index": index,
+                    "done": index >= len(beats),
+                    "next": beats[index].to_json() if index < len(beats) else None,
+                    "beats": [b.to_json() for b in beats],
+                }
+            )
+        return {"stories": stories, "scripted": self.world.scripted}
 
     # ---------------- planning ----------------
 
