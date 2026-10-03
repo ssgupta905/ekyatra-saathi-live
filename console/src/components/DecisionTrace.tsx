@@ -177,7 +177,7 @@ export function DecisionTrace({
           <Chip>narration unavailable · {unavailable}</Chip>
         </div>
       )}
-      <div className="trace">
+      <div className="trace trace-cap">
         {nodes.map((n) => (
           <Node key={n.id} node={n} queue={queueOf(n.id)} narration={narration?.[n.id]} />
         ))}

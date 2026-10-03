@@ -1493,3 +1493,137 @@ tbody tr:hover > td { background: var(--sunken); }
   border-bottom: 1px solid var(--line-soft);
 }
 .has-story .view-tabs { top: var(--chrome-h); }
+
+/* ============================================================================
+   Compact pass
+   ----------------------------------------------------------------------------
+   The console had become a document you scroll rather than a tool you work in:
+   every card fully expanded on first paint, two screens deep before anyone had
+   clicked anything. Nothing is removed below — the density changes and the
+   standing explanations fold away until asked for.
+   ========================================================================== */
+
+.stage { padding: 14px 20px 36px; gap: 12px; }
+
+.card > header { padding: 11px 16px 0; }
+.card > header h2 { font-size: 13.5px; }
+.card .body { padding: 10px 16px 13px; }
+.card .body.flush { padding: 10px 0 0; }
+
+/* The caveat, folded. One line closed, the full note open. */
+.card-note {
+  border-top: 1px solid var(--line-soft);
+  background: var(--sunken);
+}
+.card-note > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+  cursor: pointer;
+  padding: 7px 16px;
+  font-size: 11.5px;
+  color: var(--ink-4);
+  letter-spacing: 0;
+  user-select: none;
+}
+.card-note > summary::-webkit-details-marker { display: none; }
+.card-note > summary:hover { color: var(--ink-3); }
+.card-note[open] > summary { color: var(--ink-3); padding-bottom: 2px; }
+.card-note .note-body {
+  padding: 0 16px 11px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  letter-spacing: 0;
+  max-width: 86ch;
+}
+
+/* Tall cards scroll inside themselves rather than pushing the page down. */
+.card .body.capped,
+.trace-cap { max-height: 46vh; overflow-y: auto; }
+.feed { max-height: 190px; }
+.widget-scroll { max-height: 300px; }
+.widget-scroll.tall { max-height: 340px; }
+.widget-scroll.short { max-height: 220px; }
+
+/* The decision trace: same information, less air. */
+.node { padding: 0 16px; }
+.node .content { padding-bottom: 12px; }
+.node .claim { font-size: 13.5px; margin-top: 2px; }
+.node .because { font-size: 12.5px; margin-top: 4px; }
+.node .sources { margin-top: 6px; }
+.rule { margin-top: 7px; padding: 8px 11px; font-size: 12px; }
+.window-chart { margin-top: 9px; }
+
+/* The hero: the verdict stays large, everything around it tightens. */
+.hero { padding: 16px 18px 15px; }
+.hero .verdict .word { font-size: 34px; }
+.hero .plain { font-size: 15px; margin-top: 7px; }
+.hero .facts { margin-top: 10px; }
+.hero .stamp { margin-top: 10px; }
+
+/* Boards and journeys. */
+.board-scroll { padding: 4px 16px 12px; }
+.board-step { padding: 8px 10px; }
+.board-step .bs-tags { margin-top: 6px; }
+.board-waiting { padding: 9px 16px; }
+.leg { padding: 9px 16px; }
+.feed-row { padding: 6px 16px; }
+.desk-row { padding: 11px 16px; }
+.story-legend-row { padding: 7px 16px; }
+.tile { padding: 13px 16px; }
+.tile .tval { font-size: 24px; }
+.hero-figure .hf-val { font-size: 42px; }
+thead th { padding: 7px 16px; }
+tbody td { padding: 8px 16px; }
+
+/* Use the width that is already there. The stage was capped at 1020px on a
+   1470px window, so two columns of content were being stacked into one and the
+   page paid for it in scrolling. */
+.stage { max-width: 1560px; }
+
+.split { display: grid; gap: 12px; align-items: start; }
+.split-main, .split-aside { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+@media (min-width: 1180px) {
+  .split { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+  /* The chosen detail stays in view while you read the answer beside it. */
+  .split-aside { position: sticky; top: calc(var(--chrome-h) + 44px); }
+}
+
+/* ── what the system is doing, right now ────────────────────────────────── */
+
+.agent-status {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 20px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--sunken);
+  font-size: 12.5px;
+  letter-spacing: 0;
+  min-width: 0;
+}
+.agent-status.busy { background: var(--blue-100); }
+.agent-status .as-glyph { color: var(--ink-4); display: flex; align-self: center; }
+.agent-status.busy .as-glyph { color: var(--blue-600); animation: as-pulse 1s var(--ease) infinite; }
+@keyframes as-pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }
+.agent-status .as-task { font-weight: 590; color: var(--ink); white-space: nowrap; }
+.agent-status .as-detail {
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+.agent-status .as-clock { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; }
+.agent-status .as-more { font-size: 11px; color: var(--ink-4); white-space: nowrap; }
+
+/* The cohort scorecard is dense reference; give it less air than a card you act on. */
+.hero-figure { padding: 14px 16px 4px; }
+.hero-figure .hf-label { font-size: 12.5px; margin-top: 6px; max-width: 52ch; }
+.compare { gap: 9px; }
+.compare .crow { grid-template-columns: 180px minmax(0, 1fr); }
+.widget-grid { gap: 12px; }
+.widget-grid-col { gap: 12px; }

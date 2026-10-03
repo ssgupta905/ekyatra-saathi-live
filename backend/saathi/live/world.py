@@ -136,6 +136,9 @@ class LiveWorld:
     n_patients: int = 50
     n_watched: int = 8
     auto_confirm_ticks: int = 2
+    #: Where the treating hospital physically is, so a journey to it can be
+    #: fetched. Configuration, not a constant: a pilot elsewhere changes it.
+    hospital_place: str = "Mumbai"
     #: True when this world carries the two scripted demo families alongside
     #: the cohort — see `synthetic/scripted.py`. Drives resource registration
     #: and maintenance-cycle setup in `_load_cohort`.

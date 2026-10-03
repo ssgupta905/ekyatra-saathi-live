@@ -34,7 +34,10 @@ export type EventKind =
   | "options.ready"
   | "approval.recorded"
   | "confirmation.received"
-  | "process.answered";
+  | "process.answered"
+  | "agent.started"
+  | "agent.finished"
+  | "tool.called";
 
 export interface WorldEvent {
   kind: EventKind;
@@ -71,6 +74,9 @@ const ALL_KINDS: EventKind[] = [
   "approval.recorded",
   "confirmation.received",
   "process.answered",
+  "agent.started",
+  "agent.finished",
+  "tool.called",
 ];
 
 /** Events that change something about one family's page. */
@@ -101,8 +107,19 @@ const COHORT_KINDS = new Set<EventKind>([
   "approval.recorded",
 ]);
 
+export interface WorkItem {
+  id: string;
+  task: string;
+  detail: string;
+  patientId: string | null;
+  startedAt: number;
+}
+
 export interface LiveWorldState {
   connected: boolean;
+  /** Work announced and not yet finished. A console that only shows finished
+   *  work looks frozen while the system is busy. */
+  working: WorkItem[];
   snapshot: LiveSnapshot | null;
   events: WorldEvent[];
   /** Bumped when an event names this family — put it in a fetch effect's deps. */
@@ -117,6 +134,7 @@ export function useLiveWorld(): LiveWorldState {
   const [events, setEvents] = useState<WorldEvent[]>([]);
   const [revisions, setRevisions] = useState<Record<string, number>>({});
   const [cohortRevision, setCohortRevision] = useState(0);
+  const [working, setWorking] = useState<WorkItem[]>([]);
   const sourceRef = useRef<EventSource | null>(null);
 
   const refresh = useCallback(() => {
@@ -156,6 +174,24 @@ export function useLiveWorld(): LiveWorldState {
         }
         setEvents((previous) => [event, ...previous].slice(0, EVENT_WINDOW));
 
+        // In-flight work, so the console can say what is happening rather than
+        // leaving a navigator watching an unchanged screen.
+        const workId = event.payload.work_id as string | undefined;
+        if (event.kind === "agent.started" && workId) {
+          setWorking((previous) => [
+            ...previous,
+            {
+              id: workId,
+              task: event.summary,
+              detail: (event.payload.detail as string) ?? "",
+              patientId: event.patient_id,
+              startedAt: Date.now(),
+            },
+          ]);
+        } else if (event.kind === "agent.finished" && workId) {
+          setWorking((previous) => previous.filter((item) => item.id !== workId));
+        }
+
         if (event.patient_id && PATIENT_KINDS.has(event.kind)) {
           const id = event.patient_id;
           setRevisions((previous) => ({ ...previous, [id]: (previous[id] ?? 0) + 1 }));
@@ -193,8 +229,8 @@ export function useLiveWorld(): LiveWorldState {
   );
 
   return useMemo(
-    () => ({ connected, snapshot, events, revisionFor, cohortRevision, refresh }),
-    [connected, snapshot, events, revisionFor, cohortRevision, refresh],
+    () => ({ connected, snapshot, events, working, revisionFor, cohortRevision, refresh }),
+    [connected, snapshot, events, working, revisionFor, cohortRevision, refresh],
   );
 }
 
@@ -223,6 +259,9 @@ export const EVENT_TONE: Record<EventKind, "go" | "wait" | "critical" | "info" |
   "approval.recorded": "go",
   "confirmation.received": "go",
   "process.answered": "info",
+  "agent.started": "info",
+  "agent.finished": "neutral",
+  "tool.called": "info",
 };
 
 export const EVENT_LABEL: Record<EventKind, string> = {
@@ -246,6 +285,9 @@ export const EVENT_LABEL: Record<EventKind, string> = {
   "approval.recorded": "Approval",
   "confirmation.received": "Confirmed",
   "process.answered": "Process",
+  "agent.started": "Working",
+  "agent.finished": "Done",
+  "tool.called": "Tool",
 };
 
 /** Milliseconds, rendered the way a navigator reads them. */

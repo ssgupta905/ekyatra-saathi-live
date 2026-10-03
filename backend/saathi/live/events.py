@@ -57,6 +57,16 @@ class EventKind:
     CONFIRMATION_RECEIVED = "confirmation.received"
     #: A process-only answer was sent in reply to an inbound question.
     PROCESS_ANSWERED = "process.answered"
+    #: Work has begun and has not finished. Published *before* the work, so a
+    #: console can show that something is happening rather than leaving a user
+    #: watching an unchanged screen and guessing.
+    AGENT_STARTED = "agent.started"
+    #: The same work, finished, carrying what it actually cost.
+    AGENT_FINISHED = "agent.finished"
+    #: A fact source was consulted — see `tools/`. Carries the claim, the
+    #: provider and the measured latency, so a number on screen can be traced
+    #: back to the call that produced it.
+    TOOL_CALLED = "tool.called"
 
 
 @dataclass(frozen=True)

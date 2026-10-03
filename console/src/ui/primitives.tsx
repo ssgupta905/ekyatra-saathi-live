@@ -4,7 +4,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Decision } from "../lib/api";
-import { CheckCircle, Chevron, Clock, Question, Stop } from "./icons";
+import { CheckCircle, Chevron, Clock, Info, Question, Stop } from "./icons";
 
 /* ── card ─────────────────────────────────────────────────────────────────── */
 
@@ -36,7 +36,18 @@ export function Card({
         </header>
       )}
       <div className={flush ? "body flush" : "body"}>{children}</div>
-      {note && <div className="card-note">{note}</div>}
+      {note && (
+        // Kept, but folded. These notes are the standing caveat a reader should
+        // carry away, and they were costing sixty pixels of permanent height on
+        // every card — which is how a tool turns into a document you scroll.
+        <details className="card-note">
+          <summary>
+            <Info size={12} />
+            why this is here
+          </summary>
+          <div className="note-body">{note}</div>
+        </details>
+      )}
     </section>
   );
 }

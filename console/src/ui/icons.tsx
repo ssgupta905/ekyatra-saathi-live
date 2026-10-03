@@ -156,3 +156,11 @@ export const Speaker = ({ size = 14, className }: P) => (
     <path d="M13.2 7.6a3.4 3.4 0 0 1 0 4.8" />
   </svg>
 );
+
+export const Info = ({ size = 13, className }: P) => (
+  <svg {...box(size)} className={className}>
+    <circle cx="10" cy="10" r="7.6" />
+    <path d="M10 9.2v4.4" />
+    <path d="M10 6.6h.01" strokeWidth="2.2" />
+  </svg>
+);

@@ -200,7 +200,12 @@ export function NavigatorConsole({
 
           {view === "journey" ? (
             selected ? (
-              <>
+              // Two columns on a wide screen: the answer and the brief on the
+              // left, the detail you chose on the right. Stacking these was
+              // costing most of a second screen while 450px of the window sat
+              // empty beside them.
+              <div className="split">
+                <div className="split-main">
                 <CallBrief patientId={selected.id} revision={patientRevision} />
                 <DecisionHero
                   response={plan}
@@ -208,6 +213,8 @@ export function NavigatorConsole({
                   targetKind={targetKind}
                   justChanged={justChanged}
                 />
+                </div>
+                <div className="split-aside">
                 <SegmentedControl
                   options={DETAIL_TABS}
                   value={detailTab}
@@ -232,7 +239,8 @@ export function NavigatorConsole({
                     <EvidenceLedger ledger={ledger} focused={cited} />
                   )}
                 </div>
-              </>
+                </div>
+              </div>
             ) : (
               !error && <Notice tone="calm">Loading families…</Notice>
             )
@@ -251,7 +259,12 @@ export function NavigatorConsole({
                 <DeskQueue queue={desk} onConfirmed={refreshCohort} onSelect={openForPatient} />
               </div>
               <div className="widget-grid-col">
-                <CohortPanel metrics={metrics} />
+                {/* The scorecard is reference, not a thing you act on — it
+                    scrolls inside itself rather than pushing the queue you do
+                    act on off the bottom of the screen. */}
+                <div className="widget-scroll tall">
+                  <CohortPanel metrics={metrics} />
+                </div>
                 <div className="widget-scroll short">
                   <AlertsPanel alerts={alerts} onSelect={openForPatient} />
                 </div>

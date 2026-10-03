@@ -24,6 +24,7 @@ from ..live.world import LiveWorld
 from ..planner.graph import VisitPlanner
 from ..readiness.conformal import ConformalReadinessPredictor
 from ..synthetic.generate import SyntheticCohort
+from ..tools import build_toolbox
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,7 @@ def build_state(settings: Settings | None = None, today: date | None = None) -> 
 
     bus = EventBus()
     alerts: list = []
+    toolbox = build_toolbox(settings)
     runner = LiveRunner(
         world=world,
         bus=bus,
@@ -113,8 +115,13 @@ def build_state(settings: Settings | None = None, today: date | None = None) -> 
         ledger=ledger,
         alerts=alerts,
         actors=build_actors(settings, world),
+        tools=toolbox,
         inbound_every_seconds=settings.live_inbound_every_seconds,
     )
+    # Close the loop the toolbox was built for: every fact it fetches becomes a
+    # ledger row and an event with its measured latency. Without this the tools
+    # work and nobody can see that they did.
+    toolbox.on_result = runner.on_tool_result
 
     return AppState(
         settings=settings,

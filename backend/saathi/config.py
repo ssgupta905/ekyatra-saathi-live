@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     groq_model: str = "openai/gpt-oss-20b"
     #: Actors write prose rather than fill a template, so they get more room.
     groq_actor_model: str = "openai/gpt-oss-120b"
+    #: Multilingual speech-to-text. For many of these families voice is not
+    #: a convenience, it is the only channel that works.
+    whisper_model: str = "whisper-large-v3-turbo"
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     claude_model: str = "claude-opus-5"
 

@@ -206,12 +206,26 @@ class LiveRunner:
     #: Set when Groq credentials are present. Every use is guarded; with it
     #: unset the world still ticks and every decision is still made.
     actors: object | None = None
+    #: Fact sources — journeys, resource status, lab queues, entitlements.
+    #: Every call is timed, written to the ledger and published, so a figure on
+    #: screen can be traced back to the call that produced it.
+    tools: object | None = None
     #: Seconds of real time between caregiver messages. Actors are the only
     #: unbounded cost in the loop, so their cadence is explicit.
     inbound_every_seconds: float = 15.0
 
+    #: Work that has started and not finished, keyed by id. Published so a
+    #: console shows that something is happening instead of leaving a navigator
+    #: watching an unchanged screen and guessing whether it is broken.
+    active_work: dict[str, dict] = field(default_factory=dict)
+
     plans: dict[str, PlanRun] = field(default_factory=dict)
     inbound: list[InboundRecord] = field(default_factory=list)
+    #: Everything actually sent to a family, in the order they received it.
+    #: Kept because "the family hears first" is a claim about what reached a
+    #: phone, and an event saying a message was published is not the same as a
+    #: record of what it said.
+    outbound: list[dict] = field(default_factory=list)
     metrics: dict = field(default_factory=dict)
     counters: dict[str, int] = field(default_factory=dict)
     #: Ranked options awaiting a human, keyed by patient id — one pending
@@ -226,6 +240,7 @@ class LiveRunner:
     _inbound_task: asyncio.Task | None = None
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     _rng: random.Random = field(default_factory=lambda: random.Random(7))
+    _work_seq: int = 0
 
     # ---------------- lifecycle ----------------
 
@@ -249,6 +264,72 @@ class LiveRunner:
                     await task
         self._task = None
         self._inbound_task = None
+
+    @contextlib.asynccontextmanager
+    async def working(self, task: str, *, patient_id: str | None = None, detail: str = ""):
+        """Announce a piece of work, run it, then say what it cost.
+
+        The `started` event is the point. A system that only reports finished
+        work looks frozen while it is busy, and a navigator cannot tell a slow
+        re-plan from a dead console. Saying "re-planning six families" before
+        the six families are re-planned costs one event and removes the doubt.
+        """
+        work_id = f"w{self._work_seq}"
+        self._work_seq += 1
+        entry = {
+            "id": work_id,
+            "task": task,
+            "detail": detail,
+            "patient_id": patient_id,
+            "started_at": datetime.now(UTC).isoformat(),
+        }
+        self.active_work[work_id] = entry
+        self.bus.publish(
+            EventKind.AGENT_STARTED,
+            self.world.today.isoformat(),
+            patient_id=patient_id,
+            summary=task,
+            work_id=work_id,
+            detail=detail,
+        )
+        started = perf_counter()
+        try:
+            yield entry
+        finally:
+            self.active_work.pop(work_id, None)
+            self.bus.publish(
+                EventKind.AGENT_FINISHED,
+                self.world.today.isoformat(),
+                patient_id=patient_id,
+                summary=task,
+                duration_ms=(perf_counter() - started) * 1000,
+                work_id=work_id,
+            )
+
+    def on_tool_result(self, result) -> None:
+        """Called by the toolbox for every fact it fetches.
+
+        Two things happen and both matter: the claim becomes a ledger row, so a
+        number on a screen has a source a navigator can open; and an event is
+        published with the measured latency, so the console shows the lookup
+        happening rather than the answer simply appearing.
+        """
+        self.ledger.record_once(
+            patient_id=getattr(result, "patient_id", "") or "cohort",
+            source=result.source,
+            source_record_id=result.source_record_id,
+            claim=result.claim,
+            metadata={"tool": result.tool, "provider": result.provider},
+        )
+        self.bus.publish(
+            EventKind.TOOL_CALLED,
+            self.world.today.isoformat(),
+            summary=result.claim,
+            duration_ms=result.duration_ms,
+            tool=result.tool,
+            provider=result.provider,
+        )
+        self._bump(f"tool:{result.tool}")
 
     def _publish_state(self) -> None:
         self.bus.publish(
@@ -482,9 +563,13 @@ class LiveRunner:
         The ordering here is literal and load-bearing: nothing computes a new
         date before every affected family has already been told not to travel.
         """
-        for patient_id in affected:
-            evidence = self._record_disruption_fact(patient_id, disruption)
-            await self._send_holding_message(patient_id, disruption, evidence)
+        async with self.working(
+            f"Telling {len(affected)} famil{'y' if len(affected) == 1 else 'ies'} not to travel",
+            detail="before any new date is worked out",
+        ):
+            for patient_id in affected:
+                evidence = self._record_disruption_fact(patient_id, disruption)
+                await self._send_holding_message(patient_id, disruption, evidence)
 
         for patient_id in affected:
             # Re-plan before re-solving. The booking on the broken resource has
@@ -533,6 +618,13 @@ class LiveRunner:
             message = render_holding_message(
                 disruption, patient_id, language, channel, evidence
             )
+            self._record_outbound(
+                patient_id,
+                kind="holding",
+                body=message.body,
+                language=language.value,
+                channel=channel.value,
+            )
             self.bus.publish(
                 EventKind.HOLDING_MESSAGE_SENT,
                 self.world.today.isoformat(),
@@ -545,7 +637,13 @@ class LiveRunner:
                 self._open_ivr_confirmation(patient_id, message.body)
 
     def _enumerate_options_sync(
-        self, patient: Patient, steps: list, disruption: Disruption, target_kind: StepKind, cycle
+        self,
+        patient: Patient,
+        steps: list,
+        disruption: Disruption,
+        target_kind: StepKind,
+        cycle,
+        round_trip_hours: float | None = None,
     ) -> tuple[PlanOption, ...]:
         direct = options_module.enumerate_candidates(
             patient, steps, disruption, target_kind, self.planner.graph,
@@ -568,10 +666,27 @@ class LiveRunner:
         target_kind = self.world.target_kind_for(patient_id)
         cycle = self.world.maintenance_cycles.get(patient_id)
 
+        # How long this family's round trip is decides whether waiting in the
+        # city beats going home — the difference between Shambhu's forty hours
+        # and Anita's two. Fetched rather than inferred from kilometres, and
+        # the lookup shows up in the activity strip with its own latency.
+        async with self.working(
+            f"Looking up the journey from {patient.home_district}",
+            patient_id=patient_id,
+            detail=f"to {self.world.hospital_place}",
+        ):
+            round_trip = await asyncio.to_thread(self.journey_hours, patient)
+
         started = perf_counter()
-        candidates = await asyncio.to_thread(
-            self._enumerate_options_sync, patient, steps, disruption, target_kind, cycle
-        )
+        async with self.working(
+            "Working out the options",
+            patient_id=patient_id,
+            detail="each one judged by the same rule as the live plan",
+        ):
+            candidates = await asyncio.to_thread(
+                self._enumerate_options_sync,
+                patient, steps, disruption, target_kind, cycle, round_trip,
+            )
         elapsed = (perf_counter() - started) * 1000
 
         if len(candidates) <= 1:
@@ -878,13 +993,33 @@ class LiveRunner:
     def _plan_batch_sync(self, work: list[tuple[Patient, list]], disruptions: tuple) -> list[dict]:
         return [self._plan_sync(patient, steps, False, disruptions) for patient, steps in work]
 
+    def journey_hours(self, patient) -> float | None:
+        """Round-trip travel time for this family, fetched and cached.
+
+        Feeds `HospitalPolicy.gap_days`, which decides whether a family waits in
+        the city between visits or goes home — the difference between Shambhu's
+        40-hour round trip and Anita's two-hour one. Returns None when no
+        journey is on record, and the policy then falls back to its cautious
+        default rather than assuming anybody lives nearby.
+        """
+        if self.tools is None:
+            return None
+        result = self.tools.run(
+            lambda: self.tools.geo.journey(patient.home_district, self.world.hospital_place)
+        )
+        return result.value.round_trip_hours if result else None
+
     async def plan_all(self) -> None:
         disruptions = tuple(self.world.open_disruptions())
         work = [
             (patient, self.world.steps_for(patient.id)) for patient in self.world.patients()
         ]
         started = perf_counter()
-        results = await asyncio.to_thread(self._plan_batch_sync, work, disruptions)
+        async with self.working(
+            f"Re-planning {len(work)} families",
+            detail="walking the care-step graph for each one",
+        ):
+            results = await asyncio.to_thread(self._plan_batch_sync, work, disruptions)
         batch_ms = (perf_counter() - started) * 1000
 
         changed: list[PlanRun] = []
@@ -1006,9 +1141,14 @@ class LiveRunner:
             return
 
         started = perf_counter()
-        message = await asyncio.to_thread(
-            layer.render, run.plan, patient.language, Channel.WHATSAPP, self.ledger
-        )
+        async with self.working(
+            f"Writing in {LANGUAGE_NAMES.get(patient.language, '')}",
+            patient_id=patient_id,
+            detail="rendered from the plan, then checked against it",
+        ):
+            message = await asyncio.to_thread(
+                layer.render, run.plan, patient.language, Channel.WHATSAPP, self.ledger
+            )
         elapsed = (perf_counter() - started) * 1000
         run.message = message
         run.render_ms = elapsed
@@ -1016,6 +1156,17 @@ class LiveRunner:
         self._bump("renders")
 
         language = LANGUAGE_NAMES.get(patient.language, patient.language.value)
+        self._record_outbound(
+            patient_id,
+            kind="plan",
+            body=message.body,
+            language=patient.language.value,
+            channel=Channel.WHATSAPP.value,
+            held=message.routed_to_care_team,
+            reason=message.routing_reason,
+            rendered_by=run.rendered_by,
+            duration_ms=elapsed,
+        )
         if message.routed_to_care_team:
             self.bus.publish(
                 EventKind.MESSAGE_HELD,
@@ -1184,6 +1335,37 @@ class LiveRunner:
         )
 
     # ---------------- helpers ----------------
+
+    def _record_outbound(
+        self,
+        patient_id: str,
+        *,
+        kind: str,
+        body: str,
+        language: str,
+        channel: str,
+        held: bool = False,
+        reason: str | None = None,
+        rendered_by: str | None = None,
+        duration_ms: float | None = None,
+    ) -> None:
+        """Keep what was sent, so the family's own screen can show it back."""
+        self.outbound.append(
+            {
+                "id": f"out-{patient_id}-{len(self.outbound)}",
+                "patient_id": patient_id,
+                "kind": kind,
+                "body": body,
+                "language": language,
+                "channel": channel,
+                "held": held,
+                "reason": reason,
+                "rendered_by": rendered_by,
+                "duration_ms": duration_ms,
+                "sim_date": self.world.today.isoformat(),
+                "sent_at": datetime.now(UTC).isoformat(),
+            }
+        )
 
     def ledger_size(self) -> int:
         return self.ledger.size()

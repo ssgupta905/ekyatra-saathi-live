@@ -4,6 +4,7 @@ import { useLiveWorld } from "./lib/live";
 import { useIdentity } from "./lib/identity";
 import { ClockBar } from "./components/ClockBar";
 import { StoryBar } from "./components/StoryBar";
+import { AgentStatus } from "./components/AgentStatus";
 import { StoryView } from "./components/StoryView";
 import { StoryScorecard } from "./components/StoryScorecard";
 import { PersonaSwitcher } from "./components/PersonaSwitcher";
@@ -159,6 +160,8 @@ export default function App() {
           Logistics only · no results, no diagnosis, no advice
         </span>
       </header>
+
+      <AgentStatus working={world.working} events={world.events} />
 
       <StoryBar
         selected={storyId}
