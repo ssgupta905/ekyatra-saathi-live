@@ -1,4 +1,4 @@
-.PHONY: help install demo demo-audio demo-video demo-video-headless fetch-reference test lint api console docker seed clean
+.PHONY: help install demo demo-audio demo-mov demo-video demo-video-headless fetch-reference test lint api console docker seed clean
 
 PY ?= .venv/bin/python
 # Override when something else already owns 8000:  make api PORT=8001
@@ -14,6 +14,7 @@ help:
 	@echo "make console   run the navigator console on :5173 (proxies /api to :8000)"
 	@echo "make demo-video  drive the console in a visible browser and record it"
 	@echo "make demo-video-headless   the same run with no window"
+	@echo "make demo-mov    convert the newest recording to .mov in ~/Documents"
 	@echo "make docker    bring up postgres + neo4j for pilot-mode work"
 	@echo "make seed      load the Neo4j dependency graph schema"
 
@@ -45,6 +46,13 @@ api:
 
 console:
 	cd console && npm install && npm run dev
+
+# Convert the newest recording to a QuickTime .mov in ~/Documents.
+# Playwright only writes WebM/VP8, which nothing on a stock Mac decodes —
+# QuickTime, Preview and avconvert all refuse it, and renaming the file to
+# .mp4 hides that rather than fixing it. See demo/to-mov.mjs.
+demo-mov:
+	cd demo && node to-mov.mjs "$$(ls -t ../recordings/*.webm | head -1)" $(DEST)
 
 # The spoken question the recorded demo plays into Chrome's fake microphone.
 # Synthesised rather than recorded, because it is an *input* — the stand-in for
