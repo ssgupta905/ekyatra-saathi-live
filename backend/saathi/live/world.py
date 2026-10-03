@@ -22,12 +22,13 @@ from __future__ import annotations
 
 import logging
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, timedelta
 
 from ..domain.enums import (
     REPORT_STEPS,
     DisruptionKind,
+    Language,
     ResourceKind,
     SourceSystem,
     StepKind,
@@ -266,6 +267,28 @@ class LiveWorld:
         for patient in self.cohort.patients:
             if patient.id == patient_id:
                 return patient
+        return None
+
+    def set_language(self, patient_id: str, language: Language) -> Patient | None:
+        """Change the language this family is written to, permanently.
+
+        A family asking for Bengali is not asking the screen to be translated —
+        they are telling the hospital which language to use, and every message
+        after this one obeys. So it is a change to the record, not to a view.
+        `Patient` is frozen and the cohort tuple is replaced wholesale, so no
+        reader ever sees a patient half-switched.
+        """
+        patients = self.cohort.patients
+        for index, patient in enumerate(patients):
+            if patient.id != patient_id:
+                continue
+            if patient.language is language:
+                return patient
+            updated = patient.model_copy(update={"language": language})
+            self.cohort = replace(
+                self.cohort, patients=patients[:index] + (updated,) + patients[index + 1 :]
+            )
+            return updated
         return None
 
     def steps_for(self, patient_id: str) -> list[CareStep]:

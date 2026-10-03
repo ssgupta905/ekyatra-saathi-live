@@ -19,12 +19,14 @@ person, and nothing here answers one.
 from __future__ import annotations
 
 import logging
+from datetime import date
 from typing import Annotated
 
 import groq
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from pydantic import BaseModel, Field
 
-from ..domain.enums import Language
+from ..domain.enums import Language, StepKind, StepStatus
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,38 @@ MIN_AUDIO_BYTES = 1_200
 #: Well under Groq's limit. A caregiver's reply is seconds long; a file this big
 #: is a mistake worth refusing early rather than paying to transcribe.
 MAX_AUDIO_BYTES = 8 * 1024 * 1024
+
+#: Statuses that mean this step is behind the family rather than ahead of them.
+_DONE = frozenset({StepStatus.COMPLETED, StepStatus.RESULT_AVAILABLE})
+
+
+#: What the family's own screen is allowed to call a step. Deliberately the
+#: vocabulary of an appointment slip — "the scan", "seeing the doctor" — not
+#: the pathway's internal kind. A family does not travel to a
+#: `radiology_report`; they wait for it, and nothing about the finding is here.
+FAMILY_STEP_WORDS: dict[str, tuple[str, bool]] = {
+    StepKind.CONSULT.value: ("Seeing the doctor", True),
+    StepKind.BIOPSY.value: ("Biopsy", True),
+    StepKind.BLOODS.value: ("Blood tests", True),
+    StepKind.SCAN.value: ("Scan", True),
+    StepKind.PET_CT.value: ("PET-CT scan", True),
+    StepKind.PATHOLOGY_REPORT.value: ("Lab report", False),
+    StepKind.RADIOLOGY_REPORT.value: ("Scan report", False),
+    StepKind.REVIEW_CONSULT.value: ("Seeing the doctor again", True),
+    StepKind.JOINT_CLINIC.value: ("Joint clinic", True),
+    StepKind.TREATMENT.value: ("Treatment", True),
+    StepKind.MAINTENANCE_DOSE.value: ("Next dose", True),
+    StepKind.ECHO_REVIEW.value: ("Heart check and review", True),
+}
+
+
+class LanguageChoice(BaseModel):
+    """The family naming the language they want to be written to in."""
+
+    language: Language
+    #: Who pressed it. A family member's own name where the app knows it, so
+    #: the ledger row says who asked rather than "the system".
+    chosen_by: str = Field(default="family", max_length=80)
 
 
 def _state(request: Request):
@@ -158,4 +192,139 @@ async def transcribe(
         "bytes": len(payload),
         #: Nothing has been sent. The family confirms the words first.
         "sent": False,
+    }
+
+
+def _latest_plan_message(runner, patient_id: str) -> dict | None:
+    """The most recent thing actually sent to this family about their plan.
+
+    Read back from the outbound record rather than re-rendered on demand: the
+    family's screen must show the message that was sent, not a fresh variant of
+    it. Two renders of the same plan differ in wording, and a family comparing
+    their screen against the SMS they were read over the phone would find two
+    different sentences with nothing to say which one counts.
+    """
+    for row in reversed(runner.outbound):
+        if row["patient_id"] == patient_id and row["kind"] in {"plan", "holding", "answer"}:
+            return row
+    return None
+
+
+@router.get("/patients/{patient_id}/home")
+async def home(request: Request, patient_id: str) -> dict:
+    """Everything the family's phone shows, in one call.
+
+    One call rather than five because this screen is read on a 2G connection in
+    a village: five round trips means five chances to show a half-built page,
+    and a family reading "Come on" with no date is worse than a spinner.
+
+    Nothing here is a finding, a result, or advice. The decision, a date, what
+    is being waited for, and the words the language layer already wrote.
+    """
+    state = _state(request)
+    patient = state.world.patient(patient_id)
+    if patient is None:
+        raise HTTPException(404, "unknown patient")
+
+    run = state.runner.plans.get(patient_id)
+    plan = run.plan if run else None
+    message = _latest_plan_message(state.runner, patient_id)
+
+    steps = []
+    for step in sorted(
+        state.world.steps_for(patient_id),
+        key=lambda s: (s.scheduled_for or s.result_available_on or s.completed_on or date.max),
+    ):
+        word, travels = FAMILY_STEP_WORDS.get(
+            step.kind.value, (step.kind.value.replace("_", " "), True)
+        )
+        when = step.scheduled_for or step.completed_on or step.result_available_on
+        steps.append(
+            {
+                "id": step.id,
+                #: The console translates this; `what` is the English fallback.
+                "kind": step.kind.value,
+                "what": word,
+                "when": when.isoformat() if when else None,
+                #: Done, waiting, or still to come — three states, because a
+                #: family tracking a journey needs no more than three.
+                "state": (
+                    "done"
+                    if step.status in _DONE
+                    else "waiting"
+                    if step.status is StepStatus.PENDING_RESULT
+                    else "ahead"
+                ),
+                "travels": travels,
+                "is_next": bool(plan and step.id == plan.target_step_id),
+            }
+        )
+
+    return {
+        "patient": {
+            "id": patient.id,
+            "district": patient.home_district,
+            "language": patient.language.value,
+            "distance_km": round(patient.home_distance_km),
+            "hours_each_way": state.runner.journey_hours(patient),
+        },
+        "decision": plan.decision.value if plan else None,
+        "travel_on": plan.travel_on.isoformat() if plan and plan.travel_on else None,
+        #: Why, in the shape a family asks it: what is being waited for and
+        #: when it is expected. Never a probability, never a score.
+        "waiting_for": [
+            {
+                "kind": b.kind.value,
+                "what": FAMILY_STEP_WORDS.get(b.kind.value, (b.kind.value, True))[0],
+                "earliest": b.expected_ready.earliest.isoformat() if b.expected_ready else None,
+                "latest": b.expected_ready.latest.isoformat() if b.expected_ready else None,
+                "certain": bool(
+                    b.expected_ready
+                    and b.expected_ready.earliest == b.expected_ready.latest
+                ),
+            }
+            for b in (plan.blocked_by if plan else ())
+        ],
+        "message": (
+            {
+                "body": message["body"],
+                "language": message["language"],
+                "kind": message["kind"],
+                "sent_at": message["sent_at"],
+                #: A held message was never sent. Saying so is the honest thing
+                #: to put on the family's screen, and it is why the phone shows
+                #: "a person is calling you" instead of a sentence.
+                "held": message["held"],
+                "written_by": message["rendered_by"],
+            }
+            if message
+            else None
+        ),
+        "steps": steps,
+        "sim_date": state.world.today.isoformat(),
+        "updated_at": run.computed_at.isoformat() if run else None,
+    }
+
+
+@router.patch("/patients/{patient_id}/language")
+async def choose_language(request: Request, patient_id: str, body: LanguageChoice) -> dict:
+    """The family picks their language. Every message after this obeys.
+
+    A real change to their record, logged and re-rendered — not a translation
+    of the screen. The labels on the phone come from a static table, because
+    "Plan" is chrome; everything the system *says* is re-written by the
+    language layer and re-checked by the guard.
+    """
+    state = _state(request)
+    result = await state.runner.set_language(patient_id, body.language)
+    if result is None:
+        raise HTTPException(404, "unknown patient")
+
+    run = state.runner.plans.get(patient_id)
+    message = _latest_plan_message(state.runner, patient_id)
+    return {
+        **result,
+        "chosen_by": body.chosen_by,
+        "rendered": bool(run and run.message and not run.message.routed_to_care_team),
+        "message": {"body": message["body"], "held": message["held"]} if message else None,
     }

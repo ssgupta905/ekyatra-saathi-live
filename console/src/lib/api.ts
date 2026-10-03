@@ -474,3 +474,123 @@ export const boards = {
   one: (patientId: string) => request<PlanBoard>(`/patients/${patientId}/board`),
   all: () => request<{ boards: PlanBoard[]; sim_date: string }>("/boards"),
 };
+
+/* ──────────────────────────────────────────────────────────────────────────
+   The family's own app
+   --------------------------------------------------------------------------
+   A separate surface, not a persona inside the hospital console. One read
+   (`home`) carries everything the phone shows, because this screen is opened
+   on a 2G connection and five round trips means five chances to render a
+   half-built page.
+
+   `language` is a real change to the family's record — logged, and the current
+   plan re-rendered through the language layer and re-checked by the guard. It
+   is not a translation of the view.
+   ────────────────────────────────────────────────────────────────────────── */
+
+export interface FamilyStep {
+  id: string;
+  /** The pathway's own step kind. Translated by `i18n.stepWord`. */
+  kind: string;
+  what: string;
+  when: string | null;
+  state: "done" | "waiting" | "ahead";
+  /** False for reports: a result arrives, nobody travels for it. */
+  travels: boolean;
+  is_next: boolean;
+}
+
+export interface FamilyWait {
+  kind: string;
+  what: string;
+  earliest: string | null;
+  latest: string | null;
+  /** A booking is a fact; a forecast is a range. */
+  certain: boolean;
+}
+
+export interface FamilyMessage {
+  body: string;
+  language: string;
+  kind: string;
+  sent_at: string;
+  /** Held by the guard, so never sent. The phone says a person will call. */
+  held: boolean;
+  written_by: string | null;
+}
+
+export interface FamilyHome {
+  patient: {
+    id: string;
+    district: string;
+    language: Patient["language"];
+    distance_km: number;
+    hours_each_way: number | null;
+  };
+  decision: Decision | null;
+  travel_on: string | null;
+  waiting_for: FamilyWait[];
+  message: FamilyMessage | null;
+  steps: FamilyStep[];
+  sim_date: string;
+  updated_at: string | null;
+}
+
+export interface ThreadEntry {
+  id: string;
+  direction: "to_family" | "from_family";
+  kind: string;
+  body: string;
+  language: string;
+  channel: string;
+  sent_at: string;
+  held?: boolean;
+  reason?: string | null;
+  gloss?: string | null;
+  answerable?: boolean;
+}
+
+export interface Thread {
+  patient_id: string;
+  language: string;
+  thread: ThreadEntry[];
+  unread: number;
+}
+
+export interface Transcript {
+  text: string;
+  language: string;
+  model: string;
+  bytes: number;
+  /** Always false: transcription hands back words, it does not send them. */
+  sent: boolean;
+}
+
+export const family = {
+  home: (patientId: string) => request<FamilyHome>(`/patients/${patientId}/home`),
+  thread: (patientId: string) => request<Thread>(`/patients/${patientId}/notifications`),
+  chooseLanguage: (patientId: string, language: Patient["language"], chosen_by?: string) =>
+    request<{
+      patient_id: string;
+      language: string;
+      changed: boolean;
+      rendered: boolean;
+      message: { body: string; held: boolean } | null;
+    }>(`/patients/${patientId}/language`, {
+      method: "PATCH",
+      body: JSON.stringify({ language, chosen_by: chosen_by ?? "family" }),
+    }),
+  /** Speech to text. Returns the words for the family to confirm, nothing more. */
+  transcribe: async (patientId: string, audio: Blob, language?: string) => {
+    const form = new FormData();
+    form.append("audio", audio, "reply.webm");
+    form.append("patient_id", patientId);
+    if (language) form.append("language", language);
+    const response = await fetch("/api/voice/transcribe", { method: "POST", body: form });
+    if (!response.ok) {
+      throw new Error((await response.text()).slice(0, 200) || `HTTP ${response.status}`);
+    }
+    return (await response.json()) as Transcript;
+  },
+  say: (patientId: string, text: string) => live.inject(patientId, undefined, text),
+};

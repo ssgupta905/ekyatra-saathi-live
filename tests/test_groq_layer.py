@@ -234,3 +234,122 @@ def test_both_backends_are_bound_by_the_same_schema_and_prompt():
     assert claude.RESPONSE_SCHEMA is rendering.RESPONSE_SCHEMA
     assert groq_layer.SYSTEM_PROMPT is rendering.SYSTEM_PROMPT
     assert groq_layer.RESPONSE_FORMAT["json_schema"]["schema"] is rendering.RESPONSE_SCHEMA
+
+
+# ---------------------------------------------------------------- retries
+#
+# Constrained decoding occasionally fails to emit schema-valid JSON on a prompt
+# it handles fine the rest of the time — observed on roughly one render in
+# twenty against the live service, reproducibly on the richest plan. Diverting
+# on the first miss costs a family their travel date and buys no safety: the
+# guard reads a retry exactly as it reads a first attempt.
+
+
+def _schema_miss() -> groq.APIStatusError:
+    return groq.APIStatusError(
+        "bad request",
+        response=httpx.Response(400, request=httpx.Request("POST", "http://x")),
+        body={"error": {"message": "Failed to generate JSON. Please adjust your prompt."}},
+    )
+
+
+class _FailsThenSucceeds:
+    """Fails constrained decoding `failures` times, then renders normally."""
+
+    def __init__(self, failures: int, response) -> None:
+        self._failures = failures
+        self._response = response
+        self.calls: list[dict] = []
+        self.chat = type("_Chat", (), {})()
+        self.chat.completions = self
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        if len(self.calls) <= self._failures:
+            raise _schema_miss()
+        return self._response
+
+
+def test_a_schema_miss_is_retried_once(ledger_and_plan):
+    ledger, plan = ledger_and_plan
+    client = _FailsThenSucceeds(1, _payload("12 मार्च को आइए।"))
+
+    message = GroqLanguageLayer(client=client).render(
+        plan, Language.HINDI, Channel.WHATSAPP, ledger
+    )
+
+    assert len(client.calls) == 2
+    # The retry nudges temperature up: repeating a near-deterministic call that
+    # just failed tends to fail the same way.
+    assert client.calls[1]["temperature"] > client.calls[0]["temperature"]
+    assert message.routed_to_care_team is False
+
+
+def test_a_second_schema_miss_fails_closed(ledger_and_plan):
+    ledger, plan = ledger_and_plan
+    client = _FailsThenSucceeds(2, _payload("12 मार्च को आइए।"))
+
+    message = GroqLanguageLayer(client=client).render(
+        plan, Language.HINDI, Channel.WHATSAPP, ledger
+    )
+
+    assert len(client.calls) == 2, "exactly one retry, never a loop"
+    assert message.routed_to_care_team is True
+    assert "Failed to generate JSON" in (message.routing_reason or "")
+
+
+def test_the_retry_sends_the_same_prompt(ledger_and_plan):
+    """The second attempt must be the same request, not a softened one.
+
+    A retry that quietly dropped the schema or trimmed the plan would be a
+    second, weaker code path producing messages the first path would reject.
+    """
+    ledger, plan = ledger_and_plan
+    client = _FailsThenSucceeds(1, _payload("12 मार्च को आइए।"))
+
+    GroqLanguageLayer(client=client).render(plan, Language.HINDI, Channel.WHATSAPP, ledger)
+
+    first, second = client.calls
+    assert first["messages"] == second["messages"]
+    assert first["response_format"] == second["response_format"]
+    assert first["max_tokens"] == second["max_tokens"]
+
+
+def test_a_rate_limit_is_not_retried(ledger_and_plan):
+    """Not transient in a way an immediate second call fixes, and hammering a
+    rate limit makes it worse."""
+    ledger, plan = ledger_and_plan
+    client = _StubClient(
+        raises=groq.RateLimitError(
+            "slow down",
+            response=httpx.Response(429, request=httpx.Request("POST", "http://x")),
+            body=None,
+        )
+    )
+
+    message = GroqLanguageLayer(client=client).render(
+        plan, Language.HINDI, Channel.WHATSAPP, ledger
+    )
+
+    assert len(client.chat.completions.calls) == 1
+    assert message.routed_to_care_team is True
+
+
+def test_an_unrelated_400_is_not_retried(ledger_and_plan):
+    ledger, plan = ledger_and_plan
+    client = _StubClient(
+        raises=groq.APIStatusError(
+            "bad request",
+            response=httpx.Response(400, request=httpx.Request("POST", "http://x")),
+            body={"error": {"message": "model_not_supported"}},
+        )
+    )
+
+    message = GroqLanguageLayer(client=client).render(
+        plan, Language.HINDI, Channel.WHATSAPP, ledger
+    )
+
+    assert len(client.chat.completions.calls) == 1
+    assert message.routed_to_care_team is True
+    # The service's own words reach the operator rather than a bare status code.
+    assert "model_not_supported" in (message.routing_reason or "")

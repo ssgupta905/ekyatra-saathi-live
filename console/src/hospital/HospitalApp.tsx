@@ -1,0 +1,300 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  boards,
+  disruptions as disruptionApi,
+  stories as storyApi,
+  type PendingOption,
+  type PlanBoard as Board,
+  type Story,
+} from "../lib/api";
+import { useLiveWorld } from "../lib/live";
+import { useIdentity } from "../lib/identity";
+import { fmtDate } from "../lib/format";
+import { ClockBar } from "../components/ClockBar";
+import { StoryBar } from "../components/StoryBar";
+import { AgentStatus } from "../components/AgentStatus";
+import { PlanBoard } from "../components/PlanBoard";
+import { OptionsApprovalCard } from "../components/OptionsApprovalCard";
+import { DisruptionReportForm } from "../components/DisruptionReportForm";
+import { ActivityStrip } from "../components/ActivityStrip";
+import { ExplainPane } from "./ExplainPane";
+import { PersonaSwitcher } from "../components/PersonaSwitcher";
+import { Badge, Card, Chip, DecisionGlyph, Notice } from "../ui/primitives";
+import { Bell, Shield } from "../ui/icons";
+
+/**
+ * The hospital's screen. A separate application from the family's phone.
+ *
+ * What a navigator holding thirty families actually needs, in the order they
+ * need it: *who needs me*, then *why*, then *the one decision only a person
+ * can make*. So the screen is three panes that never move — a worklist on the
+ * left, the selected family's pathway in the middle, and the desk's own two
+ * inputs on the right — and it fits on one screen without scrolling.
+ *
+ * This replaced a single page that tried to be six consoles and a family
+ * phone at once. The persona switcher survives, because signing in as Seema
+ * and then as Dr Sinha is how the brief asks for the stories to be presented,
+ * but it now changes who may approve rather than which screen you get.
+ *
+ * Invariant 8 holds here as everywhere: this console reflects the world and
+ * never causes it. Nothing on this page computes a decision, a date, or a
+ * ranking — the two controls that write anything are a desk reporting a
+ * resource down, and a human approving one of the options the planner ranked.
+ */
+
+function WorklistRow({
+  board,
+  selected,
+  needsDecision,
+  onSelect,
+}: {
+  board: Board;
+  selected: boolean;
+  needsDecision: boolean;
+  onSelect: () => void;
+}) {
+  const decision = board.decision;
+  const blocking = board.waiting_on.length;
+
+  return (
+    <button
+      type="button"
+      className={`hx-row${selected ? " on" : ""}${needsDecision ? " needs" : ""}`}
+      onClick={onSelect}
+      aria-pressed={selected}
+    >
+      <span className="hx-row-top">
+        <span className="hx-row-id">{board.patient.id}</span>
+        {decision && (
+          <span className={`hx-row-dot ${decision}`}>
+            <DecisionGlyph decision={decision} size={12} />
+          </span>
+        )}
+      </span>
+      <span className="hx-row-where">
+        {board.patient.district} · {board.patient.distance_km} km
+      </span>
+      <span className="hx-row-why">
+        {needsDecision ? (
+          <span className="hx-needs">
+            <Bell size={11} /> needs a decision
+          </span>
+        ) : decision === "go" && board.travel_on ? (
+          `travel ${fmtDate(board.travel_on)}`
+        ) : blocking > 0 ? (
+          `waiting on ${board.waiting_on[0].label.toLowerCase()}`
+        ) : (
+          "nothing in the way"
+        )}
+      </span>
+    </button>
+  );
+}
+
+export default function HospitalApp() {
+  const [persona, choosePersona] = useIdentity();
+  const world = useLiveWorld();
+  const [rows, setRows] = useState<Board[]>([]);
+  const [pending, setPending] = useState<PendingOption[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [storyId, setStoryId] = useState<string | null>(null);
+  const [story, setStory] = useState<Story | null>(null);
+  const [affected, setAffected] = useState<string[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // Two ways to read one family: the pathway (what is waiting on what) and the
+  // trace (why this answer, down to the ledger rows). Both are about the same
+  // family, so they are a tab on one pane rather than two places to navigate.
+  const [lens, setLens] = useState<"pathway" | "why">("pathway");
+
+  const refresh = useCallback(() => {
+    boards
+      .all()
+      .then((result) => {
+        setRows(result.boards);
+        setSelected((current) => current ?? result.boards[0]?.patient.id ?? null);
+      })
+      .catch((e: Error) => setError(e.message));
+    disruptionApi.pending().then(setPending).catch(() => undefined);
+    storyApi
+      .state()
+      .then((state) => {
+        if (!state.scripted || state.stories.length === 0) return setStory(null);
+        const chosen = state.stories.find((s) => s.id === storyId) ?? state.stories[0];
+        setStory(chosen);
+        setStoryId((current) => current ?? chosen.id);
+      })
+      .catch(() => setStory(null));
+  }, [storyId]);
+
+  useEffect(refresh, [refresh, world.cohortRevision]);
+
+  const waiting = useMemo(
+    () => new Map(pending.map((row) => [row.patient_id, row])),
+    [pending],
+  );
+
+  // Families needing a human first. The order is a consequence of two facts
+  // anyone can check — is a decision waiting, and how far would they travel —
+  // not a priority score. There is no field here that could hold one.
+  const ordered = useMemo(
+    () => [...rows].sort((a, b) => {
+      const pa = waiting.has(a.patient.id) ? 0 : 1;
+      const pb = waiting.has(b.patient.id) ? 0 : 1;
+      return pa - pb || b.patient.distance_km - a.patient.distance_km;
+    }),
+    [rows, waiting],
+  );
+
+  const board = ordered.find((row) => row.patient.id === selected) ?? ordered[0] ?? null;
+  const decide = board ? waiting.get(board.patient.id) : undefined;
+  const canApprove = persona.role === "navigator" || persona.role === "doctor";
+
+  return (
+    <div className="hx-app">
+      <header className="hx-top">
+        <div className="hx-brand">
+          <span className="name">Saathi</span>
+          <span className="sub">Hospital</span>
+        </div>
+
+        <ClockBar snapshot={world.snapshot} connected={world.connected} />
+
+        <span className="spacer" />
+
+        {pending.length > 0 && (
+          <Chip tone="wait">
+            <Bell size={12} />
+            {pending.length} waiting on a person
+          </Chip>
+        )}
+
+        <PersonaSwitcher persona={persona} onChoose={choosePersona} />
+
+        <span className="boundary" title="The scope boundary, enforced in code">
+          <Shield size={13} />
+          Logistics only
+        </span>
+      </header>
+
+      <AgentStatus working={world.working} events={world.events} />
+
+      <StoryBar
+        selected={storyId}
+        onSelect={setStoryId}
+        onAdvanced={refresh}
+        revision={world.cohortRevision}
+      />
+
+      <div className="hx-panes">
+        {/* who needs me */}
+        <aside className="hx-worklist">
+          <div className="hx-pane-head">
+            <span>Families</span>
+            <span className="hint">{ordered.length} watched</span>
+          </div>
+          <div className="hx-worklist-scroll">
+            {ordered.map((row) => (
+              <WorklistRow
+                key={row.patient.id}
+                board={row}
+                selected={row.patient.id === board?.patient.id}
+                needsDecision={waiting.has(row.patient.id)}
+                onSelect={() => setSelected(row.patient.id)}
+              />
+            ))}
+            {ordered.length === 0 && <Notice tone="calm">No families yet.</Notice>}
+          </div>
+        </aside>
+
+        {/* why, and the one decision */}
+        <main className="hx-work">
+          {error && <Notice tone="warn">{error}</Notice>}
+
+          {decide && canApprove && (
+            <OptionsApprovalCard
+              disruptionId={decide.disruption_id}
+              patientId={decide.patient_id}
+              approverRole={persona.role}
+              approverName={persona.name}
+              onApproved={refresh}
+            />
+          )}
+          {decide && !canApprove && (
+            <Notice tone="warn">
+              {decide.option_count} options are ready for {decide.patient_id}, but a{" "}
+              {decide.requires_doctor ? "doctor" : "navigator"} has to choose. Sign in as
+              one to approve.
+            </Notice>
+          )}
+
+          {board ? (
+            <>
+              <div className="hx-lens">
+                <div className="segmented" role="group" aria-label="How to read this family">
+                  <button
+                    type="button"
+                    aria-pressed={lens === "pathway"}
+                    onClick={() => setLens("pathway")}
+                  >
+                    Pathway
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={lens === "why"}
+                    onClick={() => setLens("why")}
+                  >
+                    Why this answer
+                  </button>
+                </div>
+                <span className="hint">
+                  {lens === "pathway"
+                    ? "what is waiting on what"
+                    : "every claim, and the source it came from"}
+                </span>
+              </div>
+
+              {lens === "pathway" ? (
+                <PlanBoard board={board} />
+              ) : (
+                <ExplainPane patientId={board.patient.id} />
+              )}
+            </>
+          ) : (
+            <Notice tone="calm">Pick a family.</Notice>
+          )}
+        </main>
+
+        {/* the desk's own inputs, and what just happened */}
+        <aside className="hx-side">
+          <DisruptionReportForm
+            defaultResourceId={persona.deskResourceId}
+            onReported={(ids) => {
+              setAffected(ids);
+              refresh();
+            }}
+          />
+          {affected && (
+            <Card title="Reported" hint="families the planner picked up">
+              <p className="plain">
+                {affected.length} famil{affected.length === 1 ? "y" : "ies"}:{" "}
+                {affected.join(", ") || "none"}
+              </p>
+              <Badge tone="info">holding messages sent, options ranked</Badge>
+            </Card>
+          )}
+          <ActivityStrip
+            events={world.events}
+            connected={world.connected}
+            onSelect={setSelected}
+          />
+        </aside>
+      </div>
+
+      {story && (
+        <p className="hx-foot">
+          {story.title} · {story.who}
+        </p>
+      )}
+    </div>
+  );
+}

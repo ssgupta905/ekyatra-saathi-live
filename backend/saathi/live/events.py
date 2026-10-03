@@ -63,6 +63,9 @@ class EventKind:
     AGENT_STARTED = "agent.started"
     #: The same work, finished, carrying what it actually cost.
     AGENT_FINISHED = "agent.finished"
+    #: The family chose the language they are written to in. A preference on
+    #: their record, not a view setting, so it belongs in the event log.
+    LANGUAGE_CHANGED = "language.changed"
     #: A fact source was consulted — see `tools/`. Carries the claim, the
     #: provider and the measured latency, so a number on screen can be traced
     #: back to the call that produced it.

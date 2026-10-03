@@ -1,4 +1,4 @@
-.PHONY: help install demo demo-video demo-video-headless fetch-reference test lint api console docker seed clean
+.PHONY: help install demo demo-audio demo-video demo-video-headless fetch-reference test lint api console docker seed clean
 
 PY ?= .venv/bin/python
 # Override when something else already owns 8000:  make api PORT=8001
@@ -36,10 +36,27 @@ lint:
 	$(PY) -m ruff format --check backend tests
 
 api:
-	PYTHONPATH=backend $(PY) -m uvicorn saathi.main:app --reload --port $(PORT)
+# --timeout-graceful-shutdown is not optional here. `/api/stream` is an
+# endless SSE generator, so a browser tab holding one open makes uvicorn's
+# graceful shutdown wait forever: every --reload hangs at "waiting for
+# connections to close" and the port stays held by a dead server.
+	PYTHONPATH=backend $(PY) -m uvicorn saathi.main:app --reload --port $(PORT) \
+		--timeout-graceful-shutdown 2
 
 console:
 	cd console && npm install && npm run dev
+
+# The spoken question the recorded demo plays into Chrome's fake microphone.
+# Synthesised rather than recorded, because it is an *input* — the stand-in for
+# a caregiver speaking. Everything downstream of it is real: a real
+# MediaRecorder captures it and real Groq Whisper transcribes it.
+# macOS only (`say`/`afconvert`); the file is committed so this rarely runs.
+demo-audio:
+	@mkdir -p demo/audio
+	say -v Lekha -o /tmp/saathi-q.aiff "दवा का क्या होगा अगर हम नहीं आ पाए"
+	afconvert -f WAVE -d LEI16@48000 -c 1 /tmp/saathi-q.aiff demo/audio/hi-dose-question.wav
+	@rm -f /tmp/saathi-q.aiff
+	@echo "wrote demo/audio/hi-dose-question.wav"
 
 # Watch it happen in a real browser window, and record it.
 demo-video:

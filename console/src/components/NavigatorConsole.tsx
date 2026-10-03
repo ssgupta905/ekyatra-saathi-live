@@ -32,7 +32,7 @@ import { PendingApprovalsQueue } from "./PendingApprovalsQueue";
 import { PlanBoardList } from "./PlanBoardList";
 import { SegmentedControl } from "./SegmentedControl";
 import { CiteContext, Notice } from "../ui/primitives";
-import type { Citation } from "../App";
+import type { Citation } from "../lib/citation";
 
 type View = "journey" | "boards" | "cohort" | "disruptions";
 const VIEW_OPTIONS = [

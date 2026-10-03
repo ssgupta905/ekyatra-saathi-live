@@ -892,6 +892,56 @@ class LiveRunner:
         )
         return True
 
+    # ---------------- what language this family reads ----------------
+
+    async def set_language(self, patient_id: str, language: Language) -> dict | None:
+        """The family picks their language, and the system obeys from then on.
+
+        Not a translation of the screen. The preference is written to the
+        patient's record, logged as a fact the family asserted, and the current
+        plan is re-rendered through the same language layer and the same guard
+        as every other outbound message — so what comes back is a real Groq
+        render in the new language, not a lookup table. A guard-held render
+        stays held; switching language is not a way to get past it.
+
+        Returns None for an unknown patient. Returns the unchanged record when
+        the family picks the language they already have, without re-rendering —
+        a no-op must not cost an API call or a ledger row.
+        """
+        async with self._lock:
+            before = self.world.patient(patient_id)
+            if before is None:
+                return None
+            if before.language is language:
+                return {"patient_id": patient_id, "language": language.value, "changed": False}
+
+            patient = self.world.set_language(patient_id, language)
+            if patient is None:  # pragma: no cover — guarded by the read above
+                return None
+
+            name = LANGUAGE_NAMES.get(language, language.value)
+            self.ledger.record_once(
+                patient_id=patient_id,
+                source=SourceSystem.CAREGIVER_REPLY,
+                source_record_id=f"language-{patient_id}",
+                claim=f"family asked to be written to in {name}",
+                metadata={"language": language.value, "previous": before.language.value},
+            )
+            self.bus.publish(
+                EventKind.LANGUAGE_CHANGED,
+                self.world.today.isoformat(),
+                patient_id=patient_id,
+                summary=f"{patient_id} switched to {name}",
+                language=language.value,
+                previous=before.language.value,
+            )
+            # Re-render now rather than waiting for the next plan change: the
+            # family is looking at the screen, and a message in the language
+            # they just left is the one thing this must not leave behind.
+            await self._render_for(patient_id)
+
+        return {"patient_id": patient_id, "language": language.value, "changed": True}
+
     # ---------------- scripted demo ----------------
 
     async def advance_story(self, story: str) -> dict:

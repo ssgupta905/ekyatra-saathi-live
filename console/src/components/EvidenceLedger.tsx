@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { Citation } from "../App";
+import type { Citation } from "../lib/citation";
 import type { LedgerView } from "../lib/api";
 import { fmtStamp, sourceLabel } from "../lib/format";
 import { Badge, Card, Notice } from "../ui/primitives";

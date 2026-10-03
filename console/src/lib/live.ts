@@ -37,7 +37,8 @@ export type EventKind =
   | "process.answered"
   | "agent.started"
   | "agent.finished"
-  | "tool.called";
+  | "tool.called"
+  | "language.changed";
 
 export interface WorldEvent {
   kind: EventKind;
@@ -77,6 +78,7 @@ const ALL_KINDS: EventKind[] = [
   "agent.started",
   "agent.finished",
   "tool.called",
+  "language.changed",
 ];
 
 /** Events that change something about one family's page. */
@@ -262,6 +264,7 @@ export const EVENT_TONE: Record<EventKind, "go" | "wait" | "critical" | "info" |
   "agent.started": "info",
   "agent.finished": "neutral",
   "tool.called": "info",
+  "language.changed": "info",
 };
 
 export const EVENT_LABEL: Record<EventKind, string> = {
@@ -288,6 +291,7 @@ export const EVENT_LABEL: Record<EventKind, string> = {
   "agent.started": "Working",
   "agent.finished": "Done",
   "tool.called": "Tool",
+  "language.changed": "Language",
 };
 
 /** Milliseconds, rendered the way a navigator reads them. */
