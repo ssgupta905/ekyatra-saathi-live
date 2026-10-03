@@ -1,7 +1,7 @@
 # One service: the three console apps and the API on one origin.
 #
 # Deploy with Render's Blueprint flow, or create a Docker web service pointed
-# at this repository. The only thing to set by hand is SAATHI_GROQ_API_KEY —
+# at this repository. The only thing to set by hand is GROQ_API_KEY —
 # and the demo runs without it, falling back to templated messages, because the
 # decision path never depends on an external service.
 
@@ -18,9 +18,11 @@ services:
     envVars:
       - key: SAATHI_ENVIRONMENT
         value: render
+      # Not SAATHI_GROQ_API_KEY: the settings field carries an explicit alias,
+      # which overrides the SAATHI_ prefix every other variable here uses.
       # Set in the dashboard. Without it the planner, the guard and the ledger
       # all still run; only the wording falls back to templates.
-      - key: SAATHI_GROQ_API_KEY
+      - key: GROQ_API_KEY
         sync: false
       # Same origin deployed, so no cross-site caller to allow.
       - key: SAATHI_CORS_ORIGINS
