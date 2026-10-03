@@ -56,6 +56,33 @@ class StepPolicy(BaseModel):
     confirmed_by: str | None = None
 
 
+class Centre(BaseModel):
+    """A place a step can happen, as the network configures it.
+
+    Deliberately configuration and not a table in the code. Which centres exist,
+    and which steps each can handle, is something a health system knows and a
+    developer does not — and the whole value of the "nearer centre" option is
+    that it is answered from the real network, not from a list somebody typed
+    while writing a demo. An empty directory offers no alternatives, which is
+    the correct behaviour before anyone has filled it in.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    id: str
+    name: str
+    #: The place name the geo tool resolves — a district or city, so the
+    #: distance to it is fetched rather than stored.
+    place: str
+    #: "hub" or "day_care". Day-care centres handle a narrower set of steps.
+    kind: str = "day_care"
+    #: `StepKind` values this centre is equipped for.
+    handles: tuple[str, ...] = ()
+
+    def can_handle(self, kind: StepKind) -> bool:
+        return kind.value in self.handles
+
+
 class HospitalPolicy(BaseModel):
     """Everything the planner needs to know about how one hospital runs."""
 
@@ -72,6 +99,19 @@ class HospitalPolicy(BaseModel):
     #: small: without a known journey, assuming the family will happily wait a
     #: week in a strange city is the expensive assumption to get wrong.
     unknown_journey_gap_days: int = 2
+    #: Centres in this network. Empty until somebody fills it in, and an empty
+    #: directory simply offers no nearer-centre option.
+    centres: tuple[Centre, ...] = ()
+    #: What families are asked to bring, per step kind. Keyed by `StepKind`
+    #: value; the ids are `tools.schemes.KNOWN_ENTITLEMENTS` keys. Empty means
+    #: this hospital has not said, so nothing is demanded on its behalf.
+    requirements: dict[str, list[str]] = Field(default_factory=dict)
+
+    def centre(self, centre_id: str) -> Centre | None:
+        return next((c for c in self.centres if c.id == centre_id), None)
+
+    def centres_for(self, kind: StepKind) -> tuple[Centre, ...]:
+        return tuple(c for c in self.centres if c.can_handle(kind))
 
     # ---------------- reads ----------------
 

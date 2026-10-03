@@ -25,11 +25,22 @@ import time
 from pathlib import Path
 
 from ..config import get_settings
+from .base import ToolUnavailable
 from .cache import DEFAULT_CACHE_PATH, ReferenceCache
 from .geo import GeoTool
 
 #: Nominatim's published rate limit.
 POLITE_DELAY_SECONDS = 1.1
+
+#: Public endpoints time out. Retry a couple of times, then move on and record
+#: what we could not get rather than losing the whole run to one bad TLS
+#: handshake — which is exactly what happened the first time this ran.
+ATTEMPTS = 3
+RETRY_BACKOFF_SECONDS = 3.0
+
+#: Write the cache every this many successful fetches. A long run that dies
+#: two-thirds through should keep the two-thirds.
+SAVE_EVERY = 10
 
 
 def cohort_places() -> list[str]:
@@ -90,35 +101,69 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     places = cohort_places()
-    destinations = sorted(set(hospitals.values()))
+    # Destinations include the day-care centres, not only the hubs: without a
+    # route to them, "is anywhere nearer?" has no answer and the nearer-centre
+    # option silently never appears.
+    destinations = sorted(set(hospitals.values()) | set(settings.centre_places))
     print(f"places: {len(places)} · hospitals: {len(destinations)} · cache: {args.cache}")
 
-    for name in [*places, *destinations]:
-        if not args.refresh and cache.get(f"geocode:{name}|India") is not None:
-            continue
-        found = geo.geocode(name)
-        print(f"  geocode {name:<16} {'ok' if found else 'NOT FOUND'}")
-        time.sleep(POLITE_DELAY_SECONDS)
+    fetched = 0
+    failed: list[str] = []
 
-    for origin in places:
-        for destination in destinations:
-            if origin == destination:
+    def attempt(label: str, fn):
+        """Try a fetch a few times, then give up on it and keep going."""
+        nonlocal fetched
+        for tryno in range(1, ATTEMPTS + 1):
+            try:
+                result = fn()
+            except ToolUnavailable as exc:
+                if tryno == ATTEMPTS:
+                    failed.append(label)
+                    print(f"  {label:<44} UNAVAILABLE ({exc})")
+                    return None
+                time.sleep(RETRY_BACKOFF_SECONDS * tryno)
                 continue
-            if not args.refresh and cache.get(f"route:{origin}->{destination}") is not None:
+            fetched += 1
+            if fetched % SAVE_EVERY == 0:
+                cache.save()
+            return result
+        return None
+
+    try:
+        for name in [*places, *destinations]:
+            if not args.refresh and cache.get(f"geocode:{name}|India") is not None:
                 continue
-            result = geo.journey(origin, destination)
-            if result is None:
-                print(f"  route   {origin:<16} -> {destination:<12} UNAVAILABLE")
-            else:
-                j = result.value
-                print(
-                    f"  route   {origin:<16} -> {destination:<12} "
-                    f"{j.distance_km:>7.0f} km  {j.hours:>5.1f} h"
-                )
+            found = attempt(f"geocode {name}", lambda n=name: geo.geocode(n))
+            print(f"  geocode {name:<16} {'ok' if found else 'not found'}")
             time.sleep(POLITE_DELAY_SECONDS)
 
-    cache.save()
+        for origin in places:
+            for destination in destinations:
+                if origin == destination:
+                    continue
+                if not args.refresh and cache.get(f"route:{origin}->{destination}") is not None:
+                    continue
+                label = f"route   {origin} -> {destination}"
+                result = attempt(label, lambda o=origin, d=destination: geo.journey(o, d))
+                if result is not None:
+                    j = result.value
+                    print(
+                        f"  route   {origin:<16} -> {destination:<14} "
+                        f"{j.distance_km:>7.0f} km  {j.hours:>5.1f} h"
+                    )
+                time.sleep(POLITE_DELAY_SECONDS)
+    except KeyboardInterrupt:
+        print("\ninterrupted — saving what was fetched so far")
+    finally:
+        # Always. A public service timing out must not cost us the work that
+        # already succeeded.
+        cache.save()
+
     print(f"\nwrote {len(cache)} facts ({len(cache) - before} new) to {args.cache}")
+    if failed:
+        print(f"{len(failed)} could not be fetched; re-run to pick them up:")
+        for label in failed[:10]:
+            print(f"  - {label}")
     print("every entry carries the URL it came from and when it was fetched.")
     return 0
 

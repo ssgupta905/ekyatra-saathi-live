@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "written_at": "2026-10-03T05:18:13.408084+00:00",
+  "written_at": "2026-10-03T05:30:52.753169+00:00",
   "note": "Fetched from the named services; not authored by hand. Re-run `make fetch-reference` to refresh.",
   "facts": [
     {
@@ -112,6 +112,18 @@
       "response_hash": "167b7a353126aa6d281a53b24e248915f9f470312564731a49de22498e152338"
     },
     {
+      "key": "geocode:Patna|India",
+      "value": {
+        "lat": 25.6093239,
+        "lon": 85.1235252,
+        "display_name": "Patna, Patna Rural, Patna, Bihar, India"
+      },
+      "provider": "nominatim",
+      "source_url": "https://nominatim.openstreetmap.org/search?q=Patna%2C+India&format=json&limit=1",
+      "fetched_at": "2026-10-03T05:29:40.383092+00:00",
+      "response_hash": "9d27a65431a87a11c0cb4bdbd9672e5dd95d5aedd88f2145c3f3b0b66bcf0dec"
+    },
+    {
       "key": "geocode:Purnia|India",
       "value": {
         "lat": 25.7758723,
@@ -134,6 +146,30 @@
       "source_url": "https://nominatim.openstreetmap.org/search?q=Samastipur%2C+India&format=json&limit=1",
       "fetched_at": "2026-10-03T05:17:29.759380+00:00",
       "response_hash": "e0f5fd572798d98f02428482bd9eace5f7d5c667ae37db644cd0d20a59e9d143"
+    },
+    {
+      "key": "route:Balasore->Darbhanga",
+      "value": {
+        "distance_km": 708.0554000000001,
+        "hours": 9.101305555555555,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/86.919884,21.5006421;86.0324951,26.0829899?overview=false",
+      "fetched_at": "2026-10-03T05:29:42.092336+00:00",
+      "response_hash": "7666b91d09e7b40f3d1d7f798152699840fa868a87b33c69a9b3455683cb7669"
+    },
+    {
+      "key": "route:Balasore->Gaya",
+      "value": {
+        "distance_km": 533.0453,
+        "hours": 6.398916666666667,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/86.919884,21.5006421;85.0079563,24.7964355?overview=false",
+      "fetched_at": "2026-10-03T05:29:43.799563+00:00",
+      "response_hash": "222a94c5efed375897212c48eabca10fa38b3ff3212f1dfcf3f419bfb7a0ee0f"
     },
     {
       "key": "route:Balasore->Mumbai",
@@ -160,6 +196,54 @@
       "response_hash": "b6c5d36acf3073e42e4e70b7fcae01945e35f203a64741e505d644b4e679eeb4"
     },
     {
+      "key": "route:Balasore->Patna",
+      "value": {
+        "distance_km": 634.8322,
+        "hours": 7.558333333333334,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/86.919884,21.5006421;85.1235252,25.6093239?overview=false",
+      "fetched_at": "2026-10-03T05:29:45.505759+00:00",
+      "response_hash": "c7e9c8687d8671210e5bfb9cab789d3aefafa354aa725bb2d3bcb2a4201bb59c"
+    },
+    {
+      "key": "route:Balasore->Samastipur",
+      "value": {
+        "distance_km": 634.257,
+        "hours": 8.135638888888888,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/86.919884,21.5006421;85.8672314,25.7747885?overview=false",
+      "fetched_at": "2026-10-03T05:29:47.211594+00:00",
+      "response_hash": "8ad04c3461680825d30d0fe46dbb45a47da2d454eb6dbc0e1959e6aeeb3a3f5a"
+    },
+    {
+      "key": "route:Cuttack->Darbhanga",
+      "value": {
+        "distance_km": 846.5377,
+        "hours": 10.74013888888889,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/85.8792,20.4686;86.0324951,26.0829899?overview=false",
+      "fetched_at": "2026-10-03T05:29:49.169320+00:00",
+      "response_hash": "8b2e03c88235c9bd6936a69a3181373849aa4a47de42c698ebd7a729108c5355"
+    },
+    {
+      "key": "route:Cuttack->Gaya",
+      "value": {
+        "distance_km": 642.5508000000001,
+        "hours": 8.020694444444445,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/85.8792,20.4686;85.0079563,24.7964355?overview=false",
+      "fetched_at": "2026-10-03T05:29:55.045969+00:00",
+      "response_hash": "0089e33afa0d573d2f6ce98b620829045802b25fb3d405d5c0c8ae6adb6b8ccf"
+    },
+    {
       "key": "route:Cuttack->Mumbai",
       "value": {
         "distance_km": 1598.5121000000001,
@@ -182,6 +266,42 @@
       "source_url": "https://router.project-osrm.org/route/v1/driving/85.8792,20.4686;85.3316097,26.1482548?overview=false",
       "fetched_at": "2026-10-03T05:17:43.792313+00:00",
       "response_hash": "ad43576ad513794cdb7fc788ccfa4df6575a3502ae04ed0faea1059fc9a3500e"
+    },
+    {
+      "key": "route:Cuttack->Patna",
+      "value": {
+        "distance_km": 744.3376999999999,
+        "hours": 9.180111111111112,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/85.8792,20.4686;85.1235252,25.6093239?overview=false",
+      "fetched_at": "2026-10-03T05:29:56.778309+00:00",
+      "response_hash": "76c142c3249bc2a84256fff768694a5daff164b3ea63d64bd5bea2b1342f6c24"
+    },
+    {
+      "key": "route:Cuttack->Samastipur",
+      "value": {
+        "distance_km": 772.7394,
+        "hours": 9.774472222222222,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/85.8792,20.4686;85.8672314,25.7747885?overview=false",
+      "fetched_at": "2026-10-03T05:29:59.500830+00:00",
+      "response_hash": "92a241ce3a9c6f5992185d227bc8082ff8252336bf35a613095f7fa8c46e7b1d"
+    },
+    {
+      "key": "route:Darbhanga->Gaya",
+      "value": {
+        "distance_km": 242.5915,
+        "hours": 3.0971111111111114,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/86.0324951,26.0829899;85.0079563,24.7964355?overview=false",
+      "fetched_at": "2026-10-03T05:30:01.206226+00:00",
+      "response_hash": "c1dca696c69a65d7586c9483c994ca27d2ad46b1e3189b6699d5fd627215c149"
     },
     {
       "key": "route:Darbhanga->Mumbai",
@@ -208,6 +328,30 @@
       "response_hash": "95c150c852902e942d3e9c1926e6f50664ec8302096d356898b2d6b1a9acde96"
     },
     {
+      "key": "route:Darbhanga->Patna",
+      "value": {
+        "distance_km": 147.9194,
+        "hours": 1.9493055555555556,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/86.0324951,26.0829899;85.1235252,25.6093239?overview=false",
+      "fetched_at": "2026-10-03T05:30:02.932136+00:00",
+      "response_hash": "704bd73e3479bf40e8e3ed7f62610eae5c69e21b5aa4235b4c62bb77036f5932"
+    },
+    {
+      "key": "route:Darbhanga->Samastipur",
+      "value": {
+        "distance_km": 69.65589999999999,
+        "hours": 1.1722222222222223,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/86.0324951,26.0829899;85.8672314,25.7747885?overview=false",
+      "fetched_at": "2026-10-03T05:30:04.881339+00:00",
+      "response_hash": "1f7fa8ea685c53b83af131a7e5033efe6f5317a8cc829f82edc34e9772f89b58"
+    },
+    {
       "key": "route:Gaya->Mumbai",
       "value": {
         "distance_km": 1738.5638000000001,
@@ -230,6 +374,54 @@
       "source_url": "https://router.project-osrm.org/route/v1/driving/85.0079563,24.7964355;85.3316097,26.1482548?overview=false",
       "fetched_at": "2026-10-03T05:17:51.611752+00:00",
       "response_hash": "10d1ac90c00b279f3014489038ab373c0029edc2209eebea9ecf8ad21b9e89ae"
+    },
+    {
+      "key": "route:Gaya->Patna",
+      "value": {
+        "distance_km": 101.1562,
+        "hours": 1.2635,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/85.0079563,24.7964355;85.1235252,25.6093239?overview=false",
+      "fetched_at": "2026-10-03T05:30:08.365985+00:00",
+      "response_hash": "082f7b22b39454fe6c4ffa5d4ff5ac7aa7b9a4fa2330e090b56ee556f2e23b3e"
+    },
+    {
+      "key": "route:Gaya->Samastipur",
+      "value": {
+        "distance_km": 191.96220000000002,
+        "hours": 2.514861111111111,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/85.0079563,24.7964355;85.8672314,25.7747885?overview=false",
+      "fetched_at": "2026-10-03T05:30:10.080115+00:00",
+      "response_hash": "3a6620f4402c2d3c918f48d2375e8cbc1e4a40990ffa549282d1a530f6df0433"
+    },
+    {
+      "key": "route:Gorakhpur->Darbhanga",
+      "value": {
+        "distance_km": 334.4678,
+        "hours": 4.188472222222222,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/83.3642334,26.6677977;86.0324951,26.0829899?overview=false",
+      "fetched_at": "2026-10-03T05:30:12.882744+00:00",
+      "response_hash": "fd6538195c5f2702a910412fd08cd2b8ebb824da585a5f01cdb6f4ef99aaf748"
+    },
+    {
+      "key": "route:Gorakhpur->Gaya",
+      "value": {
+        "distance_km": 329.5111,
+        "hours": 3.9494444444444445,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/83.3642334,26.6677977;85.0079563,24.7964355?overview=false",
+      "fetched_at": "2026-10-03T05:30:14.597042+00:00",
+      "response_hash": "f00b03f2661a1b973974ecb7f06b1720bff0d091738f0ac05eb99f970917cde3"
     },
     {
       "key": "route:Gorakhpur->Mumbai",
@@ -256,6 +448,54 @@
       "response_hash": "2c3ffbf4537cd2463850d594c9f148cb2f29ddcfb2a1395af911c38827bc856a"
     },
     {
+      "key": "route:Gorakhpur->Patna",
+      "value": {
+        "distance_km": 267.4447,
+        "hours": 3.4115277777777777,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/83.3642334,26.6677977;85.1235252,25.6093239?overview=false",
+      "fetched_at": "2026-10-03T05:30:16.333686+00:00",
+      "response_hash": "e8b1df4520c3d7376672b36b68407df201aea7cd6da2b8206e0ff0ceeb9a1bbe"
+    },
+    {
+      "key": "route:Gorakhpur->Samastipur",
+      "value": {
+        "distance_km": 330.5913,
+        "hours": 4.073222222222222,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/83.3642334,26.6677977;85.8672314,25.7747885?overview=false",
+      "fetched_at": "2026-10-03T05:30:18.078297+00:00",
+      "response_hash": "bc307bdb1d2be06f09ca8944aeba130e87e55cf4c0576e0fd6db269b004f1b9a"
+    },
+    {
+      "key": "route:Murshidabad->Darbhanga",
+      "value": {
+        "distance_km": 440.295,
+        "hours": 5.716944444444445,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/88.2721335,24.1745993;86.0324951,26.0829899?overview=false",
+      "fetched_at": "2026-10-03T05:30:22.792235+00:00",
+      "response_hash": "ceef815b044d09bf38e892a9a3271b443077948f422426f7a3acde77e50a9d46"
+    },
+    {
+      "key": "route:Murshidabad->Gaya",
+      "value": {
+        "distance_km": 429.7741,
+        "hours": 5.452333333333334,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/88.2721335,24.1745993;85.0079563,24.7964355?overview=false",
+      "fetched_at": "2026-10-03T05:30:25.538645+00:00",
+      "response_hash": "0cb4bdc9fffc348a349ae9ec8bd090ed6acfc36ce5d4eb4bc34af9137bf69ffe"
+    },
+    {
       "key": "route:Murshidabad->Mumbai",
       "value": {
         "distance_km": 2023.357,
@@ -278,6 +518,54 @@
       "source_url": "https://router.project-osrm.org/route/v1/driving/88.2721335,24.1745993;85.3316097,26.1482548?overview=false",
       "fetched_at": "2026-10-03T05:18:00.688854+00:00",
       "response_hash": "d7f4c2bd4ae400fbda836dede302722e48eafe5a4c2ece0b7a7eb86efba7e502"
+    },
+    {
+      "key": "route:Murshidabad->Patna",
+      "value": {
+        "distance_km": 470.42670000000004,
+        "hours": 5.646,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/88.2721335,24.1745993;85.1235252,25.6093239?overview=false",
+      "fetched_at": "2026-10-03T05:30:27.246372+00:00",
+      "response_hash": "c8aaf6b8d155e3b28bb027a2f76a8c3f66fd13c2bc935ff6e882fefdf4c7d067"
+    },
+    {
+      "key": "route:Murshidabad->Samastipur",
+      "value": {
+        "distance_km": 404.20029999999997,
+        "hours": 4.94325,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/88.2721335,24.1745993;85.8672314,25.7747885?overview=false",
+      "fetched_at": "2026-10-03T05:30:29.988546+00:00",
+      "response_hash": "29c8e5296e5908ef2b05d666f37cccda2921b6b71a66e766d6ca3cfe5f3f21ae"
+    },
+    {
+      "key": "route:Nadia->Darbhanga",
+      "value": {
+        "distance_km": 533.9173000000001,
+        "hours": 7.002638888888889,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/88.5567067,23.4847374;86.0324951,26.0829899?overview=false",
+      "fetched_at": "2026-10-03T05:30:31.698847+00:00",
+      "response_hash": "1e692c135efff25e455995fb63bfeb7dd6e7fa7de1013c7da1bb68d2d913d1d0"
+    },
+    {
+      "key": "route:Nadia->Gaya",
+      "value": {
+        "distance_km": 471.3655,
+        "hours": 6.128055555555555,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/88.5567067,23.4847374;85.0079563,24.7964355?overview=false",
+      "fetched_at": "2026-10-03T05:30:33.753103+00:00",
+      "response_hash": "c68656d94502ea9d97c61b3636a77007461a45dfb66b91d21b7656149e0c6ef4"
     },
     {
       "key": "route:Nadia->Mumbai",
@@ -304,6 +592,54 @@
       "response_hash": "1799c8fa355837f151c429cbcfc3363636509fc308d38da05f9cd064e9d89c19"
     },
     {
+      "key": "route:Nadia->Patna",
+      "value": {
+        "distance_km": 542.6353,
+        "hours": 6.804749999999999,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/88.5567067,23.4847374;85.1235252,25.6093239?overview=false",
+      "fetched_at": "2026-10-03T05:30:37.582464+00:00",
+      "response_hash": "8ab0e8ff97314727c5b8354b8b9899e152753d15cb6191d6f44d8e1ad214df5d"
+    },
+    {
+      "key": "route:Nadia->Samastipur",
+      "value": {
+        "distance_km": 497.82259999999997,
+        "hours": 6.228944444444445,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/88.5567067,23.4847374;85.8672314,25.7747885?overview=false",
+      "fetched_at": "2026-10-03T05:30:39.339747+00:00",
+      "response_hash": "efce6aa508f5b8692f079d6bca9a1cfcfec94b902f657851e5e877345476d1d1"
+    },
+    {
+      "key": "route:Purnia->Darbhanga",
+      "value": {
+        "distance_km": 171.97639999999998,
+        "hours": 2.4825,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/87.4087667,25.7758723;86.0324951,26.0829899?overview=false",
+      "fetched_at": "2026-10-03T05:30:41.047182+00:00",
+      "response_hash": "a316ca5632cd98cc0ed3b4914afb21d84463f8c018cd71aaca66c753d250432d"
+    },
+    {
+      "key": "route:Purnia->Gaya",
+      "value": {
+        "distance_km": 358.3393,
+        "hours": 4.38275,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/87.4087667,25.7758723;85.0079563,24.7964355?overview=false",
+      "fetched_at": "2026-10-03T05:30:44.310949+00:00",
+      "response_hash": "2269791872ee9cbb7dd7297c6f48063928db13a34ba9c6a88ca48000244d5f2a"
+    },
+    {
       "key": "route:Purnia->Mumbai",
       "value": {
         "distance_km": 2045.289,
@@ -328,6 +664,30 @@
       "response_hash": "ff8020e1ab8369cb3ed89dbdd4e806fda991d75599ee5ee25d5363e6f12e7148"
     },
     {
+      "key": "route:Purnia->Patna",
+      "value": {
+        "distance_km": 310.254,
+        "hours": 3.7523055555555556,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/87.4087667,25.7758723;85.1235252,25.6093239?overview=false",
+      "fetched_at": "2026-10-03T05:30:46.013053+00:00",
+      "response_hash": "5e23f88bc6b11c03a080959b2a1463d893c71c6c4fa3eb5b65ef256fb4b5ef9c"
+    },
+    {
+      "key": "route:Purnia->Samastipur",
+      "value": {
+        "distance_km": 199.5991,
+        "hours": 2.908138888888889,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/87.4087667,25.7758723;85.8672314,25.7747885?overview=false",
+      "fetched_at": "2026-10-03T05:30:47.731825+00:00",
+      "response_hash": "25100962e1f8f7d9d39c62001036651d931b8aad18d31b23819c2b3875e74802"
+    },
+    {
       "key": "route:Samastipur->Mumbai",
       "value": {
         "distance_km": 1835.2045,
@@ -350,6 +710,18 @@
       "source_url": "https://router.project-osrm.org/route/v1/driving/85.8672314,25.7747885;85.3316097,26.1482548?overview=false",
       "fetched_at": "2026-10-03T05:18:12.302887+00:00",
       "response_hash": "d4fa5b02823ab7a818b0cfe7fb6a11e3a6242394773d1a2537bf49bd5096adab"
+    },
+    {
+      "key": "route:Samastipur->Patna",
+      "value": {
+        "distance_km": 97.29939999999999,
+        "hours": 1.3690277777777777,
+        "mode": "road"
+      },
+      "provider": "osrm",
+      "source_url": "https://router.project-osrm.org/route/v1/driving/85.8672314,25.7747885;85.1235252,25.6093239?overview=false",
+      "fetched_at": "2026-10-03T05:30:51.647808+00:00",
+      "response_hash": "5f74acdf75cc23280f5e4cca214c86d42e601f35fc3ba2378bc1abccfc8810e8"
     }
   ]
 }

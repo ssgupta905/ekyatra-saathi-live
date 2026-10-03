@@ -76,6 +76,12 @@ class Settings(BaseSettings):
     )
     #: Services the reference cache is filled from. Free, keyless, rate-limited;
     #: override to point at your own instance for a pilot.
+    #: Places that are destinations as well as origins — the district day-care
+    #: centres a family might be offered instead of the hub. Fetched both ways
+    #: so "is anywhere nearer?" can be answered at all.
+    centre_places: list[str] = Field(
+        default_factory=lambda: ["Darbhanga", "Samastipur", "Patna", "Gaya"]
+    )
     geocoder_url: str = "https://nominatim.openstreetmap.org"
     router_url: str = "https://router.project-osrm.org"
     #: Let tools call out during a live run. Off by default — a demo makes far
@@ -84,6 +90,10 @@ class Settings(BaseSettings):
     tools_allow_network: bool = False
     #: Where the fetched facts live.
     reference_cache_path: str = "data/reference_cache.json"
+    #: Optional entitlement/scheme endpoint. Without it, what a family holds is
+    #: whatever they or a desk have told us — and "unknown" otherwise, which is
+    #: the answer that puts the document on the checklist.
+    scheme_feed_url: str | None = None
 
     # --- health data ---
     abdm_base_url: str | None = None

@@ -164,6 +164,11 @@ class GeoTool:
 
         key = f"route:{origin}->{destination}"
         cached = self._cache.get(key)
+        if cached is None:
+            # A road route is near enough symmetric that fetching both
+            # directions is a waste of somebody else's rate limit. The reverse
+            # leg is the same evidence, and keeps its original provenance.
+            cached = self._cache.get(f"route:{destination}->{origin}")
         if cached is not None:
             v = cached.value
             return self._result(
