@@ -11,6 +11,7 @@ a message about it afterwards.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import date
 
 from ..domain.enums import StepKind
 from ..domain.models import MaintenanceCycle, PlanOption
@@ -45,3 +46,25 @@ def filter_options(
         return tuple(options)
     return tuple(o for o in options if echo_before_every_fourth_dose(o, cycle))
 
+
+
+def within_shift_tolerance(
+    option: PlanOption,
+    booked_on: date | None,
+    tolerance_days: int | None,
+) -> bool:
+    """True when this option keeps the step inside the hospital's stated tolerance.
+
+    A family asking to delay a dose by ten days is asking for something the
+    schedule may not allow, and the right answer is not to refuse them — it is
+    to keep the impossible option off the list so the doctor only chooses
+    between things that are actually on offer.
+
+    An unstated tolerance permits nothing to be filtered: without a number from
+    the hospital there is no basis to remove an option, and inventing one here
+    would be the same mistake as inventing the lead times was.
+    """
+    moved_to = option.target_on
+    if tolerance_days is None or booked_on is None or moved_to is None:
+        return True
+    return abs((moved_to - booked_on).days) <= tolerance_days

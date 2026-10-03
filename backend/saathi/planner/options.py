@@ -18,7 +18,7 @@ from ..domain.enums import Decision, StepKind
 from ..domain.models import CareStep, Disruption, MaintenanceCycle, Patient, PlanOption
 from ..graph.dependencies import DependencyGraph
 from ..readiness.conformal import ConformalReadinessPredictor
-from . import tools
+from . import care_rules, itinerary, schedule, tools
 from .care_rules import filter_options
 
 
@@ -51,6 +51,7 @@ def _build_option(
     return PlanOption(
         patient_id=patient.id,
         target_step_id=target.id,
+        target_on=target.scheduled_for,
         decision=decision,
         travel_on=travel_on,
         bundled_step_ids=bundled,
@@ -208,3 +209,92 @@ def opportunistic_bundle_candidates(
     if option is None:
         return ()
     return filter_options((option,), cycle)
+
+
+def candidates_for_request(
+    patient: Patient,
+    steps: Sequence[CareStep],
+    request,
+    target_kind: StepKind,
+    graph: DependencyGraph,
+    predictor: ConformalReadinessPredictor,
+    today: date,
+    policy,
+    *,
+    disruptions: Sequence[Disruption] = (),
+    cycle: MaintenanceCycle | None = None,
+    round_trip_hours: float | None = None,
+) -> tuple[PlanOption, ...]:
+    """Re-plan around what a family said they cannot do.
+
+    Three shapes get tried, and the third is the one that matters:
+
+    * **What they asked for** — the first slot on or after the date they
+      proposed.
+    * **The edge of what is allowed** — the latest date still inside the
+      hospital's stated tolerance, when their proposal falls outside it.
+    * **Earlier** — the last slot before the date they cannot make.
+
+    Offering "earlier" is the whole point. A family asking to delay ten days is
+    often asking for the only thing they could think of, and moving the visit
+    three days forward can clear the wedding *and* keep the schedule. Doing what
+    was asked is not the same as helping. What is never offered is a date they
+    explicitly ruled out, or one outside the tolerance a clinician set — the
+    first would waste their journey and the second would waste the doctor's
+    attention on a choice that was never available.
+    """
+    target = tools.find_step(steps, target_kind)
+    if target is None or target.scheduled_for is None:
+        return ()
+
+    booked_on = target.scheduled_for
+    calendar = schedule.ResourceCalendar.from_disruptions(tuple(disruptions))
+    tolerance = policy.shift_tolerance(target_kind)
+    excluded = set(request.constraint.excluded_dates)
+    gap = policy.gap_days(round_trip_hours)
+
+    wanted: list[date] = []
+    if request.constraint.not_before:
+        wanted.append(policy.next_slot(target_kind, request.constraint.not_before))
+    if tolerance is not None:
+        wanted.append(policy.next_slot(target_kind, booked_on + timedelta(days=tolerance)))
+        earlier = booked_on - timedelta(days=tolerance)
+        # Never propose a date in the past, and never today — a family cannot
+        # travel overnight on a message sent this afternoon.
+        if earlier > today:
+            wanted.append(policy.next_slot(target_kind, earlier))
+
+    seen: set[date] = set()
+    candidates: list[PlanOption] = []
+    for proposed in wanted:
+        if proposed in seen or proposed in excluded or proposed <= today:
+            continue
+        seen.add(proposed)
+
+        moved = schedule.place(
+            steps, calendar, graph, today, policy,
+            move=(target.id,), colocate=False,
+        )
+        moved = tuple(
+            s.model_copy(update={"scheduled_for": proposed}) if s.id == target.id else s
+            for s in moved
+        )
+        moved = schedule.shift_dependents(moved, graph, today, policy)
+
+        nights, journeys = itinerary.compare(
+            moved, steps, not_before=today, gap_days=gap
+        )
+        option = _build_option(
+            patient, moved, target_kind, graph, predictor, today,
+            nights_added=nights, extra_trips=journeys,
+            dose_delay_days=max((proposed - booked_on).days, 0),
+            disruptions=disruptions,
+        )
+        if option is None:
+            continue
+        if not care_rules.within_shift_tolerance(option, booked_on, tolerance):
+            continue
+        candidates.append(option)
+
+    candidates.sort(key=_rank_key)
+    return filter_options(tuple(candidates), cycle)

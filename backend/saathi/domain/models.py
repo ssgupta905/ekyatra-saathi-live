@@ -180,6 +180,12 @@ class PlanOption(Base):
     where_to_go_first: str | None = None
     evidence: tuple[EvidenceRef, ...] = ()
     rationale: str = ""
+    #: The date the target step itself lands on under this option. Distinct
+    #: from `travel_on`, which answers "when may they set out" and for an
+    #: unblocked plan is simply tomorrow. When an option is about *moving an
+    #: appointment*, this is the number that matters, and checking tolerance
+    #: against `travel_on` silently compares the wrong two dates.
+    target_on: date | None = None
     #: Nights added to the family's stay versus the pre-disruption plan.
     #: Negative when the option shortens the stay.
     nights_added: int = 0

@@ -123,6 +123,39 @@ BRIEF_SCHEMA = _schema(
     ["lines"],
 )
 
+REQUEST_SCHEMA = _schema(
+    "patient_request",
+    {
+        "intent": {
+            "type": "string",
+            "enum": [
+                "move_visit", "change_centre", "ask_status", "needs_help", "unclear",
+            ],
+        },
+        "step_kind": {
+            "type": "string",
+            "description": (
+                "Which step they want moved, as one of the hospital's step names, "
+                "or an empty string if they did not name one."
+            ),
+        },
+        "not_before": {
+            "type": "string",
+            "description": "Earliest ISO date they could come, or empty string.",
+        },
+        "not_after": {
+            "type": "string",
+            "description": "Latest ISO date they could come, or empty string.",
+        },
+        "reason": {
+            "type": "string",
+            "description": "Why, in plain English. Never a clinical reason.",
+        },
+        "confidence": {"type": "string", "enum": ["high", "low"]},
+    },
+    ["intent", "step_kind", "not_before", "not_after", "reason", "confidence"],
+)
+
 NARRATION_SCHEMA = _schema(
     "narration",
     {
@@ -187,6 +220,30 @@ is dangerous.
 
 Never write anything clinical: no diagnosis, no findings, no advice. You are \
 briefing on logistics and contact history only.
+"""
+
+REQUEST_SYSTEM = """\
+You read one message from a patient's family and work out what they are asking \
+the hospital to change. You are not deciding anything and you are not replying \
+to them; a navigator reads your answer and confirms it before anything moves.
+
+Extract only what the message actually says:
+
+- `move_visit` when they want a booked visit on a different date.
+- `change_centre` when they ask whether something can happen somewhere else or \
+nearer to them.
+- `ask_status` when they only want to know what is happening.
+- `needs_help` when the difficulty is money, paperwork or transport rather than \
+a date.
+- `unclear` whenever you are not sure. Guessing costs a family a journey; \
+`unclear` costs a navigator ten seconds of reading.
+
+Dates must be real ISO dates you can justify from the message and today's date. \
+"After the 20th" with today in December means not_before is the 20th of that \
+December. If a date cannot be worked out, leave it empty rather than estimating.
+
+Never record a clinical reason. If the message says somebody is unwell, that is \
+not a scheduling request — return `unclear` and let a person handle it.
 """
 
 NARRATION_SYSTEM = """\
@@ -420,6 +477,53 @@ class GroqActors:
                 continue
             lines.append({"text": text, "ledger_ids": ids})
         return lines
+
+    # ---------------- e. reading what the family asked for ----------------
+
+    async def extract_request(
+        self,
+        patient: Patient,
+        text: str,
+        today: date,
+        *,
+        known_steps: tuple[str, ...] = (),
+    ) -> dict | None:
+        """Read a family's message into a structured ask, for a person to confirm.
+
+        Returns a dict shaped for `PatientRequest`, or None when the call failed.
+        Nothing here is believed on sight — the caller leaves `confirmed_by`
+        empty and a navigator agrees with the reading before the planner sees it.
+        """
+        prompt = (
+            f"Today is {today.isoformat()}.\n"
+            f"The family writes in {LANGUAGE_NAMES.get(patient.language, 'Hindi')}.\n"
+            f"Steps this patient has booked: {', '.join(known_steps) or 'unknown'}\n\n"
+            f"Message: {text}"
+        )
+        data = await self._json(REQUEST_SYSTEM, prompt, REQUEST_SCHEMA, 0.1)
+        if data is None:
+            return None
+
+        def as_date(raw: str) -> str | None:
+            raw = str(raw or "").strip()
+            if not raw:
+                return None
+            try:
+                return date.fromisoformat(raw).isoformat()
+            except ValueError:
+                # An unparseable date is no date. Better a navigator asks than
+                # the planner acts on a month that was never said.
+                return None
+
+        step = str(data.get("step_kind", "")).strip()
+        return {
+            "intent": str(data.get("intent", "unclear")),
+            "step_kind": step if step in known_steps else None,
+            "not_before": as_date(data.get("not_before", "")),
+            "not_after": as_date(data.get("not_after", "")),
+            "reason": str(data.get("reason", "")).strip(),
+            "confidence": str(data.get("confidence", "low")),
+        }
 
     # ---------------- d. trace narration ----------------
 

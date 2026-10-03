@@ -48,6 +48,12 @@ class StepPolicy(BaseModel):
     #: Clock times this step is bookable at, as "HH:MM". Used for the time of
     #: day on a plan; empty means the desk assigns one.
     slot_times: tuple[str, ...] = ()
+    #: How far either way this step may be moved from its booked date before it
+    #: stops being the same step. For a maintenance dose this is the interval's
+    #: tolerance — the reason a family asking to delay ten days gets offered
+    #: three days *earlier* instead. None means the hospital has not said, and
+    #: the planner then offers nothing it would have to justify.
+    shift_tolerance_days: int | None = None
     #: False until a clinician has confirmed these values. The console marks
     #: anything unconfirmed as provisional rather than quietly showing it as
     #: settled fact.
@@ -142,6 +148,11 @@ class HospitalPolicy(BaseModel):
             candidate += timedelta(days=1)
         return not_before
 
+    def shift_tolerance(self, kind: StepKind) -> int | None:
+        """How far this step may move, per the hospital. None means unstated."""
+        policy = self.step(kind)
+        return policy.shift_tolerance_days if policy else None
+
     def slot_time(self, kind: StepKind, index: int = 0) -> str | None:
         policy = self.step(kind)
         if policy is None or not policy.slot_times:
@@ -208,6 +219,10 @@ def default_policy(hospital_id: str) -> HospitalPolicy:
                 kind=StepKind.MAINTENANCE_DOSE,
                 lead_days={StepKind.ECHO_REVIEW.value: 0},
                 slot_times=("14:30",),
+                # A placeholder until an oncologist says otherwise, and the
+                # console shows it as provisional. How far a dose may slide is
+                # exactly the kind of number this project refuses to invent.
+                shift_tolerance_days=7,
             ),
         },
     )
