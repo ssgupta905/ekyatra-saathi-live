@@ -259,6 +259,9 @@ export interface PlanOption extends VisitPlan {
   nights_added: number;
   extra_trips: number;
   dose_delay_days: number;
+  /** Journeys needed sooner than a reserved seat can be obtained. Not a cost
+   *  like the others — it is a reason the option may be impossible. */
+  short_notice_journeys: number;
 }
 
 export interface OptionSet {

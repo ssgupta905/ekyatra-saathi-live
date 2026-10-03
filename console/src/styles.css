@@ -2598,3 +2598,65 @@ tbody td { padding: 8px 16px; }
 /* Transitions on the frames, so a focus change reads as one screen stepping
    forward rather than a cut. */
 .st-phone, .st-desk { transition: flex-basis 0.4s var(--ease); }
+
+/* ── the demo's own navigation ───────────────────────────────────────────
+   Scaffolding, drawn as scaffolding. The two apps have no link between them
+   in the real thing and should not: they are separate applications on
+   separate devices. This exists so someone handed one URL can find the
+   others, and it is dark and small so nobody mistakes it for product. */
+
+.demo-nav {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: #1d1d1f;
+  color: #a1a1a6;
+  font-size: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.demo-nav::-webkit-scrollbar { display: none; }
+
+.demo-nav-tag {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  margin-right: 4px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.12);
+  color: #f5f5f7;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.demo-nav a {
+  flex: 0 0 auto;
+  padding: 4px 11px;
+  border-radius: var(--r-pill);
+  color: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.16s var(--ease), color 0.16s var(--ease);
+}
+.demo-nav a:hover { background: rgba(255, 255, 255, 0.1); color: #f5f5f7; }
+.demo-nav a[aria-current="page"] { background: #f5f5f7; color: #1d1d1f; font-weight: 500; }
+
+/* The phone is a fixed-height column; the bar is part of it, not over it. */
+.fx-app > .demo-nav { border-radius: 0; }
+
+/* An option that may not be bookable. Deliberately not styled like the
+   nights/trips figures beside it: those are costs to weigh, this is a reason
+   the option may not be a plan at all. */
+.opt-unbookable {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  background: var(--wait-tint);
+  color: var(--wait);
+  font-weight: 500;
+}

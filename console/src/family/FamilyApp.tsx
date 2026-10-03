@@ -8,6 +8,7 @@ import { PlanStrip } from "./PlanStrip";
 import { Thread } from "./Thread";
 import { Composer } from "./Composer";
 import { Inbox, Pin, Shield, Spark } from "../ui/icons";
+import { DemoNav } from "../ui/DemoNav";
 
 /**
  * The family's app. A separate application from the hospital console, not a
@@ -95,6 +96,7 @@ export default function FamilyApp() {
 
   return (
     <div className="fx-app" lang={lang}>
+      <DemoNav />
       <header className="fx-top">
         <div className="fx-id">
           <span className="fx-brand">Saathi</span>

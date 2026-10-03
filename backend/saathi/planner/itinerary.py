@@ -14,6 +14,11 @@ whole decision:
   scan costs three nights.
 * **Trips** are the 30-hour train journeys. Going home and coming back saves
   the nights and buys two more journeys.
+* **Short notice** is whether those journeys can be booked at all. A reserved
+  berth from Gaya to Mumbai is not available the day before, so an option that
+  sends a family home and brings them back in three days may be describing a
+  journey that does not exist. Counting trips alone treats that option as
+  merely expensive rather than possibly impossible.
 
 Neither dominates. A family a long way out will often take the nights; one
 close by will take the trip. Saathi measures both and lets a person choose.
@@ -23,7 +28,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
 from ..domain.enums import TRAVEL_STEPS
 from ..domain.models import CareStep
@@ -138,6 +143,24 @@ def itinerary(
         previous = day
     stays.append(Stay(arrive=start, depart=previous))
     return Itinerary(stays=tuple(stays))
+
+
+def short_notice_journeys(
+    steps: Sequence[CareStep],
+    *,
+    not_before: date,
+    lead_days: int,
+    gap_days: int = FALLBACK_GAP_DAYS,
+) -> int:
+    """Journeys this plan needs sooner than a reservation can be obtained.
+
+    Counts arrivals only. The journey home is taken when the family is already
+    at the hospital and can be booked from there, days ahead; it is the journey
+    *to* a date that was just moved which may have no berth left on it.
+    """
+    plan = itinerary(steps, not_before=not_before, gap_days=gap_days)
+    bookable_from = not_before + timedelta(days=lead_days)
+    return sum(1 for stay in plan.stays if stay.arrive < bookable_from)
 
 
 def compare(

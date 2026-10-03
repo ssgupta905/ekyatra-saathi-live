@@ -32,6 +32,7 @@ def _build_option(
     *,
     nights_added: int = 0,
     extra_trips: int = 0,
+    short_notice_journeys: int = 0,
     dose_delay_days: int = 0,
     disruptions: Sequence[Disruption] = (),
 ) -> PlanOption | None:
@@ -61,6 +62,7 @@ def _build_option(
         rationale=_rationale(decision, blockers),
         nights_added=nights_added,
         extra_trips=extra_trips,
+        short_notice_journeys=short_notice_journeys,
         dose_delay_days=dose_delay_days,
     )
 
@@ -91,8 +93,20 @@ def _shift(steps: Sequence[CareStep], step_ids: set[str], to: date) -> list[Care
 #: A documented, deterministic ranking — fewest extra trips, then fewest
 #: nights, then least delay. Never a stored composite score (invariant 7):
 #: this is a sort key computed at read time, not a field on `PlanOption`.
-def _rank_key(option: PlanOption) -> tuple[int, int, int]:
-    return (option.extra_trips, abs(option.nights_added), option.dose_delay_days)
+def _rank_key(option: PlanOption) -> tuple[int, int, int, int]:
+    """Order the options. Deterministic, documented, and not a score.
+
+    Unbookable before expensive: an option that needs a reserved berth sooner
+    than one can be obtained may not be a plan at all, so it ranks below one
+    that merely costs a trip. Below that the trade is the old one — trips,
+    then nights, then a delayed dose — and a person still chooses.
+    """
+    return (
+        option.short_notice_journeys,
+        option.extra_trips,
+        abs(option.nights_added),
+        option.dose_delay_days,
+    )
 
 
 def enumerate_candidates(
@@ -284,9 +298,17 @@ def candidates_for_request(
         nights, journeys = itinerary.compare(
             moved, steps, not_before=today, gap_days=gap
         )
+        short_notice = (
+            itinerary.short_notice_journeys(
+                moved, not_before=today, lead_days=policy.reservation_lead_days, gap_days=gap
+            )
+            if policy.needs_reservation(round_trip_hours)
+            else 0
+        )
         option = _build_option(
             patient, moved, target_kind, graph, predictor, today,
             nights_added=nights, extra_trips=journeys,
+            short_notice_journeys=short_notice,
             dose_delay_days=max((proposed - booked_on).days, 0),
             disruptions=disruptions,
         )

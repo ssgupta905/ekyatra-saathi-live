@@ -21,6 +21,7 @@ import { ExplainPane } from "./ExplainPane";
 import { PersonaSwitcher } from "../components/PersonaSwitcher";
 import { Badge, Card, Chip, DecisionGlyph, Notice } from "../ui/primitives";
 import { Bell, Shield } from "../ui/icons";
+import { DemoNav } from "../ui/DemoNav";
 
 /**
  * The hospital's screen. A separate application from the family's phone.
@@ -151,6 +152,7 @@ export default function HospitalApp() {
 
   return (
     <div className="hx-app">
+      <DemoNav />
       <header className="hx-top">
         <div className="hx-brand">
           <span className="name">Saathi</span>

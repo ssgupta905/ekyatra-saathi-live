@@ -101,6 +101,16 @@ class HospitalPolicy(BaseModel):
     #: journey duration, not against kilometres. A judgement, so it is set
     #: here and not buried in the itinerary code.
     stay_rather_than_travel_hours: float = 12.0
+    #: How much notice a family needs to obtain a reserved long-distance
+    #: journey. Not a scheduling constant — a reserved berth from Gaya to
+    #: Mumbai cannot be had the day before, and a plan that assumes one is a
+    #: plan that strands the family at the station. Varies by corridor and
+    #: season, so it is configuration a hospital sets, not a number we assert.
+    reservation_lead_days: int = 3
+    #: Journeys at least this long need a reservation at all. Below it a family
+    #: takes a bus or a local train on the day, and notice costs nothing.
+    #: Compared against the *fetched* round-trip duration, like the gap above.
+    reserved_journey_hours: float = 8.0
     #: Default gap used when no journey could be fetched at all. Deliberately
     #: small: without a known journey, assuming the family will happily wait a
     #: week in a strange city is the expensive assumption to get wrong.
@@ -112,6 +122,17 @@ class HospitalPolicy(BaseModel):
     #: value; the ids are `tools.schemes.KNOWN_ENTITLEMENTS` keys. Empty means
     #: this hospital has not said, so nothing is demanded on its behalf.
     requirements: dict[str, list[str]] = Field(default_factory=dict)
+
+    def needs_reservation(self, round_trip_hours: float | None) -> bool:
+        """Does a journey this long have to be booked in advance?
+
+        Unknown journeys are treated as needing one. Warning a family to book
+        early when they did not have to costs them nothing; staying quiet when
+        they did costs them the trip.
+        """
+        if round_trip_hours is None:
+            return True
+        return round_trip_hours >= self.reserved_journey_hours
 
     def centre(self, centre_id: str) -> Centre | None:
         return next((c for c in self.centres if c.id == centre_id), None)

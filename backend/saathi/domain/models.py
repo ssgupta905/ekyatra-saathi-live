@@ -195,6 +195,12 @@ class PlanOption(Base):
     #: Days a maintenance dose is delayed by this option. 0 outside
     #: maintenance.
     dose_delay_days: int = 0
+    #: Journeys this option needs sooner than a reserved seat can be obtained.
+    #: A plan that assumes a berth from Gaya to Mumbai the day after tomorrow
+    #: is not merely expensive, it may be impossible — and a family told to
+    #: travel on a train they cannot board has been failed worse than one told
+    #: to wait. Always 0 where the journey is short enough to take on the day.
+    short_notice_journeys: int = 0
 
 
 class MaintenanceCycle(Base):

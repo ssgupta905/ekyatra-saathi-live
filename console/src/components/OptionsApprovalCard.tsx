@@ -79,6 +79,14 @@ export function OptionsApprovalCard({
             <span>{option.nights_added >= 0 ? "+" : ""}{option.nights_added} nights</span>
             <span>{option.extra_trips >= 0 ? "+" : ""}{option.extra_trips} trips</span>
             {option.dose_delay_days > 0 && <span>{option.dose_delay_days}d dose delay</span>}
+            {/* Not a cost like the others: a reserved berth cannot be had at
+                this notice, so this option may not be a plan at all. Said in
+                words, because a navigator must not read it as "+1 something". */}
+            {option.short_notice_journeys > 0 && (
+              <span className="opt-unbookable">
+                needs a seat booked at short notice
+              </span>
+            )}
             <button type="button" disabled={busy} onClick={() => approve(index)}>
               Approve as {approverName}
             </button>
