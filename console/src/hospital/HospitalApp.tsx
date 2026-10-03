@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   boards,
   disruptions as disruptionApi,
@@ -111,6 +111,7 @@ export default function HospitalApp() {
   // trace (why this answer, down to the ledger rows). Both are about the same
   // family, so they are a tab on one pane rather than two places to navigate.
   const [lens, setLens] = useState<"pathway" | "why" | null>(null);
+  const detailRef = useRef<HTMLDivElement | null>(null);
 
   const refresh = useCallback(() => {
     boards
@@ -133,6 +134,12 @@ export default function HospitalApp() {
   }, [storyId]);
 
   useEffect(refresh, [refresh, world.cohortRevision]);
+
+  // Opening the detail puts it below the live feed, so without this the press
+  // appears to do nothing on a short window.
+  useEffect(() => {
+    if (lens) detailRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [lens]);
 
   const waiting = useMemo(
     () => new Map(pending.map((row) => [row.patient_id, row])),
@@ -250,7 +257,7 @@ export default function HospitalApp() {
 
           {/* Why, when you need it — not in the way when you do not. */}
           {board && (
-            <div className="hx-detail">
+            <div className="hx-detail" ref={detailRef}>
               <div className="hx-lens">
                 <div className="segmented" role="group" aria-label="Look closer at this family">
                   <button
@@ -275,6 +282,11 @@ export default function HospitalApp() {
                       ? `every claim behind ${board.patient.id}'s answer, and its source`
                       : `look closer at ${board.patient.id}`}
                 </span>
+                {lens && (
+                  <button type="button" className="btn hx-close" onClick={() => setLens(null)}>
+                    Close
+                  </button>
+                )}
               </div>
 
               {lens === "pathway" && <PlanBoard board={board} compact />}

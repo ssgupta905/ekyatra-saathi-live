@@ -63,6 +63,18 @@ export function Thread({
       <h2 className="fx-h2">{s.messages}</h2>
       <div className="fx-thread" ref={boxRef}>
         {entries.map((entry) => {
+          // The moment the family changed language, drawn as a divider. This is
+          // what turns a thread of two scripts from something that looks broken
+          // into something that reads as a record.
+          if (entry.kind === "language") {
+            return (
+              <div className="fx-divider" key={entry.id}>
+                <span>
+                  {s.languageChanged} · {SCRIPT_NAME[entry.language] ?? entry.body}
+                </span>
+              </div>
+            );
+          }
           const mine = entry.direction === "from_family";
           // Only when it differs: labelling every bubble with the language it
           // is plainly written in is noise.

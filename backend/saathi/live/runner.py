@@ -935,6 +935,19 @@ class LiveRunner:
                 language=language.value,
                 previous=before.language.value,
             )
+            # A marker in the family's own thread, at the point the language
+            # changed. Without it the history reads as a jumble of two scripts
+            # with no explanation; with it, everything above the line is
+            # plainly "before" and everything below is "after". The record is
+            # still never rewritten — this explains the seam rather than
+            # hiding it.
+            self._record_outbound(
+                patient_id,
+                kind="language",
+                body=name,
+                language=language.value,
+                channel=Channel.WHATSAPP.value,
+            )
             # Re-render now rather than waiting for the next plan change: the
             # family is looking at the screen, and a message in the language
             # they just left is the one thing this must not leave behind.

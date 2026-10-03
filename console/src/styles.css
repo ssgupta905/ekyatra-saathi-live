@@ -2747,3 +2747,36 @@ tbody td { padding: 8px 16px; }
    pathway used to take. */
 .hx-panes { grid-template-columns: 224px minmax(0, 1fr); }
 .hx-detail { display: grid; gap: 12px; }
+
+/* The way back must never scroll away with the thing it closes. Sticky to the
+   top of the work pane, with the pane's own background behind it so the panel
+   slides under rather than through. */
+.hx-lens {
+  position: sticky;
+  top: -12px;
+  z-index: 5;
+  margin: 0 -12px;
+  padding: 10px 12px;
+  background: var(--plane);
+  border-bottom: 1px solid var(--line-soft);
+}
+.hx-close { margin-left: auto; }
+
+/* The language change, in the family's thread. A seam explained reads as a
+   record; the same seam unexplained reads as a bug. */
+.fx-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0;
+  color: var(--ink-4);
+  font-size: 12px;
+}
+.fx-divider::before,
+.fx-divider::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--line);
+}
+.fx-divider span { flex: 0 0 auto; }

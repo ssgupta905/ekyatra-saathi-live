@@ -72,6 +72,8 @@ export interface Strings {
   aPersonWillReply: string;
 
   language: string;
+  /** Shown as a divider in the thread at the point the language changed. */
+  languageChanged: string;
   journey: string;
   kmAway: string;
   hoursEachWay: string;
@@ -120,6 +122,7 @@ export const STRINGS: Record<Lang, Strings> = {
     aPersonWillReply: "कोई व्यक्ति जवाब देगा",
 
     language: "भाषा",
+    languageChanged: "भाषा बदली गई",
     journey: "सफ़र",
     kmAway: "किलोमीटर दूर",
     hoursEachWay: "घंटे एक तरफ़",
@@ -161,6 +164,7 @@ export const STRINGS: Record<Lang, Strings> = {
     aPersonWillReply: "একজন উত্তর দেবেন",
 
     language: "ভাষা",
+    languageChanged: "ভাষা পরিবর্তন করা হয়েছে",
     journey: "যাত্রাপথ",
     kmAway: "কিলোমিটার দূরে",
     hoursEachWay: "ঘণ্টা একদিকে",
@@ -202,6 +206,7 @@ export const STRINGS: Record<Lang, Strings> = {
     aPersonWillReply: "ଜଣେ ଉତ୍ତର ଦେବେ",
 
     language: "ଭାଷା",
+    languageChanged: "ଭାଷା ପରିବର୍ତ୍ତନ ହୋଇଛି",
     journey: "ଯାତ୍ରାପଥ",
     kmAway: "କିଲୋମିଟର ଦୂର",
     hoursEachWay: "ଘଣ୍ଟା ଗୋଟିଏ ଦିଗକୁ",
@@ -243,6 +248,7 @@ export const STRINGS: Record<Lang, Strings> = {
     aPersonWillReply: "A person will reply",
 
     language: "Language",
+    languageChanged: "Language changed",
     journey: "Journey",
     kmAway: "km away",
     hoursEachWay: "hours each way",
