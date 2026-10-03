@@ -125,3 +125,25 @@ async def test_an_already_confirmed_ivr_cannot_be_confirmed_twice(state):
     confirmation = state.runner._open_ivr_confirmation(patient_id, "test message")
     assert await state.runner.confirm_ivr(confirmation.id, "1")
     assert not await state.runner.confirm_ivr(confirmation.id, "1")
+
+
+def test_an_option_converts_to_a_plan_whatever_fields_it_grows():
+    """The conversion must not depend on a hand-maintained list of differences.
+
+    It did, and the list rotted: adding `PlanOption.target_on` made approving an
+    option raise `extra_forbidden`, which surfaced only as a story that stopped
+    advancing one beat early.
+    """
+    from saathi.domain.models import PlanOption, VisitPlan
+
+    option_only = set(PlanOption.model_fields) - set(VisitPlan.model_fields)
+    shared = set(PlanOption.model_fields) & set(VisitPlan.model_fields)
+
+    assert shared, "a PlanOption should still be shaped like the plan it becomes"
+    # Every field a VisitPlan requires must be available on the option.
+    required = {
+        name for name, f in VisitPlan.model_fields.items() if f.is_required()
+    }
+    assert required <= set(PlanOption.model_fields)
+    # And the difference is exactly what gets excluded, by construction.
+    assert "target_on" in option_only

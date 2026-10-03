@@ -16,3 +16,4 @@ console/dist/
 .idea/
 *.tsbuildinfo
 exports/
+recordings/

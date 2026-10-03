@@ -548,7 +548,8 @@ class LiveRunner:
             self.world.today.isoformat(),
             summary=(
                 f"{(resource.display_name if resource else resource_id)} "
-                f"reported {kind.value.replace('_', ' ')} — {len(affected)} families affected"
+                f"reported {kind.value.replace('_', ' ')} — {len(affected)} "
+                f"famil{'y' if len(affected) == 1 else 'ies'} affected"
             ),
             disruption_id=disruption.id,
             resource_id=resource_id,
@@ -813,8 +814,12 @@ class LiveRunner:
         patient = self.world.patient(patient_id)
         if layer is None or patient is None:
             return
-        option_fields = {"nights_added", "extra_trips", "dose_delay_days"}
-        plan = VisitPlan(**option.model_dump(exclude=option_fields))
+        # Derived, not listed. A hand-written set of option-only fields silently
+        # rotted the moment `target_on` was added to `PlanOption`: approving an
+        # option started raising `extra_forbidden` and the story simply stopped
+        # advancing, with the failure visible only as a missing beat.
+        option_only = set(PlanOption.model_fields) - set(VisitPlan.model_fields)
+        plan = VisitPlan(**option.model_dump(exclude=option_only))
         recipients = patient.family_members or ()
         targets = recipients if recipients else [
             FamilyMember(

@@ -1,0 +1,8 @@
+{
+  "name": "ekyatra-saathi-demo",
+  "private": true,
+  "type": "module",
+  "description": "Drives the running console with a real browser and records it.",
+  "scripts": { "record": "node autodemo.mjs" },
+  "devDependencies": { "playwright": "^1.63.0" }
+}
