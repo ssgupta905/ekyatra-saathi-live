@@ -228,6 +228,36 @@ SAATHI_LIVE_AUTOSTART=true        # start the clock on boot instead
 SAATHI_LIVE_SECONDS_PER_DAY=2     # default 4
 ```
 
+### The automatic demo
+
+A real browser, driven and recorded. The cursor moves, the buttons are really
+clicked, and every Advance press runs the same `LiveRunner` method a person's
+click would — the planner re-runs, Groq writes the family's message, the guard
+reads it. Two runs differ slightly because the model output does.
+
+It drives the running app and does not start it, so in two terminals:
+
+```bash
+make api PORT=8001                 # terminal 1
+SAATHI_API_PORT=8001 make console  # terminal 2
+```
+
+Then:
+
+```bash
+make demo-video PORT=8001            # opens a browser window you can watch
+make demo-video-headless PORT=8001   # same run, no window, for CI or over SSH
+```
+
+The recording lands in `recordings/saathi-autodemo-<timestamp>.webm` and the
+command prints the path. First run downloads Chromium (~95 MB); after that it is
+cached. If a service is not up, the demo says which one and stops rather than
+failing somewhere inside Playwright.
+
+Knobs: `SAATHI_DEMO_BEAT` (ms between narration beats, default 900),
+`SAATHI_DEMO_SLOWMO` (ms added to every Playwright action, headed only),
+`SAATHI_CONSOLE_URL`, `SAATHI_API_URL`.
+
 ### Running it on stage
 
 - **Reset first.** The Reset button in the Cohort view, or

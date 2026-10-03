@@ -18,7 +18,7 @@
  */
 
 import { chromium } from "playwright";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readdirSync, renameSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -147,6 +147,32 @@ class Demo {
 
 /* ── the run ─────────────────────────────────────────────────────────────── */
 
+async function preflight() {
+  const checks = [
+    ["console", CONSOLE_URL],
+    ["API", `${API_URL}/api/health`],
+  ];
+  const missing = [];
+  for (const [name, url] of checks) {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(4000) });
+      if (!response.ok) missing.push([name, url, `HTTP ${response.status}`]);
+    } catch (error) {
+      missing.push([name, url, error.cause?.code ?? error.name]);
+    }
+  }
+  if (missing.length === 0) return;
+
+  console.error("\nThe demo drives the running app; it does not start it.\n");
+  for (const [name, url, why] of missing) {
+    console.error(`  ${name} not reachable at ${url}  (${why})`);
+  }
+  console.error("\nStart them in two terminals, then run this again:\n");
+  console.error("  make api PORT=8001");
+  console.error("  SAATHI_API_PORT=8001 make console\n");
+  process.exit(1);
+}
+
 async function reset() {
   const response = await fetch(`${API_URL}/api/live/control`, {
     method: "POST",
@@ -158,14 +184,20 @@ async function reset() {
 
 async function main() {
   mkdirSync(OUT, { recursive: true });
+  await preflight();
   // A rehearsable demo starts from the same world every time. Only the model's
   // words differ between runs.
   await reset();
 
+  // Headed by default: the usual reason to run this is to watch it. Set
+  // SAATHI_DEMO_HEADLESS=true in CI or over SSH, where there is no display.
+  const headless = process.env.SAATHI_DEMO_HEADLESS === "true";
   const browser = await chromium.launch({
-    headless: process.env.SAATHI_DEMO_HEADLESS !== "false",
+    headless,
     args: ["--force-device-scale-factor=1"],
+    slowMo: headless ? 0 : Number(process.env.SAATHI_DEMO_SLOWMO ?? 0),
   });
+  console.log(headless ? "running headless" : "opening a browser window…");
   const context = await browser.newContext({
     viewport: VIEWPORT,
     deviceScaleFactor: 2,
@@ -301,7 +333,17 @@ async function main() {
     await browser.close();
   }
 
-  console.log(`\nrecording written to ${OUT}`);
+  // Playwright names videos by an internal hash. Rename to something findable.
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const named = resolve(OUT, `saathi-autodemo-${stamp}.webm`);
+  const latest = readdirSync(OUT)
+    .filter((f) => f.endsWith(".webm") && f.startsWith("page@"))
+    .map((f) => ({ f, t: statSync(resolve(OUT, f)).mtimeMs }))
+    .sort((a, b) => b.t - a.t)[0];
+  if (latest) renameSync(resolve(OUT, latest.f), named);
+
+  console.log(`\nrecording: ${named}`);
+  console.log("open it with:  open " + JSON.stringify(named));
 }
 
 main().catch((error) => {

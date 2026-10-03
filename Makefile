@@ -1,4 +1,4 @@
-.PHONY: help install demo demo-video fetch-reference test lint api console docker seed clean
+.PHONY: help install demo demo-video demo-video-headless fetch-reference test lint api console docker seed clean
 
 PY ?= .venv/bin/python
 # Override when something else already owns 8000:  make api PORT=8001
@@ -12,7 +12,8 @@ help:
 	@echo "make lint      ruff check + format check"
 	@echo "make api       serve the FastAPI app on :8000 (override with PORT=8001)"
 	@echo "make console   run the navigator console on :5173 (proxies /api to :8000)"
-	@echo "make demo-video  drive the console with a real browser and record it"
+	@echo "make demo-video  drive the console in a visible browser and record it"
+	@echo "make demo-video-headless   the same run with no window"
 	@echo "make docker    bring up postgres + neo4j for pilot-mode work"
 	@echo "make seed      load the Neo4j dependency graph schema"
 
@@ -40,9 +41,15 @@ api:
 console:
 	cd console && npm install && npm run dev
 
+# Watch it happen in a real browser window, and record it.
 demo-video:
-	@echo "needs the API and console already running (make api PORT=8001 / make console)"
-	cd demo && npm install --no-audit --no-fund && node autodemo.mjs
+	cd demo && npm install --no-audit --no-fund && npx playwright install chromium \
+		&& SAATHI_API_URL=http://localhost:$(PORT) node autodemo.mjs
+
+# Same run with no window, for CI or over SSH.
+demo-video-headless:
+	cd demo && npm install --no-audit --no-fund && npx playwright install chromium \
+		&& SAATHI_DEMO_HEADLESS=true SAATHI_API_URL=http://localhost:$(PORT) node autodemo.mjs
 
 docker:
 	docker compose up -d
