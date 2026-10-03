@@ -571,6 +571,15 @@ async function main() {
     await demo.clear();
     const anita = desk.locator(".story-bar .segmented button", { hasText: "Anita" });
     await demo.click(anita, { label: "Anita's story" });
+    await page.waitForTimeout(1400);
+
+    // Picking the story does not pick the family — the worklist is the
+    // navigator's own, and a story bar reaching into it would be the console
+    // causing something rather than reflecting it. So click her, the way a
+    // navigator would, or the whole act narrates Anita over Shambhu's board.
+    await demo.click(desk.locator(".hx-row", { hasText: "P-ANITA" }), {
+      label: "Anita's board",
+    });
     await page.waitForTimeout(1600);
 
     await demo.say(
