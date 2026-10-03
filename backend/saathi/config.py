@@ -21,6 +21,14 @@ class Settings(BaseSettings):
     environment: str = "local"
     log_level: str = "INFO"
 
+    #: Where the built console lives, when one service serves both. Empty in
+    #: development, where Vite serves the apps and proxies /api here.
+    console_dist: str = ""
+
+    #: Origins allowed to call the API cross-site. Only needed in development:
+    #: deployed, the console is served from this same origin.
+    cors_origins: str = "http://localhost:5173"
+
     # --- storage ---
     database_url: str = "sqlite+aiosqlite:///./saathi.db"
     neo4j_uri: str | None = None

@@ -1,0 +1,31 @@
+# One service: the three console apps and the API on one origin.
+#
+# Deploy with Render's Blueprint flow, or create a Docker web service pointed
+# at this repository. The only thing to set by hand is SAATHI_GROQ_API_KEY —
+# and the demo runs without it, falling back to templated messages, because the
+# decision path never depends on an external service.
+
+services:
+  - type: web
+    name: ekyatra-saathi
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore
+    branch: main
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: SAATHI_ENVIRONMENT
+        value: render
+      # Set in the dashboard. Without it the planner, the guard and the ledger
+      # all still run; only the wording falls back to templates.
+      - key: SAATHI_GROQ_API_KEY
+        sync: false
+      # Same origin deployed, so no cross-site caller to allow.
+      - key: SAATHI_CORS_ORIGINS
+        value: ""
+      # The clock stays still until someone presses Advance: this is a demo to
+      # be driven, not a simulation left running on a free instance.
+      - key: SAATHI_LIVE_AUTOSTART
+        value: "false"

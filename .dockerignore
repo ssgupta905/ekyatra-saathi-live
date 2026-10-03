@@ -1,0 +1,16 @@
+.git
+.venv
+.pytest_cache
+.ruff_cache
+**/__pycache__
+**/node_modules
+console/dist
+recordings
+docs
+demo
+tests
+*.md
+!README.md
+.env
+.env.*
+!.env.example
