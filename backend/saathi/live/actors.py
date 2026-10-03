@@ -24,14 +24,15 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
 import groq
 
-from ..domain.enums import StepStatus
-from ..domain.models import CareStep, Patient
+from ..domain.enums import DisruptionKind, StepStatus
+from ..domain.models import CareStep, Patient, Resource
 from ..language import guard
 from ..language.rendering import LANGUAGE_NAMES
 from ..ledger.evidence import InMemoryEvidenceLedger
@@ -184,6 +185,45 @@ abbreviations, no greeting, no explanation.
 Say only that the named report has been released and when. Never say anything \
 about what the report contains — you are logging that it exists, not what it \
 found. No diagnosis, no findings, no impression, no reassurance.
+"""
+
+DISRUPTION_SCHEMA = _schema(
+    "disruption_reading",
+    {
+        "resource_id": {
+            "type": "string",
+            "description": "The id of the resource the note is about, from the list given.",
+        },
+        "kind": {"type": "string", "enum": [k.value for k in DisruptionKind]},
+        "unavailable_from": {"type": "string", "description": "ISO date, YYYY-MM-DD."},
+        "unavailable_to": {
+            "type": "string",
+            "description": "ISO date, or empty when the note gives no end.",
+        },
+        "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+        "read_as": {
+            "type": "string",
+            "description": "One short sentence: what you took the note to mean.",
+        },
+    },
+    ["resource_id", "kind", "unavailable_from", "unavailable_to", "confidence", "read_as"],
+)
+
+DISRUPTION_SYSTEM = """\
+You read a line from a hospital department's work log and extract the outage it \
+describes: which resource, what kind of outage, and for how long.
+
+Pick `resource_id` only from the list you are given. If the note names something \
+not on that list, pick the closest and mark confidence "low" — a desk clerk will \
+confirm or correct this before anything happens, so a wrong guess is cheap and a \
+refusal to guess is not helpful.
+
+Dates: resolve relative words ("till Saturday", "for two days", "this week") \
+against the date you are given. Leave `unavailable_to` empty when the note gives \
+no end, rather than inventing one.
+
+You are reading logistics, never clinical information. A note that is about a \
+patient rather than a resource is not an outage: mark confidence "low".
 """
 
 PARSE_SYSTEM = """\
@@ -364,6 +404,41 @@ class GroqActors:
         }
 
     # ---------------- b. what the family writes in ----------------
+
+    async def read_work_log(
+        self, text: str, resources: Sequence[Resource], today: date
+    ) -> dict | None:
+        """Read a department's own words and propose an outage from them.
+
+        A desk does not think in `resource_id` and `unavailable_to`. It thinks
+        "MRI-2 down till Saturday" and types that into a log it already keeps.
+        This reads that line and proposes the record it implies — it never
+        raises one. The desk sees what was understood and confirms it, so the
+        model supplies a reading and a person still supplies the decision.
+        """
+        catalogue = "\n".join(
+            f"  {r.id} — {r.display_name} ({r.kind.value}, {r.department or 'no department'})"
+            for r in resources
+        )
+        prompt = (
+            f"Today: {today.isoformat()}\n"
+            f"Resources that can be reported:\n{catalogue}\n\n"
+            f"Work log line:\n{text.strip()[:600]}"
+        )
+        data = await self._json(DISRUPTION_SYSTEM, prompt, DISRUPTION_SCHEMA, 0.2)
+        if data is None:
+            return None
+
+        # The model picks from a list; trust nothing it returns that is not on it.
+        known = {r.id for r in resources}
+        if str(data.get("resource_id")) not in known:
+            logger.warning("work-log reading named an unknown resource; discarding")
+            return None
+        try:
+            DisruptionKind(str(data.get("kind")))
+        except ValueError:
+            return None
+        return data
 
     async def write_caregiver_message(
         self, patient: Patient, plan_run: Any | None, kind: str | None = None

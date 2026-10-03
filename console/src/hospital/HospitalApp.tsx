@@ -15,22 +15,27 @@ import { StoryBar } from "../components/StoryBar";
 import { AgentStatus } from "../components/AgentStatus";
 import { PlanBoard } from "../components/PlanBoard";
 import { OptionsApprovalCard } from "../components/OptionsApprovalCard";
-import { DisruptionReportForm } from "../components/DisruptionReportForm";
+import { IssueReporter } from "./IssueReporter";
 import { ActivityStrip } from "../components/ActivityStrip";
 import { ExplainPane } from "./ExplainPane";
 import { PersonaSwitcher } from "../components/PersonaSwitcher";
-import { Badge, Card, Chip, DecisionGlyph, Notice } from "../ui/primitives";
+import { Chip, DecisionGlyph, Notice } from "../ui/primitives";
 import { Bell, Shield } from "../ui/icons";
 import { DemoNav } from "../ui/DemoNav";
 
 /**
  * The hospital's screen. A separate application from the family's phone.
  *
- * What a navigator holding thirty families actually needs, in the order they
- * need it: *who needs me*, then *why*, then *the one decision only a person
- * can make*. So the screen is three panes that never move — a worklist on the
- * left, the selected family's pathway in the middle, and the desk's own two
- * inputs on the right — and it fits on one screen without scrolling.
+ * Ordered by what a navigator actually asks, in the order they ask it:
+ * *what happened*, *what needs me*, *what changed* — and only then *why*.
+ *
+ * An earlier version had this backwards. The pathway diagram held the middle
+ * of the screen and the two things a navigator reaches for on a bad morning —
+ * reporting an outage, and seeing what just moved — were squeezed into a
+ * 300px gutter. A branching DAG is what you open when a family argues with the
+ * decision; it is not what you need at 7:40 am when a machine has just failed.
+ * So the pathway and the decision trace are now collapsed by default, one
+ * click away, and the live feed and the issue reporter have the width.
  *
  * This replaced a single page that tried to be six consoles and a family
  * phone at once. The persona switcher survives, because signing in as Seema
@@ -105,7 +110,7 @@ export default function HospitalApp() {
   // Two ways to read one family: the pathway (what is waiting on what) and the
   // trace (why this answer, down to the ledger rows). Both are about the same
   // family, so they are a tab on one pane rather than two places to navigate.
-  const [lens, setLens] = useState<"pathway" | "why">("pathway");
+  const [lens, setLens] = useState<"pathway" | "why" | null>(null);
 
   const refresh = useCallback(() => {
     boards
@@ -208,9 +213,11 @@ export default function HospitalApp() {
           </div>
         </aside>
 
-        {/* why, and the one decision */}
+        {/* what happened, what needs me, what changed */}
         <main className="hx-work">
           {error && <Notice tone="warn">{error}</Notice>}
+
+          <IssueReporter onReported={(ids) => { setAffected(ids); refresh(); }} />
 
           {decide && canApprove && (
             <OptionsApprovalCard
@@ -228,68 +235,53 @@ export default function HospitalApp() {
               one to approve.
             </Notice>
           )}
+          {!decide && affected && (
+            <Notice tone="calm">
+              {affected.length} famil{affected.length === 1 ? "y" : "ies"} picked up by the
+              planner. Holding messages went out before any new date was worked out.
+            </Notice>
+          )}
 
-          {board ? (
-            <>
+          <ActivityStrip
+            events={world.events}
+            connected={world.connected}
+            onSelect={setSelected}
+          />
+
+          {/* Why, when you need it — not in the way when you do not. */}
+          {board && (
+            <div className="hx-detail">
               <div className="hx-lens">
-                <div className="segmented" role="group" aria-label="How to read this family">
+                <div className="segmented" role="group" aria-label="Look closer at this family">
                   <button
                     type="button"
                     aria-pressed={lens === "pathway"}
-                    onClick={() => setLens("pathway")}
+                    onClick={() => setLens(lens === "pathway" ? null : "pathway")}
                   >
                     Pathway
                   </button>
                   <button
                     type="button"
                     aria-pressed={lens === "why"}
-                    onClick={() => setLens("why")}
+                    onClick={() => setLens(lens === "why" ? null : "why")}
                   >
                     Why this answer
                   </button>
                 </div>
                 <span className="hint">
                   {lens === "pathway"
-                    ? "what is waiting on what"
-                    : "every claim, and the source it came from"}
+                    ? `what is waiting on what, for ${board.patient.id}`
+                    : lens === "why"
+                      ? `every claim behind ${board.patient.id}'s answer, and its source`
+                      : `look closer at ${board.patient.id}`}
                 </span>
               </div>
 
-              {lens === "pathway" ? (
-                <PlanBoard board={board} />
-              ) : (
-                <ExplainPane patientId={board.patient.id} />
-              )}
-            </>
-          ) : (
-            <Notice tone="calm">Pick a family.</Notice>
+              {lens === "pathway" && <PlanBoard board={board} compact />}
+              {lens === "why" && <ExplainPane patientId={board.patient.id} />}
+            </div>
           )}
         </main>
-
-        {/* the desk's own inputs, and what just happened */}
-        <aside className="hx-side">
-          <DisruptionReportForm
-            defaultResourceId={persona.deskResourceId}
-            onReported={(ids) => {
-              setAffected(ids);
-              refresh();
-            }}
-          />
-          {affected && (
-            <Card title="Reported" hint="families the planner picked up">
-              <p className="plain">
-                {affected.length} famil{affected.length === 1 ? "y" : "ies"}:{" "}
-                {affected.join(", ") || "none"}
-              </p>
-              <Badge tone="info">holding messages sent, options ranked</Badge>
-            </Card>
-          )}
-          <ActivityStrip
-            events={world.events}
-            connected={world.connected}
-            onSelect={setSelected}
-          />
-        </aside>
       </div>
 
       {story && (

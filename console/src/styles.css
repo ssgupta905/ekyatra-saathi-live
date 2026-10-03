@@ -2660,3 +2660,90 @@ tbody td { padding: 8px 16px; }
   color: var(--wait);
   font-weight: 500;
 }
+
+/* ── the desk says what happened ─────────────────────────────────────────
+   A form is the shape of the record, not the shape of the thought. A desk at
+   7:40 am thinks "MRI-2 down till Saturday"; the fields come after, as a
+   proposal to confirm or correct. */
+
+.iss-entry { display: flex; gap: 8px; align-items: flex-start; }
+
+.iss-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+.iss-text:focus { outline: none; border-color: var(--blue-500); box-shadow: var(--ring); }
+
+.iss-examples { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.iss-examples button {
+  appearance: none;
+  border: 1px dashed var(--line);
+  background: transparent;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+}
+.iss-examples button:hover { border-style: solid; color: var(--ink); background: var(--surface); }
+
+/* The proposal. Bordered rather than filled: it is not a state the world is
+   in yet, and it should not look like one. */
+.iss-reading {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--go);
+  border-radius: var(--r-md);
+  background: var(--sunken);
+  display: grid;
+  gap: 10px;
+}
+.iss-reading.medium, .iss-reading.low { border-left-color: var(--wait); }
+
+.iss-read-as { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; font-size: 14px; }
+
+.iss-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 9px;
+}
+.iss-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+.iss-fields input,
+.iss-fields select {
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.iss-fields input:read-only { background: var(--fill-quiet); color: var(--ink-2); }
+
+.iss-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.iss-actions .hint { margin-left: auto; font-size: 11px; color: var(--ink-4); }
+
+/* Two panes now, not three: the feed and the reporter have the width that the
+   pathway used to take. */
+.hx-panes { grid-template-columns: 224px minmax(0, 1fr); }
+.hx-detail { display: grid; gap: 12px; }

@@ -218,6 +218,109 @@ class DisruptionRequest(BaseModel):
     note: str = ""
 
 
+class WorkLogRequest(BaseModel):
+    """A line a department already writes, rather than a form it has to fill."""
+
+    text: str = Field(min_length=3, max_length=600)
+
+
+#: Words a desk actually uses, for when no model is available. Deliberately
+#: thin: this is a fallback that says so, not a parser pretending to be one.
+_KIND_WORDS: dict[DisruptionKind, tuple[str, ...]] = {
+    DisruptionKind.MACHINE_DOWN: ("down", "broken", "out of service", "fault", "not working"),
+    DisruptionKind.STAFF_UNAVAILABLE: ("leave", "away", "absent", "off", "unavailable", "called"),
+    DisruptionKind.STOCK_DELAY: ("stock", "delivery", "supply", "late", "shipment", "not arrived"),
+}
+
+
+def _read_without_a_model(text: str, resources, today: date) -> dict | None:
+    """Match a resource by name and a kind by vocabulary. Nothing clever.
+
+    Exists so the desk's free-text box still does something with no credentials
+    present — invariant 9 — and it reports itself as a pattern match so nobody
+    mistakes it for the model having read the line.
+    """
+    lowered = text.lower()
+    hit = None
+    for resource in resources:
+        words = [resource.id.lower(), *resource.display_name.lower().split()]
+        if any(len(w) > 3 and w in lowered for w in words):
+            hit = resource
+            break
+    if hit is None:
+        return None
+
+    kind = next(
+        (k for k, words in _KIND_WORDS.items() if any(w in lowered for w in words)),
+        DisruptionKind.MACHINE_DOWN,
+    )
+    return {
+        "resource_id": hit.id,
+        "kind": kind.value,
+        "unavailable_from": today.isoformat(),
+        "unavailable_to": "",
+        "confidence": "low",
+        "read_as": f"matched the words in this line to {hit.display_name}",
+    }
+
+
+@router.post("/disruptions/read")
+async def read_work_log(request: Request, body: WorkLogRequest) -> dict:
+    """Read a department's own words and propose the outage they describe.
+
+    Proposes. It does not raise anything. A desk thinks "MRI-2 down till
+    Saturday", not `resource_id` and `unavailable_to`, so this takes the line
+    they would write in a log they already keep and hands back what it
+    understood — for them to confirm or correct. The model supplies a reading;
+    a person still supplies the decision, which is invariant 3 and the reason
+    this is a separate endpoint from the one that acts.
+    """
+    state = _state(request)
+    resources = list(state.world.resources.values())
+    if not resources:
+        raise HTTPException(409, "no resources are registered to report against")
+
+    today = state.world.today
+    reading = None
+    read_by = "pattern match"
+    if state.runner.actors is not None:
+        async with state.runner.working(
+            "Reading the work log", detail="proposing an outage for a desk to confirm"
+        ):
+            reading = await state.runner.actors.read_work_log(body.text, resources, today)
+        if reading is not None:
+            state.runner._bump("actor_calls")
+            read_by = state.runner.actors.describe()
+
+    if reading is None:
+        reading = _read_without_a_model(body.text, resources, today)
+    if reading is None:
+        return {
+            "understood": False,
+            "reason": "nothing in that line names a resource this hospital can report on",
+            "resources": [
+                {"id": r.id, "display_name": r.display_name, "kind": r.kind.value}
+                for r in resources
+            ],
+        }
+
+    resource = state.world.resources.get(reading["resource_id"])
+    return {
+        "understood": True,
+        "resource_id": reading["resource_id"],
+        "resource_name": resource.display_name if resource else reading["resource_id"],
+        "kind": reading["kind"],
+        "unavailable_from": reading["unavailable_from"],
+        "unavailable_to": reading.get("unavailable_to") or None,
+        "confidence": reading.get("confidence", "low"),
+        #: What it took the line to mean, in a sentence, so the desk is
+        #: confirming an understanding rather than a row of fields.
+        "read_as": reading.get("read_as", ""),
+        "read_by": read_by,
+        "note": body.text.strip(),
+    }
+
+
 @router.post("/disruptions")
 async def raise_disruption(request: Request, body: DisruptionRequest) -> dict:
     """A desk's one-tap report. Everything downstream — the holding message,

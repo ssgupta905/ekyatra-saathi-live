@@ -412,9 +412,35 @@ async function main() {
       3400,
     );
     await demo.say(
-      "7:40 am. The radiology desk reports MRI-2 out of service. One tap — the " +
-        "desk states a fact, it decides nothing.",
-      3600,
+      "7:40 am. MRI-2 fails. The desk does not fill in a form — it types the " +
+        "line it would write in its own work log.",
+      3800,
+    );
+    await demo.type(
+      desk.locator(".iss-text"),
+      "MRI-2 down till Saturday, nothing can run on it",
+    );
+    await demo.click(desk.locator(".iss-entry button"), { label: "read it" });
+    await desk.locator(".iss-reading").waitFor({ timeout: 45000 });
+    await demo.say(
+      "An agent reads it and proposes a record: which machine, what kind of " +
+        "outage, and it resolved \u201ctill Saturday\u201d to a date.",
+      4000,
+    );
+    await demo.shot("work-log-read");
+    await demo.say(
+      "It proposes. It does not report. The desk confirms what was understood — " +
+        "the model supplies the reading, a person supplies the decision.",
+      4200,
+    );
+    // Cancelled on purpose: the scripted story raises this same outage a
+    // moment later, so letting both through would report it twice. The
+    // narration says so rather than hiding the seam.
+    await demo.click(desk.locator(".iss-actions button", { hasText: "Cancel" }));
+    await demo.say(
+      "Here the scripted story raises that same report, so the clock matches " +
+        "the brief. One tap — the desk states a fact, it decides nothing.",
+      4000,
     );
     await demo.click(advance, { label: "advance" });
     await page.waitForTimeout(2800);
@@ -546,6 +572,12 @@ async function main() {
 
     await demo.title("4 · Why", "A navigator has to be able to defend this");
     await demo.focus("Hospital");
+    await demo.say(
+      "The pathway and the trace sit folded away. At 7:40 in the morning a " +
+        "navigator needs what happened, not a diagram — but when a family " +
+        "argues with the answer, it is one click.",
+      4400,
+    );
     await demo.click(desk.locator(".hx-lens button", { hasText: "Why this answer" }), {
       label: "why",
     });

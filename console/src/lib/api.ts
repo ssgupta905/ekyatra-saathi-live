@@ -279,8 +279,30 @@ export interface PendingOption {
   created_at: string;
 }
 
+/** What the agent took a work-log line to mean. A proposal, never an action. */
+export interface WorkLogReading {
+  understood: boolean;
+  reason?: string;
+  resource_id?: string;
+  resource_name?: string;
+  kind: string;
+  unavailable_from?: string;
+  unavailable_to?: string | null;
+  confidence: "high" | "medium" | "low";
+  /** One sentence: what it took the line to mean. */
+  read_as: string;
+  /** The model that read it, or "pattern match" when none was available. */
+  read_by: string;
+  note?: string;
+}
+
 export const disruptions = {
   pending: () => request<PendingOption[]>("/disruptions/pending"),
+  read: (text: string) =>
+    request<WorkLogReading>("/disruptions/read", {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
   raise: (body: {
     resource_id: string;
     kind: DisruptionKind;
