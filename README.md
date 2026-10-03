@@ -228,12 +228,38 @@ SAATHI_LIVE_AUTOSTART=true        # start the clock on boot instead
 SAATHI_LIVE_SECONDS_PER_DAY=2     # default 4
 ```
 
+### Three apps, not one
+
+| URL | Who | What it is |
+|---|---|---|
+| `/` | hospital | Worklist, pathway, the one decision a person makes |
+| `/family.html?patient=P-SHAMBHU` | a family | One word, one date, in their language |
+| `/stage.html` | a camera | Both of the above, live, in device frames |
+
+They are separate applications sharing a backend. Open the phone on a phone and
+the desk on a laptop and they behave exactly as they do on the stage.
+
+**Multilingual, and where the line is.** `console/src/lib/i18n.ts` holds chrome
+only — "Plan", "Send", the names of the twelve step kinds, and the three labels
+for `plan.decision`. The same words on every family's screen, asserting nothing
+about any of them. Everything the system *says* is written by the language layer
+and read by the guard, as it always was. Choosing a language is a `PATCH` to the
+family's record, a ledger row, and a re-render — not a translation of the view —
+and the thread keeps each message in the language it was sent in.
+
 ### The automatic demo
 
-A real browser, driven and recorded. The cursor moves, the buttons are really
-clicked, and every Advance press runs the same `LiveRunner` method a person's
-click would — the planner re-runs, Groq writes the family's message, the guard
-reads it. Two runs differ slightly because the model output does.
+A real browser, driven and recorded, across both screens as one flow. The
+cursor moves between the phone and the desk, the buttons are really clicked, and
+every Advance press runs the same `LiveRunner` method a person's click would —
+the planner re-runs, Groq writes the family's message, Whisper transcribes the
+spoken question, the guard reads the result. Two runs differ because the model
+output does.
+
+What is staged is only the input a human would otherwise supply: which button is
+pressed, and what the family asks. The spoken question is a clip synthesised by
+`make demo-audio` and fed to Chrome as a fake capture device — from
+`getUserMedia` onward nothing knows the difference.
 
 It drives the running app and does not start it, so in two terminals:
 
@@ -250,7 +276,7 @@ make demo-video-headless PORT=8001   # same run, no window, for CI or over SSH
 ```
 
 The recording lands in `recordings/saathi-autodemo-<timestamp>.webm` and the
-command prints the path. First run downloads Chromium (~95 MB); after that it is
+command prints the path; eight stills land in `recordings/stills/` for slides. First run downloads Chromium (~95 MB); after that it is
 cached. If a service is not up, the demo says which one and stops rather than
 failing somewhere inside Playwright.
 
