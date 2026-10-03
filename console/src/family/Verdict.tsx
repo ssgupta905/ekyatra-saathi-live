@@ -98,7 +98,7 @@ export function Verdict({
           aria-label={s.speak}
         >
           <Speaker size={18} />
-          {speaking ? s.listening : s.speak}
+          {speaking ? s.reading : s.speak}
         </button>
       )}
     </section>

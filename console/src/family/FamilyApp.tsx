@@ -7,7 +7,7 @@ import { Why } from "./Why";
 import { PlanStrip } from "./PlanStrip";
 import { Thread } from "./Thread";
 import { Composer } from "./Composer";
-import { Shield, Spark } from "../ui/icons";
+import { Inbox, Pin, Shield, Spark } from "../ui/icons";
 
 /**
  * The family's app. A separate application from the hospital console, not a
@@ -39,6 +39,11 @@ export default function FamilyApp() {
   const [home, setHome] = useState<FamilyHome | null>(null);
   const [thread, setThread] = useState<ThreadData | null>(null);
   const [switching, setSwitching] = useState(false);
+  // Two tabs, because a phone screen holds one thing at a time. The plan and
+  // the conversation were stacked, which put the conversation permanently below
+  // the fold — a family could not find the messages they were sent without
+  // scrolling past their whole care pathway.
+  const [tab, setTab] = useState<"plan" | "messages">("plan");
   const [error, setError] = useState<string | null>(null);
   const world = useLiveWorld();
 
@@ -82,6 +87,8 @@ export default function FamilyApp() {
   // Only this family's work. A phone showing "Saathi is checking" because
   // something is happening for a stranger in another district would be a lie
   // about whose problem is being worked on.
+  const messageCount = thread?.thread.length ?? 0;
+
   const mine = world.working.filter(
     (item) => item.patientId === null || item.patientId === patientId,
   );
@@ -117,21 +124,51 @@ export default function FamilyApp() {
         </div>
       )}
 
+      {/* The answer stays put. Whichever tab is open, the family can always
+          see whether to travel without going looking for it. */}
+      <Verdict home={home} lang={lang} s={s} />
+
+      <nav className="fx-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "plan"}
+          onClick={() => setTab("plan")}
+        >
+          <Pin size={14} />
+          {s.planTab}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "messages"}
+          onClick={() => setTab("messages")}
+        >
+          <Inbox size={14} />
+          {s.messages}
+          {messageCount > 0 && <span className="fx-tab-count">{messageCount}</span>}
+        </button>
+      </nav>
+
       <main className="fx-scroll">
         {error && <div className="fx-error">{error}</div>}
 
-        <Verdict home={home} lang={lang} s={s} />
-        <Why waits={home?.waiting_for ?? []} lang={lang} s={s} />
-        <PlanStrip steps={home?.steps ?? []} lang={lang} s={s} />
-        <Thread entries={thread?.thread ?? []} lang={lang} s={s} />
+        {tab === "plan" ? (
+          <>
+            <Why waits={home?.waiting_for ?? []} lang={lang} s={s} />
+            <PlanStrip steps={home?.steps ?? []} lang={lang} s={s} />
 
-        {home && (
-          <p className="fx-journey">
-            {home.patient.distance_km} {s.kmAway}
-            {home.patient.hours_each_way != null && (
-              <> · {home.patient.hours_each_way.toFixed(0)} {s.hoursEachWay}</>
+            {home && (
+              <p className="fx-journey">
+                {home.patient.distance_km} {s.kmAway}
+                {home.patient.hours_each_way != null && (
+                  <> · {home.patient.hours_each_way.toFixed(0)} {s.hoursEachWay}</>
+                )}
+              </p>
             )}
-          </p>
+          </>
+        ) : (
+          <Thread entries={thread?.thread ?? []} lang={lang} s={s} />
         )}
 
         <p className="fx-boundary">
@@ -142,7 +179,17 @@ export default function FamilyApp() {
         </p>
       </main>
 
-      <Composer patientId={patientId} lang={lang} s={s} onSent={refresh} />
+      <Composer
+        patientId={patientId}
+        lang={lang}
+        s={s}
+        onSent={() => {
+          // Jump to the conversation: the answer arrives there, and leaving the
+          // family on the plan tab would look like nothing happened.
+          setTab("messages");
+          refresh();
+        }}
+      />
     </div>
   );
 }

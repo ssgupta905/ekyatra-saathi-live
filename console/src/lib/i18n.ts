@@ -57,12 +57,15 @@ export interface Strings {
   noTravelNeeded: string;
 
   messages: string;
+  planTab: string;
   you: string;
   ask: string;
   askPlaceholder: string;
   send: string;
   sending: string;
   speak: string;
+  /** Shown while the message is being read aloud — not while listening. */
+  reading: string;
   listening: string;
   transcribing: string;
   checkBeforeSending: string;
@@ -103,12 +106,14 @@ export const STRINGS: Record<Lang, Strings> = {
     noTravelNeeded: "आने की ज़रूरत नहीं",
 
     messages: "संदेश",
+    planTab: "योजना",
     you: "आप",
     ask: "पूछिए",
     askPlaceholder: "अपना सवाल लिखिए",
     send: "भेजें",
     sending: "भेज रहे हैं…",
     speak: "बोलिए",
+    reading: "पढ़ रहे हैं…",
     listening: "सुन रहे हैं…",
     transcribing: "लिख रहे हैं…",
     checkBeforeSending: "भेजने से पहले देख लीजिए",
@@ -142,12 +147,14 @@ export const STRINGS: Record<Lang, Strings> = {
     noTravelNeeded: "আসতে হবে না",
 
     messages: "বার্তা",
+    planTab: "পরিকল্পনা",
     you: "আপনি",
     ask: "জিজ্ঞাসা করুন",
     askPlaceholder: "আপনার প্রশ্ন লিখুন",
     send: "পাঠান",
     sending: "পাঠানো হচ্ছে…",
     speak: "বলুন",
+    reading: "পড়ে শোনানো হচ্ছে…",
     listening: "শুনছি…",
     transcribing: "লেখা হচ্ছে…",
     checkBeforeSending: "পাঠানোর আগে দেখে নিন",
@@ -181,12 +188,14 @@ export const STRINGS: Record<Lang, Strings> = {
     noTravelNeeded: "ଆସିବା ଦରକାର ନାହିଁ",
 
     messages: "ସନ୍ଦେଶ",
+    planTab: "ଯୋଜନା",
     you: "ଆପଣ",
     ask: "ପଚାରନ୍ତୁ",
     askPlaceholder: "ଆପଣଙ୍କ ପ୍ରଶ୍ନ ଲେଖନ୍ତୁ",
     send: "ପଠାନ୍ତୁ",
     sending: "ପଠାଯାଉଛି…",
     speak: "କୁହନ୍ତୁ",
+    reading: "ପଢ଼ି ଶୁଣାଉଛି…",
     listening: "ଶୁଣୁଛି…",
     transcribing: "ଲେଖାଯାଉଛି…",
     checkBeforeSending: "ପଠାଇବା ପୂର୍ବରୁ ଦେଖିନିଅନ୍ତୁ",
@@ -220,12 +229,14 @@ export const STRINGS: Record<Lang, Strings> = {
     noTravelNeeded: "No travel needed",
 
     messages: "Messages",
+    planTab: "Plan",
     you: "You",
     ask: "Ask",
     askPlaceholder: "Type your question",
     send: "Send",
     sending: "Sending…",
     speak: "Speak",
+    reading: "Reading aloud…",
     listening: "Listening…",
     transcribing: "Writing it down…",
     checkBeforeSending: "Check it before sending",

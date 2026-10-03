@@ -95,7 +95,13 @@ export function PlanBoard({ board, compact }: { board: Board; compact?: boolean 
       }
     >
       <div className="board-scroll">
-        <div className="board-columns" style={{ gridTemplateColumns: `repeat(${board.columns}, minmax(168px, 1fr))` }}>
+        {/* A floor, not a fixed width. Five columns at 168px overflowed the
+            pane by 29px inside the stage's laptop frame, which clipped the
+            rightmost step — the one the family would actually travel for. */}
+        <div
+          className="board-columns"
+          style={{ gridTemplateColumns: `repeat(${board.columns}, minmax(148px, 1fr))` }}
+        >
           {columns.map((group, index) => (
             <div className="board-column" key={index}>
               {group.map((node) => (

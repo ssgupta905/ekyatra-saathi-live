@@ -39,8 +39,10 @@ const OUT = resolve(HERE, "../recordings");
 
 const CONSOLE_URL = process.env.SAATHI_CONSOLE_URL ?? "http://localhost:5173";
 const API_URL = process.env.SAATHI_API_URL ?? "http://localhost:8001";
-//: Wide enough for a phone and a laptop side by side without either shrinking.
-const VIEWPORT = { width: 1600, height: 1000 };
+//: 1080p, so the recording plays full-screen on any projector or monitor
+//: without the browser scaling it down. At 1600×1000 the two screens were
+//: legible on a laptop and not in a room.
+const VIEWPORT = { width: 1920, height: 1080 };
 
 //: Whose phone is on the stage. Story one is his, and he reads Hindi, which is
 //: the language of the recorded question below.
@@ -172,16 +174,47 @@ class Demo {
     }
   }
 
+  /** Scroll something, visibly. A screen that never moves reads as a mockup,
+   *  and the content below the fold is half of what each app has to show. */
+  async scroll(locator, by) {
+    const box = await locator.boundingBox().catch(() => null);
+    if (!box) return;
+    await this.moveTo(box.x + box.width / 2, box.y + box.height / 2);
+    // In steps, so the motion is visible rather than a jump cut.
+    for (let i = 0; i < 6; i += 1) {
+      await this.page.mouse.wheel(0, by / 6);
+      await this.page.waitForTimeout(90);
+    }
+    await this.page.waitForTimeout(500);
+  }
+
+  /** Give one screen the whole stage, or put both back.
+   *
+   *  Side by side is right for the moment an event crosses between the two,
+   *  and wrong for reading a thread or a worklist — at half width each screen
+   *  is legible on a monitor and not on a projector. */
+  async focus(mode) {
+    await this.click(this.page.locator(".st-focus button", { hasText: mode }), {
+      label: `focus ${mode}`,
+    });
+    await this.page.waitForTimeout(700);
+  }
+
   /** A full-screen act card. Structure the audience can hold on to — without
    *  it, four minutes of two screens reacting reads as one undifferentiated
    *  thing and nobody can tell which part was the point. */
   async title(heading, sub = "", hold = 2600) {
-    await this.page.evaluate(
-      ([h, s2]) => window.__demoTitle?.(h, s2),
-      [heading, sub],
-    );
-    await this.page.evaluate(() => window.__demoSay?.(""));
+    await this.raiseTitle(heading, sub);
     await this.page.waitForTimeout(hold);
+    await this.dropTitle();
+  }
+
+  async raiseTitle(heading, sub = "") {
+    await this.page.evaluate(([h, s2]) => window.__demoTitle?.(h, s2), [heading, sub]);
+    await this.page.evaluate(() => window.__demoSay?.(""));
+  }
+
+  async dropTitle() {
     await this.page.evaluate(() => window.__demoTitle?.(""));
     await this.page.waitForTimeout(420);
   }
@@ -343,179 +376,194 @@ async function main() {
     const phone = page.frameLocator('iframe[title^="Family app"]');
     const desk = page.frameLocator('iframe[title="Hospital app"]');
 
+    // The title card goes up first, over the loading apps. Otherwise the first
+    // seconds of the recording — and the poster frame every player shows as
+    // the thumbnail — are two half-built screens with nothing happening.
+    await demo.raiseTitle("EKYATRA Saathi", "Two screens. One system.");
+
     await phone.locator(".fx-app").waitFor({ timeout: 25000 });
     await desk.locator(".story-bar").waitFor({ timeout: 25000 });
     await page.waitForTimeout(1600);
-
-    await demo.title("EKYATRA Saathi", "Two screens. One system.");
+    await demo.dropTitle();
     await demo.shot("both-screens");
     await demo.say(
       "On the left, a family's phone in Gaya, Bihar. On the right, the " +
-        "hospital's screen in Mumbai, 1,771 km away.",
-      3600,
+        "hospital's screen in Mumbai — 1,771 km apart.",
+      3400,
     );
     await demo.say(
-      "They are two separate applications. They share a backend and nothing " +
-        "else — what you see on one is never a copy of the other.",
-      3800,
-    );
-    await demo.say(
-      "The question this system answers is a hard one: is this trip worth " +
-        "making? A wasted journey costs a family a week's wages and two days.",
-      4200,
+      "Two separate applications sharing one backend. The question they answer " +
+        "together: is this trip worth making?",
+      3400,
     );
 
     /* ---------- Act 1: the hospital has a bad day ---------- */
 
     await demo.title("1 · The hospital has a bad day", "Shambhu Prasad · Gaya");
-    await demo.say(
-      "Shambhu Prasad is booked for an MRI tomorrow. His family is about to " +
-        "start a twenty-hour journey by road.",
-      3800,
-    );
 
-    // Scoped to the story bar inside the desk frame — the clock has its own
-    // "advance one day" button and a bare name match hits both.
+    // The desk takes the stage: this beat happens entirely in Mumbai, and at
+    // half width a thirty-family worklist is unreadable in a room.
+    await demo.focus("Hospital");
     const advance = desk.locator(".story-bar button.btn.primary");
 
     await demo.say(
-      "7:40 am. The radiology desk reports MRI-2 out of service. One tap — " +
-        "the desk states a fact, it does not decide anything.",
-      4000,
+      "Shambhu is booked for an MRI tomorrow. His family is about to start a " +
+        "twenty-hour journey by road.",
+      3400,
+    );
+    await demo.say(
+      "7:40 am. The radiology desk reports MRI-2 out of service. One tap — the " +
+        "desk states a fact, it decides nothing.",
+      3600,
     );
     await demo.click(advance, { label: "advance" });
-    await page.waitForTimeout(3400);
+    await page.waitForTimeout(2800);
 
-    await demo.lookAt(phone.locator(".fx-verdict"));
+    // Both, for the one moment that is actually about the crossing.
+    await demo.focus("Both");
     await demo.say(
-      "Now watch the order. Every affected family is told not to travel " +
-        "BEFORE anything has worked out a new date.",
-      4000,
-    );
-    await demo.say(
-      "That order is the whole design. Silence while a system thinks is the " +
-        "gap a family fills by getting on a bus.",
-      4000,
+      "Watch the phone. Every affected family is told not to travel BEFORE " +
+        "anything has worked out a new date.",
+      3600,
     );
     await demo.shot("holding-message");
 
+    await demo.focus("Phone");
     await demo.say(
-      "The family writes back. Groq composes their words; the real guard " +
-        "reads every outbound message before it is sent.",
-      3800,
+      "That order is the whole design. Silence while a system thinks is the " +
+        "gap a family fills by getting on a bus.",
+      3600,
     );
-    await demo.click(advance);
-    await page.waitForTimeout(3400);
+    await demo.scroll(phone.locator(".fx-scroll"), 300);
+    await demo.say("Why, in the only form that helps: what is being waited for, and when.", 3200);
 
+    await demo.focus("Hospital");
     await demo.say(
       "Meanwhile the planner re-runs. It fetched the journey from Gaya live — " +
         "1,739 km, twenty hours by road, from OpenStreetMap. Nobody typed that.",
-      4400,
-    );
-
-    await demo.say(
-      "Three options come back, ranked by nights away and trips taken. " +
-        "A navigator chooses — never the model.",
       4000,
     );
+    await demo.say("The family writes back. Groq composes it; the real guard reads it.", 3200);
     await demo.click(advance);
-    await page.waitForTimeout(3400);
+    await page.waitForTimeout(2800);
 
-    await demo.lookAt(phone.locator(".fx-verdict"));
     await demo.say(
-      "And the phone changes, in Hindi, while someone is holding it.",
-      3000,
+      "Options come back ranked by nights away and trips taken. A navigator " +
+        "chooses — never the model.",
+      3600,
     );
+    await demo.click(advance);
+    await page.waitForTimeout(2800);
+
+    await demo.focus("Both");
+    await demo.say("And the phone changes, in Hindi, while someone is holding it.", 3200);
     await demo.shot("plan-approved");
 
-    await demo.say("The family confirms on the voice line. Press one.", 2600);
+    await demo.focus("Phone");
+    await demo.say(
+      "And it reads itself out. For a caregiver who cannot read this script, " +
+        "that is not a convenience — it is the only way the message lands.",
+      3400,
+    );
+    const speak = phone.locator(".fx-speak");
+    if (await speak.count()) {
+      await demo.click(speak, { label: "read aloud" });
+      await demo.shot("reading-aloud");
+      await page.waitForTimeout(3400);
+    }
+
+    await demo.focus("Hospital");
+    await demo.say("The family confirms on the voice line. Press one.", 2400);
     await demo.runOut(desk, advance);
 
     /* ---------- Act 2: the family speaks ---------- */
 
     await demo.title("2 · The family speaks", "Voice, because reading is not assumed");
+    await demo.focus("Phone");
     await demo.say(
       "Many caregivers cannot read their own script. So the microphone is a " +
-        "primary control here, the same size as Send — not an icon in a corner.",
-      4400,
+        "primary control here, the same size as Send.",
+      3600,
     );
 
     const mic = phone.locator(".fx-mic");
     await demo.click(mic, { label: "microphone" });
-    await demo.say("Recording. A real microphone capture, in Hindi.", 2600);
+    await demo.say("Recording. A real microphone capture, in Hindi.", 2400);
     await demo.shot("listening");
-    await page.waitForTimeout(2400);
+    await page.waitForTimeout(2200);
     await demo.click(mic, { label: "stop recording" });
 
     await demo.say(
-      "Groq Whisper transcribes it. Real speech-to-text on real audio — " +
-        "the question is \u201cwhat happens to the medicine if we cannot come?\u201d",
-      4200,
+      "Groq Whisper transcribes it — real speech-to-text on real audio. " +
+        "The question: \u201cwhat happens to the medicine if we cannot come?\u201d",
+      4000,
     );
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(2600);
 
     await demo.say(
-      "It is not sent yet. The words go back to the family to check first. " +
-        "A misheard date is not a mistake anyone downstream would catch.",
-      4400,
+      "It is not sent yet. The words go back to the family to check first — a " +
+        "misheard date is not a mistake anyone downstream would catch.",
+      4000,
     );
     await demo.shot("transcribed");
 
     await demo.click(phone.locator(".fx-send"), { label: "send" });
-    await page.waitForTimeout(3800);
+    await page.waitForTimeout(3400);
     await demo.say(
       "The guard screened it. A question about logistics gets an answer; a " +
-        "question about results goes to a person. Saathi never discusses a result.",
-      4600,
+        "question about a result goes to a person. Saathi never discusses a result.",
+      4200,
     );
+    await demo.shot("answered");
 
     /* ---------- Act 3: their language, their record ---------- */
 
     await demo.title("3 · Their language", "A change to the record, not the view");
-    await demo.say(
-      "The family asks to be written to in Bengali.",
-      2600,
-    );
+    await demo.say("The family asks to be written to in Bengali.", 2400);
     await demo.click(phone.locator('.fx-langs button[title="Bengali"]'), { label: "Bengali" });
-    await page.waitForTimeout(3800);
-
+    await page.waitForTimeout(3400);
     await demo.say(
       "Groq re-wrote the message in Bengali and the guard checked it again. " +
         "Every message from here on is Bengali.",
-      4000,
-    );
-    await demo.lookAt(phone.locator(".fx-thread"));
-    await demo.say(
-      "But look at the older messages: still Hindi, and labelled as such. " +
-        "They were sent in Hindi, so that is what the record says.",
-      4400,
-    );
-    await demo.say(
-      "Nothing is rewritten after the fact. This thread is the receipt for " +
-        "what this family was actually told.",
-      4000,
+      3800,
     );
     await demo.shot("bengali");
+
+    await demo.say(
+      "But the older messages are still Hindi, and labelled as such. They were " +
+        "sent in Hindi, so that is what the record says.",
+      4000,
+    );
+    await demo.scroll(phone.locator(".fx-scroll"), 240);
+    await demo.say(
+      "Nothing is rewritten after the fact. This thread is the receipt for what " +
+        "this family was actually told.",
+      3800,
+    );
+    await demo.shot("thread-languages");
 
     /* ---------- Act 4: why, on the hospital's side ---------- */
 
     await demo.title("4 · Why", "A navigator has to be able to defend this");
+    await demo.focus("Hospital");
     await demo.click(desk.locator(".hx-lens button", { hasText: "Why this answer" }), {
       label: "why",
     });
-    await page.waitForTimeout(3200);
-    await demo.say(
-      "Every claim behind the decision, and the source each one came from.",
-      3400,
-    );
+    await page.waitForTimeout(2800);
+    await demo.say("Every claim behind the decision, and the source each one came from.", 3200);
+    await demo.scroll(desk.locator(".hx-work"), 420);
     await demo.say(
       "Underneath it, the evidence ledger: append-only and hash-chained, so a " +
         "claim cannot be changed after a family acted on it.",
-      4400,
+      4000,
     );
     await demo.shot("why-this-answer");
+    // Clear first: a caption stays up until the next one replaces it, so
+    // switching the view under it leaves the narration describing a pane that
+    // is no longer on screen.
+    await demo.clear();
     await demo.click(desk.locator(".hx-lens button", { hasText: "Pathway" }));
-    await page.waitForTimeout(1800);
+    await page.waitForTimeout(1400);
 
     /* ---------- Act 5: story two ---------- */
 
@@ -523,42 +571,40 @@ async function main() {
     await demo.clear();
     const anita = desk.locator(".story-bar .segmented button", { hasText: "Anita" });
     await demo.click(anita, { label: "Anita's story" });
-    await page.waitForTimeout(1800);
+    await page.waitForTimeout(1600);
 
     await demo.say(
       "Anita Devi, 90 km away, on maintenance treatment — 17 doses, with an " +
         "echo before every fourth.",
-      3800,
+      3400,
     );
-    await demo.say(
-      "Her story is the harder one: two things go wrong, a week apart.",
-      3200,
-    );
+    await demo.say("Her story is the harder one: two things go wrong, a week apart.", 3000);
 
     const lines = [
       "The hub's only echo cardiologist goes on emergency leave.",
       "Her daughter asks what happens to dose 13. A process answer only — never a clinical one.",
       "Dr Sinha chooses. One option was removed by a care rule before she ever saw it.",
       "Then the drug delivery is late. A second disruption, on top of the first.",
-      "And this is the interesting part: the second disruption makes the plan BETTER than the original. One trip instead of two.",
+      "And here is the interesting part: the second disruption makes the plan BETTER than the original. One trip instead of two.",
       "The family confirms — her husband on the voice line, her daughter on WhatsApp.",
     ];
     await demo.runOut(desk, advance, lines);
+    await demo.focus("Both");
     await demo.shot("story-two-done");
 
-    await demo.title("What was real", "");
+    await demo.title("What was real", "", 3000);
     await demo.say(
       "The families are synthetic. Everything else was real: the planner, the " +
         "routing tools, Groq writing every message, Whisper hearing the question.",
-      4800,
+      4400,
     );
     await demo.say(
       "The guard read every outbound message. The ledger recorded every claim. " +
         "And a person decided anything that touched treatment.",
-      4800,
+      4400,
     );
     await demo.clear();
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(900);
   } finally {
     await context.close();
     await browser.close();
