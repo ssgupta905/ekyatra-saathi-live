@@ -467,7 +467,8 @@ class LiveRunner:
             self.world.today.isoformat(),
             summary=(
                 f"{(resource.display_name if resource else resource_id)} "
-                f"reported {kind.value.replace('_', ' ')} — {len(affected)} families affected"
+                f"reported {kind.value.replace('_', ' ')} — {len(affected)} "
+                f"famil{'y' if len(affected) == 1 else 'ies'} affected"
             ),
             disruption_id=disruption.id,
             resource_id=resource_id,
@@ -1144,4 +1145,5 @@ class LiveRunner:
             "alerts": len(self.alerts),
             "open_disruptions": len(self.world.open_disruptions()),
             "options_pending": len(self.options),
+            "story_progress": dict(self.story_progress),
         }

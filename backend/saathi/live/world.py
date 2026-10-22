@@ -481,6 +481,7 @@ class LiveWorld:
             "watched": list(self.watched),
             "pending_reports": self.pending_report_count(),
             "desk_queue": len(self.pending_candidates()),
+            "scripted": self.scripted,
         }
 
 

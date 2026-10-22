@@ -174,6 +174,10 @@ export interface LiveSnapshot {
   actors_enabled: boolean;
   inbound_every_seconds: number;
   alerts: number;
+  open_disruptions?: number;
+  options_pending?: number;
+  story_progress?: Record<string, number>;
+  scripted?: boolean;
 }
 
 export interface DeskCandidate {
@@ -231,7 +235,7 @@ export interface Narration {
   model?: string;
 }
 
-export type ControlAction = "play" | "pause" | "step" | "reset" | "speed";
+export type ControlAction = "play" | "pause" | "step" | "reset" | "speed" | "advance_story";
 
 /* ──────────────────────────────────────────────────────────────────────────
    Disruptions
@@ -344,11 +348,14 @@ export const admin = {
 
 export const live = {
   snapshot: () => request<LiveSnapshot>("/live"),
-  control: (action: ControlAction, seconds_per_day?: number) =>
-    request<LiveSnapshot>("/live/control", {
-      method: "POST",
-      body: JSON.stringify({ action, seconds_per_day }),
-    }),
+  control: (action: ControlAction, seconds_per_day?: number, story?: string) =>
+    request<LiveSnapshot & { story_beat?: { story: string; done: boolean; beat: string | null } }>(
+      "/live/control",
+      {
+        method: "POST",
+        body: JSON.stringify({ action, seconds_per_day, story }),
+      },
+    ),
   deskQueue: () => request<DeskCandidate[]>("/desk/queue"),
   confirm: (candidate_id: string) =>
     request<{ confirmed: boolean }>("/desk/confirm", {

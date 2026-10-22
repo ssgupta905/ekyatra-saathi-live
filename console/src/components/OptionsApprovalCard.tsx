@@ -8,7 +8,8 @@
  */
 
 import { useEffect, useState } from "react";
-import { disruptions, type OptionSet, type Role } from "../lib/api";
+import { disruptions, type OptionSet, type PlanOption, type Role } from "../lib/api";
+import { fmtDate } from "../lib/format";
 import { Badge, Card } from "../ui/primitives";
 
 export function OptionsApprovalCard({
@@ -64,23 +65,33 @@ export function OptionsApprovalCard({
   };
 
   return (
-    <Card title={`Options for ${patientId}`} hint="Order is the only ranking — no score">
-      {error && <p className="hint" style={{ color: "var(--status-stop)" }}>{error}</p>}
+    <Card title={`Options for ${patientId}`} hint="Listed fewest journeys first — no score">
+      {error && <p className="hint" style={{ color: "var(--critical)" }}>{error}</p>}
       <div className="options-list">
         {optionSet.options.map((option, index) => (
           <div key={index} className="option-card">
-            <Badge
-              tone={
-                option.decision === "go" ? "go" : option.decision === "wait" ? "wait" : "uncertain"
-              }
-            >
-              {option.decision.toUpperCase()}
-            </Badge>
-            <span>{option.nights_added >= 0 ? "+" : ""}{option.nights_added} nights</span>
-            <span>{option.extra_trips >= 0 ? "+" : ""}{option.extra_trips} trips</span>
-            {option.dose_delay_days > 0 && <span>{option.dose_delay_days}d dose delay</span>}
-            <button type="button" disabled={busy} onClick={() => approve(index)}>
-              Approve as {approverName}
+            <div className="option-main">
+              <div className="option-title">
+                <span className="option-letter">{String.fromCharCode(65 + index)}</span>
+                {optionLabel(option)}
+              </div>
+              <div className="option-tradeoffs">
+                <span>{nightsText(option.nights_added)}</span>
+                <span>{tripsText(option.extra_trips)}</span>
+                {option.dose_delay_days > 0 && <span>dose {option.dose_delay_days} days later</span>}
+                <Badge
+                  tone={option.decision === "go" ? "go" : option.decision === "wait" ? "wait" : "uncertain"}
+                >
+                  {option.decision === "go"
+                    ? `travel ${option.travel_on ? fmtDate(option.travel_on) : ""}`.trim()
+                    : option.decision === "wait"
+                      ? "then wait"
+                      : "date still open"}
+                </Badge>
+              </div>
+            </div>
+            <button type="button" className="btn" disabled={busy} onClick={() => approve(index)}>
+              Choose {String.fromCharCode(65 + index)}
             </button>
           </div>
         ))}
@@ -88,3 +99,16 @@ export function OptionsApprovalCard({
     </Card>
   );
 }
+
+/** What an option *is*, in the words of the brief's option tables. */
+function optionLabel(option: PlanOption): string {
+  if (option.extra_trips < 0) return "Fold it into a visit that's already booked";
+  if (option.extra_trips > 0) return "Go home now and come back for it";
+  return "Stay — it moves to the first free day";
+}
+
+const nightsText = (n: number) =>
+  n === 0 ? "no extra nights" : n > 0 ? `${n} more night${n === 1 ? "" : "s"} away` : `${-n} fewer night${n === -1 ? "" : "s"} away`;
+
+const tripsText = (n: number) =>
+  n === 0 ? "no extra journeys" : n > 0 ? `${n} extra journey${n === 1 ? "" : "s"}` : `${-n} journey${n === -1 ? "" : "s"} saved`;

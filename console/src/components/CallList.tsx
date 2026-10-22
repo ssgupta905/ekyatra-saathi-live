@@ -58,20 +58,23 @@ export function CallList({
             LANGUAGE_NAMES[p.language].toLowerCase().includes(q),
         )
       : patients;
-    // Open signals first, then furthest from the hospital — the family for whom
-    // a wasted journey costs the most.
+    // Open signals first, then the families being watched live, then furthest
+    // from the hospital — the family for whom a wasted journey costs the most.
     return [...matched].sort((a, b) => {
       const sa = signals.get(a.id)?.length ?? 0;
       const sb = signals.get(b.id)?.length ?? 0;
       if (sa !== sb) return sb - sa;
+      const wa = watching.has(a.id) ? 1 : 0;
+      const wb = watching.has(b.id) ? 1 : 0;
+      if (wa !== wb) return wb - wa;
       return b.home_distance_km - a.home_distance_km;
     });
-  }, [patients, query, signals]);
+  }, [patients, query, signals, watching]);
 
   return (
     <nav className="rail" aria-label="Call list">
       <div className="rail-head">
-        <div className="title">Call list · {patients.length} families</div>
+        <div className="title">{patients.length} families</div>
         <label style={{ position: "relative", display: "block" }}>
           <span
             style={{
@@ -145,10 +148,7 @@ export function CallList({
         })}
       </div>
 
-      <div className="rail-foot">
-        Families with an open signal are listed first, then by distance from the
-        hospital. No priority score exists.
-      </div>
+      <div className="rail-foot">Open signals first, then live, then by distance. No scores.</div>
     </nav>
   );
 }

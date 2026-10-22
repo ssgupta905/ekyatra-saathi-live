@@ -156,3 +156,26 @@ export const Speaker = ({ size = 14, className }: P) => (
     <path d="M13.2 7.6a3.4 3.4 0 0 1 0 4.8" />
   </svg>
 );
+
+export const Grid = ({ size = 15, className }: P) => (
+  <svg {...box(size)} className={className}>
+    <rect x="3.2" y="3.2" width="5.6" height="5.6" rx="1.4" />
+    <rect x="11.2" y="3.2" width="5.6" height="5.6" rx="1.4" />
+    <rect x="3.2" y="11.2" width="5.6" height="5.6" rx="1.4" />
+    <rect x="11.2" y="11.2" width="5.6" height="5.6" rx="1.4" />
+  </svg>
+);
+
+export const People = ({ size = 15, className }: P) => (
+  <svg {...box(size)} className={className}>
+    <circle cx="7.5" cy="7" r="2.8" />
+    <path d="M2.8 16.2c.6-2.6 2.5-4 4.7-4s4.1 1.4 4.7 4" />
+    <path d="M13 4.6a2.5 2.5 0 010 4.8M14.6 12.4c1.3.5 2.2 1.8 2.6 3.8" />
+  </svg>
+);
+
+export const Close = ({ size = 15, className }: P) => (
+  <svg {...box(size)} className={className}>
+    <path d="M5 5l10 10M15 5L5 15" />
+  </svg>
+);

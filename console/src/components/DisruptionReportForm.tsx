@@ -7,7 +7,7 @@
 
 import { useCallback, useState } from "react";
 import { disruptions, live, type DisruptionKind } from "../lib/api";
-import { Card, Notice } from "../ui/primitives";
+import { Card } from "../ui/primitives";
 
 /** `base` plus `days`, both as `YYYY-MM-DD`. Parsed as UTC so adding days
  *  never drifts across a local-timezone midnight. */
@@ -34,7 +34,6 @@ export function DisruptionReportForm({
   const [kind, setKind] = useState<DisruptionKind>("machine_down");
   const [note, setNote] = useState("");
   const [days, setDays] = useState(2);
-  const [status, setStatus] = useState<string | null>(null);
 
   const report = useCallback(async () => {
     // The simulated world's date, not the operator's wall clock — a
@@ -49,12 +48,11 @@ export function DisruptionReportForm({
       unavailable_to: addDays(today, days),
       note,
     });
-    setStatus(`Reported — ${result.affected_patient_ids.length} families affected`);
     onReported(result.affected_patient_ids);
   }, [resourceId, kind, note, days, onReported]);
 
   return (
-    <Card title="Report an issue" hint="One tap: machine down, person away, stock late">
+    <Card title="What is unavailable?" hint="One tap: machine down, person away, stock late">
       <div className="disruption-form">
         <label>
           Resource
@@ -91,7 +89,6 @@ export function DisruptionReportForm({
           Report
         </button>
       </div>
-      {status && <Notice tone="calm">{status}</Notice>}
     </Card>
   );
 }

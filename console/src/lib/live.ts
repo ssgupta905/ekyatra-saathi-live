@@ -154,7 +154,16 @@ export function useLiveWorld(): LiveWorldState {
         } catch {
           return;
         }
-        setEvents((previous) => [event, ...previous].slice(0, EVENT_WINDOW));
+        // The replay buffer re-sends recent events on every reconnect, and an API
+        // restart starts `seq` again from 1 — so identity is seq *and* time.
+        // A reset starts a new history; the old world's events would only mislead.
+        setEvents((previous) =>
+          event.kind === "world.reset"
+            ? [event]
+            : previous.some((e) => e.seq === event.seq && e.at === event.at)
+              ? previous
+              : [event, ...previous].slice(0, EVENT_WINDOW),
+        );
 
         if (event.patient_id && PATIENT_KINDS.has(event.kind)) {
           const id = event.patient_id;
@@ -168,7 +177,14 @@ export function useLiveWorld(): LiveWorldState {
           event.kind === "clock.tick" ||
           event.kind === "runner.state" ||
           event.kind === "world.reset" ||
-          event.kind === "metrics.updated"
+          event.kind === "metrics.updated" ||
+          // Counts the sidebar badges read: decisions waiting, open disruptions.
+          event.kind === "disruption.raised" ||
+          event.kind === "options.ready" ||
+          event.kind === "approval.recorded" ||
+          event.kind === "desk.candidate" ||
+          event.kind === "desk.confirmed" ||
+          event.kind === "alert.raised"
         ) {
           refresh();
         }
