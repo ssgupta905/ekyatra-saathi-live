@@ -125,3 +125,20 @@
 }
 .cc-family .segmented-control { overflow-x: auto; max-width: 100%; }
 .cc-families .rail { position: static; height: auto; border: 1px solid var(--line-soft); border-radius: var(--r-lg); }
+
+.cc-filters { display: flex; gap: 4px; flex-wrap: wrap; }
+.cc-filters button {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.cc-filters button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.linkish { padding: 0; border: 0; background: none; color: var(--blue-600); font: inherit; cursor: pointer; text-align: left; }
+.linkish:hover { text-decoration: underline; }
+.cc-reports td { vertical-align: top; }
+.cc-flush { overflow-x: auto; }

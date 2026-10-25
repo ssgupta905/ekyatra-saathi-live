@@ -12,6 +12,7 @@ import { Configuration } from "./sections/Configuration";
 import { Desk } from "./sections/Desk";
 import { Families } from "./sections/Families";
 import { Operator } from "./sections/Operator";
+import { Reports } from "./sections/Reports";
 import { StorySection } from "./sections/StorySection";
 
 /**
@@ -39,6 +40,7 @@ export default function App() {
     <Shell current={section} onNavigate={(next) => go({ section: next, id: null, tab: null })}>
       {section === "families" && <Families patientId={route.id} tab={route.tab} onOpen={openFamily} />}
       {section === "boards" && <Boards />}
+      {section === "reports" && <Reports onOpenFamily={(id) => openFamily(id, "reports")} />}
       {section === "approvals" && <Approvals />}
       {section === "desk" && <Desk />}
       {section === "cohort" && <Cohort onOpen={(id) => openFamily(id)} />}

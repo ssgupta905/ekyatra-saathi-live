@@ -21,6 +21,7 @@ const STAFF: Role[] = ["navigator", "desk", "doctor", "admin"];
 export const SECTIONS: Section[] = [
   { id: "families", label: "Families", hint: "One family at a time: the answer, why, and everything behind it", roles: STAFF },
   { id: "boards", label: "Plan boards", hint: "Every family's pathway at once: what is waiting on what", roles: STAFF },
+  { id: "reports", label: "Reports", hint: "Every report against the window it should land in, and how each lab queue's forecast is doing", roles: STAFF },
   { id: "approvals", label: "Disruptions & approvals", hint: "Outages in force and the re-plans waiting on a person", roles: ["navigator", "doctor", "admin"] },
   { id: "desk", label: "Desk", hint: "Report what went wrong; confirm and release reports; enter records", roles: ["desk", "admin"] },
   { id: "cohort", label: "Cohort", hint: "Who needs a person, and what the whole cohort has been spared", roles: ["navigator", "doctor", "admin"] },

@@ -74,6 +74,10 @@ class ConformalReadinessPredictor:
     def n_calibration(self, queue: str) -> int:
         return len(self._calibration.get(queue, ()))
 
+    def queues(self) -> tuple[str, ...]:
+        """Every queue with at least one observation, for showing what is calibrated."""
+        return tuple(sorted(self._calibration))
+
     def _quantile_index(self, n: int) -> int | None:
         """Index (1-based) of the conformal quantile, or None if unattainable."""
         k = math.ceil((n + 1) * (1 - self.alpha))

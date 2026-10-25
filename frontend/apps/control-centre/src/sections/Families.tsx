@@ -3,6 +3,8 @@ import {
   api,
   boards,
   live,
+  reports,
+  type ReportRow,
   type Alert,
   type CareStep,
   type InboundMessage,
@@ -22,22 +24,27 @@ import {
   type Citation,
 } from "@saathi/ui-web";
 import { CallBrief } from "../components/CallBrief";
+import { RecordEditor } from "../components/RecordEditor";
+import { ReportTable } from "../components/ReportTable";
 import { CallList } from "../components/CallList";
 import { DecisionHero } from "../components/DecisionHero";
 import { JourneyStepper } from "../components/JourneyStepper";
 import { MessagePipeline } from "../components/MessagePipeline";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { VisitChecklist } from "../components/VisitChecklist";
+import { usePersona } from "../session";
 import { useWorld } from "../world";
 
 const TABS = [
   { value: "why" as const, label: "Why" },
   { value: "pathway" as const, label: "Pathway" },
   { value: "timeline" as const, label: "Timeline" },
+  { value: "reports" as const, label: "Reports" },
   { value: "checklist" as const, label: "Checklist" },
   { value: "message" as const, label: "Message" },
   { value: "family" as const, label: "Family" },
   { value: "ledger" as const, label: "Ledger" },
+  { value: "record" as const, label: "Record" },
 ];
 type Tab = (typeof TABS)[number]["value"];
 
@@ -60,6 +67,9 @@ export function Families({
   onOpen: (patientId: string, tab?: string) => void;
 }) {
   const world = useWorld();
+  const { persona } = usePersona();
+  const [reportRows, setReportRows] = useState<ReportRow[]>([]);
+  const [edits, setEdits] = useState(0);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [steps, setSteps] = useState<CareStep[]>([]);
@@ -73,7 +83,13 @@ export function Families({
   const lastDecision = useRef<string | null>(null);
 
   const { cohortRevision } = world;
-  const detail: Tab = (TABS.find((t) => t.value === tab)?.value ?? "why") as Tab;
+  const real = world.snapshot?.world === "real";
+  // The record is edited by the people who enter records, and only on real ones:
+  // a reset rebuilds the demo cohort, and edits there would vanish.
+  const tabs = TABS.filter(
+    (t) => t.value !== "record" || (real && ["desk", "navigator", "admin"].includes(persona.role)),
+  );
+  const detail: Tab = (tabs.find((t) => t.value === tab)?.value ?? "why") as Tab;
 
   useEffect(() => {
     api.patients().then(setPatients).catch((e: Error) => setError(e.message));
@@ -90,9 +106,17 @@ export function Families({
     if (!selected) return;
     let cancelled = false;
     const id = selected.id;
-    Promise.all([api.steps(id), api.plan(id), live.inbound(id), api.ledger(id), boards.one(id)])
-      .then(([stepRows, planResponse, messages, ledgerView, boardView]) => {
+    Promise.all([
+      api.steps(id),
+      api.plan(id),
+      live.inbound(id),
+      api.ledger(id),
+      boards.one(id),
+      reports.list({ patient_id: id }),
+    ])
+      .then(([stepRows, planResponse, messages, ledgerView, boardView, reportList]) => {
         if (cancelled) return;
+        setReportRows(reportList.reports);
         setSteps(stepRows);
         setPlan(planResponse);
         setInbound(messages);
@@ -109,7 +133,7 @@ export function Families({
     return () => {
       cancelled = true;
     };
-  }, [selected, revision, cohortRevision]);
+  }, [selected, revision, cohortRevision, edits]);
 
   const focusCitation = useCallback(
     (ledgerId: string) => {
@@ -162,7 +186,7 @@ export function Families({
               </div>
               <div className="split-aside">
                 <SegmentedControl
-                  options={TABS}
+                  options={tabs}
                   value={detail}
                   onChange={(next) => onOpen(selected.id, next)}
                   aria-label="Detail"
@@ -176,6 +200,14 @@ export function Families({
                   {detail === "message" && <MessagePipeline response={plan} patient={selected} />}
                   {detail === "family" && <InboundCard messages={inbound} language={selected.language} />}
                   {detail === "ledger" && <EvidenceLedger ledger={ledger} focused={cited} />}
+                  {detail === "reports" && (
+                    <div className="card cc-flush">
+                      <ReportTable rows={reportRows} showFamily={false} />
+                    </div>
+                  )}
+                  {detail === "record" && (
+                    <RecordEditor patient={selected} steps={steps} onChanged={() => setEdits((n) => n + 1)} />
+                  )}
                 </div>
               </div>
             </div>

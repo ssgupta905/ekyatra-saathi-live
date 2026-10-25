@@ -68,6 +68,15 @@ export const records = {
       body: JSON.stringify(body),
     }),
 
+  editPatient: (patientId: string, changes: Partial<PatientInput>) =>
+    request<Patient>(`/patients/${patientId}`, { method: "PATCH", body: JSON.stringify(changes) }),
+
+  editStep: (stepId: string, changes: Partial<StepInput>) =>
+    request<{ step: CareStep; forecast: Forecast | null }>(`/steps/${stepId}`, {
+      method: "PATCH",
+      body: JSON.stringify(changes),
+    }),
+
   release: (stepId: string, by: string, note = "") =>
     request<{ step: CareStep }>(`/steps/${stepId}/release`, {
       method: "POST",
