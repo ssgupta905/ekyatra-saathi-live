@@ -1,0 +1,380 @@
+/* ============================================================================
+   The two stories
+   ----------------------------------------------------------------------------
+   A live wireframe of the brief's own lane figures: hairline rows, numbered
+   dots where something actually happened, and a line whose shape is the
+   argument. Same tokens as everything else — no new colours.
+   ========================================================================== */
+/* ── the bar: who acts next, and the one button ─────────────────────────── */
+.story-bar {
+  position: sticky;
+  top: var(--header-h);
+  min-height: var(--story-bar-h);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 20px;
+  background: var(--frost);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.story-bar .spacer { flex: 1; }
+
+.story-next {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  letter-spacing: 0;
+}
+
+.story-when {
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  color: var(--ink-4);
+  white-space: nowrap;
+}
+
+.story-who {
+  font-size: 12.5px;
+  font-weight: 590;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.story-headline {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.story-progress { font-size: 11.5px; color: var(--ink-4); }
+
+@media (max-width: 1100px) {
+  .story-headline { display: none; }
+}
+
+/* ── the lane diagram ───────────────────────────────────────────────────── */
+.story-scroll { overflow-x: auto; padding: 4px 0 8px; }
+
+.story-lanes .lane { fill: transparent; }
+
+.story-lanes .lane.even { fill: var(--sunken); }
+
+.story-lanes .lane-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  fill: var(--ink-4);
+}
+
+.story-lanes .lane-rule { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+
+/* The path is the point: desk, then family, then the agents, then a person. */
+.story-lanes .story-path {
+  stroke: var(--blue-300);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.story-lanes .story-dot { cursor: pointer; }
+
+.story-lanes .dot-face {
+  fill: var(--blue-500);
+  stroke: var(--surface);
+  stroke-width: 2.5;
+  transition: fill 140ms var(--ease), r 140ms var(--ease);
+}
+
+.story-lanes .story-dot:hover .dot-face { fill: var(--blue-700); }
+
+.story-lanes .story-dot:focus-visible .dot-face { fill: var(--blue-700); }
+
+.story-lanes .dot-number {
+  fill: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+/* ── the numbered list under the diagram ────────────────────────────────── */
+.story-legend { list-style: none; margin: 0; padding: 0 0 4px; border-top: 1px solid var(--line-soft); }
+
+.story-legend li { border-bottom: 1px solid var(--line-soft); }
+
+.story-legend li:last-child { border-bottom: 0; }
+
+.story-legend-row {
+  display: grid;
+  grid-template-columns: 34px 92px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 8px 20px;
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: 0;
+  transition: background 140ms var(--ease);
+}
+
+.story-legend-row:hover { background: var(--sunken); }
+
+.story-legend-row .n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--blue-100);
+  color: var(--blue-700);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.story-legend-row .lane-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-4);
+}
+
+.story-legend-row .what { font-size: 13px; color: var(--ink); min-width: 0; }
+
+.story-legend-row .cost { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; }
+
+.story-legend-row { padding: 7px 16px; }
+
+/* ============================================================================
+   The stage  (apps/demo-stage)
+   ----------------------------------------------------------------------------
+   The family's phone, the desk and the navigator at once, in device frames, on a dark ground so the light
+   screens read as separate devices rather than one page.
+
+   The frames hold real iframes of the family, desk and navigator apps — each with
+   its own event-stream connection to the same backend. Nothing is re-rendered
+   here; this page draws the bezels and the caption and nothing else.
+   ========================================================================== */
+.st-body { background: #1d1d1f; }
+
+.st-stage {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  color: #f5f5f7;
+}
+
+.st-screens {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 26px;
+  min-height: 0;
+  padding: 20px 26px 12px;
+}
+
+.st-phone { flex: 0 0 398px; display: flex; flex-direction: column; min-height: 0; }
+
+.st-desk { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+.st-label {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px 9px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: #f5f5f7;
+}
+
+.st-sub { color: #86868b; font-weight: 400; }
+
+.st-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+
+.st-dot.family { background: #4a95e8; }
+
+.st-dot.hospital { background: #30d158; }
+
+/* — a phone —————————————————————————————————————————————————————
+   A bezel and a radius, nothing cuter. The frame exists to say "this is a
+   different device", and anything more would be decoration competing with
+   the screen it is framing. */
+.st-phone-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 11px;
+  border-radius: 46px;
+  background: linear-gradient(#3a3a3c, #2c2c2e);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset, 0 26px 60px -22px rgba(0, 0, 0, 0.8);
+}
+
+.st-phone-shell iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 36px;
+  background: #fff;
+  display: block;
+}
+
+/* — a laptop ————————————————————————————————————————————————————— */
+.st-desk-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 10px;
+  border-radius: 14px;
+  background: linear-gradient(#3a3a3c, #2c2c2e);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset, 0 26px 60px -22px rgba(0, 0, 0, 0.8);
+}
+
+.st-desk-shell iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 7px;
+  background: var(--plane);
+  display: block;
+}
+
+/* — the caption band ————————————————————————————————————————————
+   Narration read off the real event stream, so it can only say things that
+   actually happened. */
+.st-caption {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 28px calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.3);
+  font-size: 14px;
+}
+
+.st-live {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.1);
+  color: #86868b;
+  font-size: 12px;
+}
+
+.st-live.on { color: #30d158; }
+
+.st-live.on::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #30d158;
+  animation: st-pulse 1.8s ease-in-out infinite;
+}
+
+.st-caption-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #f5f5f7;
+}
+
+.st-counters {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: #86868b;
+  font-variant-numeric: tabular-nums;
+}
+
+/* — which screen has the stage ——————————————————————————————————
+   Side by side is right for the moment an event crosses between the two, and
+   wrong for reading a worklist or a thread: at half width each screen is
+   legible on a monitor and not on a projector. A view setting on this page
+   only — neither app is told which mode it is in. */
+.st-focus { display: flex; gap: 3px; flex: 0 0 auto; padding: 3px;
+  background: rgba(255, 255, 255, 0.08); border-radius: var(--r-pill); }
+
+.st-focus button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #a1a1a6;
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 11px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: background 0.18s var(--ease), color 0.18s var(--ease);
+}
+
+.st-focus button:hover { color: #f5f5f7; }
+
+.st-focus button[aria-pressed="true"] { background: #f5f5f7; color: #1d1d1f; font-weight: 500; }
+
+/* Focusing a screen gives it the whole stage. `display: none` rather than a
+   width of zero: a hidden iframe keeps its event-stream connection and its
+   state, so switching back does not reload the app or lose the scroll. */
+.st-stage.focus-phone .st-desk,
+.st-stage.focus-desk .st-phone,
+.st-stage.focus-desk .st-desk[data-screen="navigator"],
+.st-stage.focus-navigator .st-phone,
+.st-stage.focus-navigator .st-desk[data-screen="desk"] { display: none; }
+
+.st-stage.focus-desk .st-desk,
+.st-stage.focus-navigator .st-desk { flex: 1 1 100%; }
+
+.st-stage.focus-phone .st-phone { flex: 1 1 auto; align-items: center; }
+
+.st-stage.focus-phone .st-phone-shell {
+  width: min(620px, 100%);
+  margin: 0 auto;
+}
+
+.st-stage.focus-phone .st-label { justify-content: center; }
+
+/* Transitions on the frames, so a focus change reads as one screen stepping
+   forward rather than a cut. */
+.st-phone,
+.st-desk { transition: flex-basis 0.4s var(--ease); }
+
+
+
+
+
+
+
+
+@keyframes st-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(1.14); }
+}
+
+
+/* The presenter's strip above the screens: the clock and the story. It is light,
+   like the apps it sits above, so the controls look like the ones in the product
+   and the dark ground is left to the device frames. */
+.st-controls {
+  flex: 0 0 auto;
+  background: var(--frost);
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+}
+.st-bar { display: flex; align-items: center; gap: 14px; padding: 8px 18px; }

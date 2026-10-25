@@ -5,7 +5,9 @@
   "type": "module",
   "description": "Staff-facing web components and formatting shared by the role apps.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles/staff.css",
+    "./base.css": "./src/styles/base.css"
   },
   "types": "./src/index.ts",
   "dependencies": {

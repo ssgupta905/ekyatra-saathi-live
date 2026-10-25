@@ -1,0 +1,657 @@
+/* ============================================================================
+   The family's screen  (apps/family-web)
+   ----------------------------------------------------------------------------
+   A phone, not a card in a grid. Everything here is sized for one thumb, one
+   hand, and daylight: 17px body text, 44px touch targets, one column, and a
+   verdict word large enough to read at arm's length.
+
+   It shares this file's tokens with the hospital console and nothing else —
+   no cards-in-a-widget-grid, no hairline tables, no chrome. The two audiences
+   got one screen for too long and it served neither.
+
+   Status colour appears in exactly one place, the verdict band, and never
+   alone: the word is the encoding and the colour agrees with it.
+   ========================================================================== */
+.fx-body {
+  background: #e8e8ed;
+  display: flex;
+  justify-content: center;
+}
+
+.fx-app {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 430px;
+  height: 100dvh;
+  background: var(--surface);
+  font-size: 17px;
+  line-height: 1.45;
+  letter-spacing: 0;
+  overflow: hidden;
+}
+
+/* — the bar at the top ——————————————————————————————————————————— */
+.fx-top {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--frost);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+.fx-id { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+
+.fx-brand { font-size: 19px; font-weight: 600; letter-spacing: -0.02em; }
+
+.fx-place {
+  font-size: 13px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The language switch. Four endonyms, always visible, never behind a menu —
+   a family whose script this is should not have to read English to find it. */
+.fx-langs { display: flex; gap: 4px; flex: 0 0 auto; }
+
+.fx-langs button {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 14px;
+  padding: 5px 9px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: background 0.18s var(--ease), color 0.18s var(--ease);
+}
+
+.fx-langs button:hover:not(:disabled) { background: var(--fill-quiet); }
+
+.fx-langs button[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+  font-weight: 500;
+}
+
+.fx-langs button:disabled { opacity: 0.45; cursor: progress; }
+
+/* — "Saathi is checking…" ————————————————————————————————————————
+   The agent working, on the family's own screen. The whole point of showing
+   it: a screen that changes without explanation reads as a glitch, and a
+   family who has been told to wait deserves to see that someone is working. */
+.fx-working {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  background: var(--blue-100);
+  color: var(--blue-700);
+  font-size: 14px;
+  animation: fx-slide-in 0.3s var(--ease);
+}
+
+.fx-working svg { animation: fx-spin 1.6s linear infinite; }
+
+@keyframes fx-spin { to { transform: rotate(360deg); } }
+
+@keyframes fx-slide-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* — the scroll ————————————————————————————————————————————————— */
+.fx-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 0 20px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.fx-error {
+  margin: 12px 16px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--critical-tint);
+  color: var(--critical);
+  font-size: 14px;
+}
+
+/* — the verdict ———————————————————————————————————————————————— */
+.fx-verdict {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 22px 22px 18px;
+  text-align: center;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.fx-verdict.go { background: var(--go-tint); }
+
+.fx-verdict.wait { background: var(--wait-tint); }
+
+.fx-verdict.uncertain { background: var(--uncertain-tint); }
+
+.fx-verdict.loading { background: var(--sunken); }
+
+.fx-word {
+  font-size: 40px;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.fx-verdict.go .fx-word { color: var(--go); }
+
+.fx-verdict.wait .fx-word { color: var(--wait); }
+
+.fx-verdict.uncertain .fx-word { color: var(--uncertain); }
+
+.fx-verdict.loading .fx-word { color: var(--ink-4); }
+
+.fx-date {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.fx-date-label {
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-3);
+}
+
+.fx-sentence {
+  margin: 0;
+  max-width: 24rem;
+  font-size: 17px;
+  color: var(--ink-2);
+}
+
+/* A held message was never sent. The screen says a person is calling rather
+   than showing a sentence nobody approved. */
+.fx-sentence.held { color: var(--ink-3); font-style: italic; }
+
+/* Read it aloud. Same prominence as the text, because for a caregiver who
+   cannot read this script it *is* the text. */
+.fx-speak {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
+  padding: 9px 16px;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  transition: box-shadow 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+
+.fx-speak:hover { border-color: var(--ink-4); }
+
+.fx-speak.on {
+  border-color: var(--blue-500);
+  color: var(--blue-700);
+  background: var(--blue-100);
+  box-shadow: var(--ring);
+}
+
+.fx-speak.on svg { animation: fx-pulse 1.1s ease-in-out infinite; }
+
+@keyframes fx-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(1.14); }
+}
+
+/* — cards ————————————————————————————————————————————————————— */
+.fx-card { padding: 20px 16px 4px; border-bottom: 1px solid var(--line-soft); }
+
+.fx-h2 {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+
+/* — why: what is being waited for ————————————————————————————————— */
+.fx-waits { list-style: none; margin: 0; padding: 0 0 16px; display: grid; gap: 10px; }
+
+.fx-waits li {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  grid-template-areas: "icon what" ".    when";
+  align-items: center;
+  gap: 2px 8px;
+}
+
+.fx-wait-icon { grid-area: icon; display: flex; color: var(--wait); }
+
+.fx-waits li.certain .fx-wait-icon { color: var(--go); }
+
+.fx-wait-what { grid-area: what; font-size: 16px; }
+
+.fx-wait-when { grid-area: when; font-size: 14px; color: var(--ink-3); }
+
+/* — the plan as one line ———————————————————————————————————————— */
+.fx-steps { list-style: none; margin: 0; padding: 0 0 16px; }
+
+.fx-steps li {
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  align-items: start;
+  gap: 10px;
+  padding: 7px 0;
+  position: relative;
+}
+
+.fx-step-rail { display: flex; justify-content: center; position: relative; }
+
+/* The connecting line, drawn between dots rather than under them, so the
+   journey reads as one thread and not a list of bullets. */
+.fx-steps li:not(:last-child) .fx-step-rail::after {
+  content: "";
+  position: absolute;
+  top: 24px;
+  bottom: -14px;
+  width: 2px;
+  background: var(--line);
+  border-radius: 2px;
+}
+
+.fx-step-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-4);
+  z-index: 1;
+}
+
+.fx-steps li.done .fx-step-dot { background: var(--go-tint); border-color: var(--go); color: var(--go); }
+
+.fx-steps li.waiting .fx-step-dot { background: var(--wait-tint); border-color: var(--wait); color: var(--wait); }
+
+.fx-steps li.next .fx-step-dot {
+  background: var(--blue-500);
+  border-color: var(--blue-500);
+  color: #fff;
+  box-shadow: var(--ring);
+}
+
+.fx-step-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+
+.fx-step-what { font-size: 16px; }
+
+.fx-steps li.done .fx-step-what { color: var(--ink-3); }
+
+.fx-step-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.fx-step-state { color: var(--ink-4); }
+
+.fx-step-tag {
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  background: var(--fill-quiet);
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.fx-step-next {
+  align-self: center;
+  padding: 3px 9px;
+  border-radius: var(--r-pill);
+  background: var(--blue-100);
+  color: var(--blue-700);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* — the conversation ————————————————————————————————————————————— */
+.fx-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 16px;
+}
+
+.fx-bubble {
+  max-width: 85%;
+  padding: 10px 13px;
+  border-radius: 18px;
+  font-size: 16px;
+  animation: fx-bubble-in 0.26s var(--ease);
+}
+
+.fx-bubble p { margin: 0; }
+
+.fx-bubble.theirs {
+  align-self: flex-start;
+  background: var(--fill-quiet);
+  border-bottom-left-radius: 5px;
+}
+
+.fx-bubble.mine {
+  align-self: flex-end;
+  background: var(--blue-500);
+  color: #fff;
+  border-bottom-right-radius: 5px;
+}
+
+.fx-bubble.held {
+  background: var(--wait-tint);
+  color: var(--ink-2);
+  border: 1px dashed var(--wait);
+}
+
+@keyframes fx-bubble-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.fx-bubble-foot {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.66;
+}
+
+.fx-routed {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.fx-bubble.mine .fx-routed { color: rgba(255, 255, 255, 0.86); }
+
+/* — the footnotes ———————————————————————————————————————————————— */
+.fx-journey,
+.fx-boundary {
+  margin: 14px 16px 0;
+  font-size: 12px;
+  color: var(--ink-4);
+  text-align: center;
+}
+
+.fx-boundary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* — speaking and typing ————————————————————————————————————————
+   The mic is the same size as Send, not a small icon beside it. A caregiver
+   who cannot read their own script has no other way in, so voice is a primary
+   control here and is drawn like one. */
+.fx-composer {
+  flex: 0 0 auto;
+  padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--frost);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+.fx-composer-row { display: flex; align-items: center; gap: 8px; }
+
+.fx-voice-note,
+.fx-composer-error {
+  display: block;
+  margin: 0 4px 8px;
+  font-size: 13px;
+}
+
+.fx-voice-note { color: var(--blue-700); }
+
+.fx-composer-error { color: var(--critical); }
+
+.fx-mic,
+.fx-send {
+  appearance: none;
+  flex: 0 0 auto;
+  min-height: 44px;
+  border-radius: var(--r-pill);
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.18s var(--ease);
+}
+
+.fx-mic {
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+}
+
+.fx-mic:hover:not(:disabled) { border-color: var(--ink-4); }
+
+/* Recording. Deliberately unmistakable — a family must never be unsure
+   whether the phone is listening to them. */
+.fx-mic.on {
+  border-color: var(--critical);
+  background: var(--critical);
+  color: #fff;
+  box-shadow: 0 0 0 0 rgba(215, 0, 21, 0.5);
+  animation: fx-rec 1.4s ease-out infinite;
+}
+
+@keyframes fx-rec {
+  0% { box-shadow: 0 0 0 0 rgba(215, 0, 21, 0.5); }
+  70% { box-shadow: 0 0 0 14px rgba(215, 0, 21, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(215, 0, 21, 0); }
+}
+
+.fx-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+.fx-input:focus { outline: none; border-color: var(--blue-500); box-shadow: var(--ring); }
+
+.fx-input:disabled { background: var(--sunken); color: var(--ink-3); }
+
+.fx-send {
+  padding: 0 18px;
+  border: 1px solid var(--blue-500);
+  background: var(--blue-500);
+  color: #fff;
+  font-weight: 500;
+}
+
+.fx-send:disabled { opacity: 0.38; cursor: not-allowed; }
+
+.fx-send:hover:not(:disabled) { background: var(--blue-600); border-color: var(--blue-600); }
+
+/* The waveform, shown only while the mic is open. Five bars on a stagger —
+   not a real FFT, and it does not claim to be one: it is the universally
+   understood sign that a device is listening. */
+.fx-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  padding: 0 4px;
+}
+
+.fx-wave span {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--critical);
+  animation: fx-bar 0.9s ease-in-out infinite;
+}
+
+.fx-wave span:nth-child(1) { height: 7px;  animation-delay: 0s; }
+
+.fx-wave span:nth-child(2) { height: 14px; animation-delay: 0.12s; }
+
+.fx-wave span:nth-child(3) { height: 20px; animation-delay: 0.24s; }
+
+.fx-wave span:nth-child(4) { height: 12px; animation-delay: 0.36s; }
+
+.fx-wave span:nth-child(5) { height: 8px;  animation-delay: 0.48s; }
+
+@keyframes fx-bar {
+  0%, 100% { transform: scaleY(0.4); opacity: 0.6; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-working svg,
+  .fx-speak.on svg,
+  .fx-mic.on,
+  .fx-wave span { animation: none; }
+  .fx-bubble,
+  .fx-working { animation: none; }
+}
+
+/* The input swapped for the waveform while the mic is open. Same box, same
+   height — nothing moves, so the only thing that changed is that the phone is
+   now listening. */
+.fx-input.listening {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-color: var(--critical);
+  background: var(--critical-tint);
+  color: var(--critical);
+  font-size: 15px;
+}
+
+/* The language a message was sent in, shown only when it is not the language
+   the family is reading now. The thread is the record of what they were
+   actually told; nothing in it is rewritten when they switch. */
+.fx-sent-in {
+  padding: 0 6px;
+  border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, 0.07);
+  font-size: 10.5px;
+}
+
+.fx-bubble.mine .fx-sent-in { background: rgba(255, 255, 255, 0.22); }
+
+/* — plan / messages ————————————————————————————————————————————
+   A phone screen holds one thing at a time. Stacked, the conversation sat
+   permanently below the family's whole care pathway, so the messages they had
+   been sent were the hardest thing on the screen to find. */
+.fx-tabs {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.fx-tabs button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 46px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+
+.fx-tabs button:hover { color: var(--ink-2); }
+
+.fx-tabs button[aria-selected="true"] {
+  color: var(--ink);
+  font-weight: 500;
+  border-bottom-color: var(--blue-500);
+}
+
+.fx-tab-count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: var(--r-pill);
+  background: var(--fill-quiet);
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.fx-tabs button[aria-selected="true"] .fx-tab-count {
+  background: var(--blue-500);
+  color: #fff;
+}
+
+/* The phone is a fixed-height column; the bar is part of it, not over it. */
+
+/* The language change, in the family's thread. A seam explained reads as a
+   record; the same seam unexplained reads as a bug. */
+.fx-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0;
+  color: var(--ink-4);
+  font-size: 12px;
+}
+
+.fx-divider::before,
+.fx-divider::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--line);
+}
+
+.fx-divider span { flex: 0 0 auto; }

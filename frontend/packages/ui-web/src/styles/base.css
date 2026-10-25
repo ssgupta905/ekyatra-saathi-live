@@ -1,0 +1,94 @@
+@import "@saathi/theme/tokens.css";
+
+/* ============================================================================
+   EKYATRA Saathi — console theme
+   ----------------------------------------------------------------------------
+   One light theme, Apple-web in character: a #f5f5f7 plane, white cards on
+   hairline borders, frosted chrome, SF type with tight tracking.
+   Light only and deliberately so — this console is read in daylight on hospital
+   desktops, and a navigator should never see two different renderings of the
+   same decision.
+
+   Colour carries meaning in exactly three places, and never alone:
+     status  go / wait / uncertain / critical  — always with an icon and a word
+     blue    the single data hue (readiness windows, meters, comparison bars)
+     ink     everything else
+
+   Status steps are the Apple accessible system colours, each checked for WCAG
+   contrast on both surfaces (lowest: go at 4.72:1 on its own tint). The blue
+   ramp was validated as an ordinal ramp — monotone lightness, visible steps,
+   light end at 2.19:1 against white.
+   ========================================================================== */
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--plane);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.47;
+  letter-spacing: -0.01em;
+}
+
+h1,
+h2,
+h3,
+h4 { margin: 0; font-weight: 600; letter-spacing: -0.021em; }
+
+button { font: inherit; letter-spacing: inherit; transition: transform 100ms var(--ease), opacity 100ms var(--ease); }
+
+button:active:not(:disabled) { transform: scale(0.97); }
+
+button:disabled { cursor: not-allowed; opacity: 0.55; }
+
+:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--r-sm); }
+
+.mono {
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  font-size: 0.86em;
+  letter-spacing: 0;
+}
+
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* ── tables ─────────────────────────────────────────────────────────────── */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+thead th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-4);
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--line-soft);
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--line-soft);
+  vertical-align: top;
+  letter-spacing: 0;
+}
+
+tbody tr:last-child td { border-bottom: 0; }
+
+tbody tr:hover > td { background: var(--sunken); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+thead th { padding: 7px 16px; }
+
+tbody td { padding: 8px 16px; }
