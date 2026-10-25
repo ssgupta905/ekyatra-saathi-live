@@ -5,7 +5,7 @@
 > Health-a-thon 2026 · Cancer track · Patient / Caregiver
 > Use case: Patient Follow-up & Continuity of Care
 
-A working decision core, a live simulation you can watch run, a navigator console that
+A working decision core, a live simulation you can watch run, role-by-role web apps that
 shows its reasoning, and typed-but-unexercised integrations for the services a pilot needs.
 
 ---
@@ -17,18 +17,18 @@ git clone <this repo> && cd ekyatra-saathi-live
 python3.12 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
-make test     # 143 tests, no network, no credentials
+make test     # the backend suite, no network, no credentials
 make demo     # the whole cohort planned and scored against planted ground truth
 ```
 
-Then, in two terminals:
+Then, in one terminal:
 
 ```bash
-make api      # :8000 — the world, paused until you press play
-make console  # :5173 — the navigator console
+make dev      # the API on :8000 and every web app (Node 22+), the world paused until you press play
 ```
 
-Open <http://localhost:5173>, press ▶ in the header, and watch. Nothing is scripted:
+Open the demo stage, <http://localhost:5190>: the family's phone, the desk and the navigator
+side by side. Press ▶ in its top bar, or **Start the story**, and watch. Nothing is scripted:
 every row in the activity strip is work that just ran, with the time it took.
 
 **No credentials are needed for any of that.** Language rendering and the four actors turn
@@ -41,7 +41,7 @@ That is the configuration CI runs and the one to fall back on if the venue's wif
 - [The problem](#the-problem) · [The rule](#the-rule)
 - [How it fits together](#how-it-fits-together)
 - [**Invariants — do not break these**](#invariants--do-not-break-these)
-- [The live demo](#the-live-demo) · [The console](#the-console)
+- [The live demo](#the-live-demo) · [The staff apps](#the-staff-apps)
 - [Layout](#layout) · [Configuration](#configuration)
 - [Working on it](#working-on-it) · [Troubleshooting](#troubleshooting)
 - [**Known gaps — where to pick up**](#known-gaps--where-to-pick-up)
@@ -175,7 +175,7 @@ a record. No model in `domain/models.py` has a field that could hold report cont
 There is no ranking number in the interface and no field in the data model to hold one.
 Navigators see what changed and decide. The deliberate absence is the design.
 
-### 8. The console reflects the world; it must not cause it
+### 8. The apps reflect the world; they must not cause it
 
 `POST /api/plan` reads the runner's latest real planning run. A navigator opening a family
 must not be the reason its ledger grows. `?recompute=true` exists for tests and scripted runs.
@@ -211,7 +211,7 @@ Press play and this happens on its own:
 
 The activity strip carries the measured wall-clock cost of each: `planner re-ran 50
 families · 62 ms` is a timing taken around the call, not a number chosen to look plausible.
-That card is what makes the rest of the console checkable rather than merely plausible.
+That card is what makes the rest of the apps checkable rather than merely plausible.
 
 Two things an operator can do, and both are *inputs* rather than decisions: confirm a desk
 record, and put a message in a family's mouth. What follows happens because the system
@@ -222,22 +222,31 @@ lab has finished — and never reaches the planner, which still has to bound the
 conformal model like it would in a hospital.
 
 ```bash
-make api                          # :8000, paused until you press play
-make console                      # :5173
+make dev                          # the API on :8000 and every web app, paused until you press play
 SAATHI_LIVE_AUTOSTART=true        # start the clock on boot instead
 SAATHI_LIVE_SECONDS_PER_DAY=2     # default 4
 ```
 
-### Three apps, not one
+### Separate apps, not one
 
-| URL | Who | What it is |
-|---|---|---|
-| `/` | hospital | Worklist, pathway, the one decision a person makes |
-| `/family.html?patient=P-SHAMBHU` | a family | One word, one date, in their language |
-| `/stage.html` | a camera | Both of the above, live, in device frames |
+Each role is its own application with its own port, because each is a different person on a
+different device. They share a backend, a design system and nothing else.
 
-They are separate applications sharing a backend. Open the phone on a phone and
-the desk on a laptop and they behave exactly as they do on the stage.
+| App | Port | Who | What it is |
+|---|---|---|---|
+| `navigator` | 5173 | a patient navigator | Worklist, what the family wrote in, alerts, the ranked options, and why |
+| `desk` | 5174 | a ward or lab desk | Report what went wrong in the ward's own words; confirm what was released |
+| `doctor` | 5175 | a treating doctor | The decisions only a doctor may make, with the reasoning beside them |
+| `admin` | 5176 | an administrator | Readiness rules, languages, and the audit log |
+| `family-web` | 5180 | demo only | The family's screen in a browser; the real phone is the [Android app](#the-family-app-android) |
+| `demo-stage` | 5190 | a camera | All of the above, live, in device frames, with the story bar and the clock |
+
+The story bar and the clock controls are the presenter's tools and exist **only** on the stage:
+no role's app has them, because in a real hospital nobody can make a Tuesday arrive sooner.
+Each app reads its API address (and, for the stage, where the others are) from a `config.json`
+beside it, so one build can be pointed at any backend. Each shows who is signed in; until real
+login exists (the next step) that is one fixed person per role, and the server decides what the
+role may do: a navigator cannot approve what touches treatment.
 
 **Multilingual, and where the line is.** `frontend/packages/i18n/src/i18n.ts` holds chrome
 only — "Plan", "Send", the names of the twelve step kinds, and the three labels
@@ -249,8 +258,8 @@ and the thread keeps each message in the language it was sent in.
 
 ### The automatic demo
 
-A real browser, driven and recorded, across both screens as one flow. The
-cursor moves between the phone and the desk, the buttons are really clicked, and
+A real browser, driven and recorded, across the screens as one flow. The
+cursor moves between the phone, the desk and the navigator, the buttons are really clicked, and
 every Advance press runs the same `LiveRunner` method a person's click would —
 the planner re-runs, Groq writes the family's message, Whisper transcribes the
 spoken question, the guard reads the result. Two runs differ because the model
@@ -261,11 +270,11 @@ pressed, and what the family asks. The spoken question is a clip synthesised by
 `make demo-audio` and fed to Chrome as a fake capture device — from
 `getUserMedia` onward nothing knows the difference.
 
-It drives the running app and does not start it, so in two terminals:
+It drives the running apps and does not start them:
 
 ```bash
-make api PORT=8001                 # terminal 1
-SAATHI_API_PORT=8001 make console  # terminal 2
+SAATHI_API_PORT=8001 make dev PORT=8001
+make demo-check                      # seconds, no key: every frame and selector it needs is there
 ```
 
 Then:
@@ -282,11 +291,11 @@ failing somewhere inside Playwright.
 
 Knobs: `SAATHI_DEMO_BEAT` (ms between narration beats, default 900),
 `SAATHI_DEMO_SLOWMO` (ms added to every Playwright action, headed only),
-`SAATHI_CONSOLE_URL`, `SAATHI_API_URL`.
+`SAATHI_STAGE_URL`, `SAATHI_API_URL`.
 
 ### Running it on stage
 
-- **Reset first.** The Reset button in the Cohort view, or
+- **Reset first.** The reset button (⟲) in the stage's top bar, or
   `POST /api/live/control {"action":"reset"}`. Same seed, same cohort, every time —
   rehearsable.
 - **Step, don't play, while you are talking.** The ⏭ button advances exactly one day, so you
@@ -294,10 +303,10 @@ Knobs: `SAATHI_DEMO_BEAT` (ms between narration beats, default 900),
 - **The desk queue is the beat.** Confirm a record by hand and the whole chain fires in front
   of the audience: ledger row, step released, planner re-run, decision flips, message
   rendered and guarded.
-- **Inject a clinical question** from the Cohort view to show the guard holding it with the
-  actual trigger words.
+- **Ask a clinical question** from the phone's composer to show the guard holding it, with the
+  actual trigger words visible in the navigator's "What the family wrote in".
 - **If the wifi dies**, take the key out of `.env` and restart. Everything except the message
-  text still works, and the console says the language layer is off.
+  text still works, and the apps say the language layer is off.
 
 ### Groq, and the four actors
 
@@ -322,7 +331,7 @@ wording depends on moves — decision, travel date, blockers, checklist. Counter
 
 ---
 
-## The console
+## The staff apps
 
 One light theme — an Apple-web palette on a `#f5f5f7` plane — and one organising idea:
 **the decision is never shown without the chain that produced it.**
@@ -333,8 +342,6 @@ One light theme — an Apple-web palette on a `#f5f5f7` plane — and one organi
   a basis that is a ledger entry is clickable: it jumps to that row and flashes it.
 - **Readiness windows are drawn as intervals**, never as dates, with the coverage level and
   the calibration count beside them. An uncalibrated window draws no bar at all and says why.
-- **The message pipeline** shows all four gates — plan, render, guard, send — even when they
-  all pass, because the useful fact is which one *would* have stopped it.
 - **The activity strip** is the live log, each row carrying the measured cost of the work
   behind it.
 - **The desk queue** shows the ward note, the record parsed from it, and a confirm button —
@@ -391,13 +398,18 @@ backend/saathi/
   channels/        WhatsApp Business API, Exotel IVR
   synthetic/       cohort generator with planted ground truth + the evaluation harness
   live/            clock, mutable world, event bus, the tick runner, the Groq actors
-  api/             FastAPI routes for the console, plus the live stream and controls
+  api/             FastAPI routes for the apps, plus the live stream and controls
 frontend/          npm workspace: shared packages, and the apps built on them
   packages/api-client  typed API client, the event reducer and SSE hook (web and mobile)
   packages/i18n        the family app's words in hi / bn / or / en
   packages/theme       design tokens (tokens.json -> generated CSS and React Native values)
   packages/ui-web      staff web primitives, glyphs, formatting, the explanation model
-  apps/console         the hospital console, family phone and demo stage (being split by role)
+  apps/navigator       the navigator's screen          (:5173)
+  apps/desk            the desk's screen               (:5174)
+  apps/doctor          the doctor's screen             (:5175)
+  apps/admin           readiness rules and the audit   (:5176)
+  apps/family-web      the family's screen in a browser, demo only  (:5180)
+  apps/demo-stage      every screen at once, with the presenter's controls  (:5190)
 android/           the family app: Kotlin + Jetpack Compose, a standard Gradle project
   tools/             generates the app's words and colours from the shared web sources
 tests/             decision core, guard, ledger, scope boundary, the live world, the actors
@@ -411,8 +423,8 @@ tests/             decision core, guard, ledger, scope boundary, the live world,
 | a new care-step type | `domain/enums.py`, then `graph/dependencies.py` edges | enums are closed on purpose — a typo becomes an import error |
 | a new language backend | `language/<name>_layer.py` | import everything from `rendering.py`; add a twin of `test_groq_layer.py` |
 | a new actor | `live/actors.py` | it may produce an input or a reading, never a decision; return `None` on failure |
-| a new card in the console | `frontend/apps/console/src/components/` | use `Card` from `@saathi/ui-web` and tokens from `@saathi/theme`; no new colours |
-| a new event the console reacts to | `live/events.py::EventKind`, published from `runner.py` | add it to `ALL_KINDS` and the tone/label maps in `frontend/packages/api-client/src/live.ts` |
+| a new card in a staff app | `frontend/apps/<role>/src/`, or `packages/ui-web/src/components/` if two roles need it | use `Card` from `@saathi/ui-web` and tokens from `@saathi/theme`; no new colours |
+| a new event the apps react to | `live/events.py::EventKind`, published from `runner.py` | add it to `ALL_KINDS` and the tone/label maps in `frontend/packages/api-client/src/live.ts` |
 
 ---
 
@@ -478,7 +490,7 @@ dedicated commit if you want it fixed.
 | `ERROR: [Errno 48] Address already in use` | A previous `make api` is still running | `lsof -ti:8000 \| xargs kill -9` |
 | Console shows "stream down" | The API is not running, or it restarted | The SSE client reconnects on its own every 2s; check `make api` is up. |
 | Tests hang or slow down after adding a key | Something bypassed `tests/conftest.py` and is making real API calls | Nothing in the suite should need a key — find the call and stub it. |
-| The world runs but nothing changes | Every report has already been released | Reset, from the Cohort view or `POST /api/live/control {"action":"reset"}`. |
+| The world runs but nothing changes | Every report has already been released | Reset, from the stage's top bar or `POST /api/live/control {"action":"reset"}`. |
 | `make demo` numbers differ from this README | The cohort is seeded (`seed=20260925`); changing the generator changes the numbers | Intentional changes are fine — update the numbers here too. |
 
 ---
@@ -547,8 +559,8 @@ ABDM is deliberately last — it is an upgrade, not a prerequisite.
 
 ### 7. Narrow-viewport layout is unverified
 
-The console collapses its rail below 900px in CSS, but that has not been seen rendered. It is
-a desktop console, so this is low priority.
+The staff apps are desktop apps and are only checked at desktop widths. The worklist rail
+collapses below 900px in CSS but that has not been seen rendered, so this is low priority.
 
 ---
 
@@ -564,7 +576,7 @@ by accident.
 | A report release goes through a desk queue | A report finishing in the lab and a hospital system knowing about it are different events. Conflating them is how software ends up believing things nobody told it. |
 | The planner is re-run, not patched, on every change | 50 families in ~65 ms. Incremental invalidation would be faster and far easier to get subtly wrong. |
 | `record_once` instead of `record` | See invariant 5. |
-| The console goes live in place rather than gaining a demo-only screen | Judges should watch the screens a navigator actually uses. |
+| Demo controls live on the stage, never in a role's app | The stage frames the real apps, so judges watch what a navigator would use, and the presenter's tools cannot leak into the product. |
 | Text only; no voice leg yet | Groq has no Indian-language TTS, and a half-real voice demo is worse than none. |
 | Light theme only | A navigator should never see two different renderings of the same decision. |
 

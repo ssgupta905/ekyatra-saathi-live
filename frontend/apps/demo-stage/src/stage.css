@@ -57,105 +57,8 @@
 
 @media (max-width: 1100px) {
   .story-headline { display: none; }
+
 }
-
-/* ── the lane diagram ───────────────────────────────────────────────────── */
-.story-scroll { overflow-x: auto; padding: 4px 0 8px; }
-
-.story-lanes .lane { fill: transparent; }
-
-.story-lanes .lane.even { fill: var(--sunken); }
-
-.story-lanes .lane-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  fill: var(--ink-4);
-}
-
-.story-lanes .lane-rule { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
-
-/* The path is the point: desk, then family, then the agents, then a person. */
-.story-lanes .story-path {
-  stroke: var(--blue-300);
-  stroke-width: 2;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-
-.story-lanes .story-dot { cursor: pointer; }
-
-.story-lanes .dot-face {
-  fill: var(--blue-500);
-  stroke: var(--surface);
-  stroke-width: 2.5;
-  transition: fill 140ms var(--ease), r 140ms var(--ease);
-}
-
-.story-lanes .story-dot:hover .dot-face { fill: var(--blue-700); }
-
-.story-lanes .story-dot:focus-visible .dot-face { fill: var(--blue-700); }
-
-.story-lanes .dot-number {
-  fill: #fff;
-  font-size: 11.5px;
-  font-weight: 600;
-  text-anchor: middle;
-  pointer-events: none;
-}
-
-/* ── the numbered list under the diagram ────────────────────────────────── */
-.story-legend { list-style: none; margin: 0; padding: 0 0 4px; border-top: 1px solid var(--line-soft); }
-
-.story-legend li { border-bottom: 1px solid var(--line-soft); }
-
-.story-legend li:last-child { border-bottom: 0; }
-
-.story-legend-row {
-  display: grid;
-  grid-template-columns: 34px 92px minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: baseline;
-  width: 100%;
-  text-align: left;
-  border: 0;
-  background: transparent;
-  padding: 8px 20px;
-  cursor: pointer;
-  font: inherit;
-  letter-spacing: 0;
-  transition: background 140ms var(--ease);
-}
-
-.story-legend-row:hover { background: var(--sunken); }
-
-.story-legend-row .n {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--blue-100);
-  color: var(--blue-700);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.story-legend-row .lane-tag {
-  font-size: 10.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--ink-4);
-}
-
-.story-legend-row .what { font-size: 13px; color: var(--ink); min-width: 0; }
-
-.story-legend-row .cost { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; }
-
-.story-legend-row { padding: 7px 16px; }
 
 /* ============================================================================
    The stage  (apps/demo-stage)
@@ -355,18 +258,10 @@
 .st-phone,
 .st-desk { transition: flex-basis 0.4s var(--ease); }
 
-
-
-
-
-
-
-
 @keyframes st-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.55; transform: scale(1.14); }
 }
-
 
 /* The presenter's strip above the screens: the clock and the story. It is light,
    like the apps it sits above, so the controls look like the ones in the product
@@ -377,4 +272,5 @@
   color: var(--ink);
   border-bottom: 1px solid var(--line);
 }
+
 .st-bar { display: flex; align-items: center; gap: 14px; padding: 8px 18px; }

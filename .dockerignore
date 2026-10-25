@@ -4,8 +4,7 @@
 .ruff_cache
 **/__pycache__
 **/node_modules
-frontend/apps/*/dist
-frontend/node_modules
+frontend
 recordings
 docs
 demo

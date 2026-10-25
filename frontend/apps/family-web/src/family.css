@@ -552,8 +552,10 @@
   .fx-speak.on svg,
   .fx-mic.on,
   .fx-wave span { animation: none; }
+
   .fx-bubble,
   .fx-working { animation: none; }
+
 }
 
 /* The input swapped for the waveform while the mic is open. Same box, same
@@ -634,7 +636,6 @@
 }
 
 /* The phone is a fixed-height column; the bar is part of it, not over it. */
-
 /* The language change, in the family's thread. A seam explained reads as a
    record; the same seam unexplained reads as a bug. */
 .fx-divider {

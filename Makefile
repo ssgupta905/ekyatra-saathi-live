@@ -1,4 +1,4 @@
-.PHONY: help install demo demo-audio demo-mov demo-video demo-video-headless fetch-reference test lint api console web-test web-typecheck emulator android-build android-test android-install android-run android-strings docker seed clean
+.PHONY: help install demo demo-audio demo-mov demo-video demo-video-headless demo-check fetch-reference test lint api web dev web-test web-typecheck emulator android-build android-test android-install android-run android-strings docker seed clean
 
 PY ?= .venv/bin/python
 # Override when something else already owns 8000:  make api PORT=8001
@@ -20,10 +20,12 @@ help:
 	@echo "make test      run the test suite"
 	@echo "make lint      ruff check + format check"
 	@echo "make api       serve the FastAPI app on :8000 (override with PORT=8001)"
-	@echo "make console   run the navigator console on :5173 (proxies /api to :8000)"
+	@echo "make dev       the API and every web app together (see the ports below)"
+	@echo "make web       every web app, with the API already running"
 	@echo "make web-test   frontend unit tests (api client, i18n, theme)"
 	@echo "make web-typecheck   strict TypeScript across every frontend package and app"
-	@echo "make demo-video  drive the console in a visible browser and record it"
+	@echo "make demo-check  verify the stage still has every frame and selector the recorder needs"
+	@echo "make demo-video  drive the demo stage in a visible browser and record it"
 	@echo "make demo-video-headless   the same run with no window"
 	@echo "make demo-mov    convert the newest recording to .mov in ~/Documents"
 	@echo "make emulator   boot the Android emulator (AVD=$(AVD))"
@@ -59,8 +61,16 @@ api:
 	PYTHONPATH=backend $(PY) -m uvicorn saathi.main:app --reload --port $(PORT) \
 		--timeout-graceful-shutdown 2
 
-console:
-	cd frontend && npm install --no-audit --no-fund && npm run dev -w ekyatra-saathi-console
+# Ports: navigator 5173, desk 5174, doctor 5175, admin 5176, family-web 5180,
+# demo-stage 5190 (the one that shows them all side by side). Node 22+.
+web:
+	cd frontend && npm install --no-audit --no-fund && npm run dev
+
+# The API and every web app in one terminal. Ctrl-C stops them all.
+dev:
+	cd frontend && npm install --no-audit --no-fund && npx concurrently -k -n api,web -c yellow,cyan \
+		"cd .. && PYTHONPATH=backend $(PY) -m uvicorn saathi.main:app --reload --port $(PORT) --timeout-graceful-shutdown 2" \
+		"npm run dev"
 
 web-test:
 	cd frontend && npm test
@@ -108,6 +118,12 @@ demo-audio:
 	afconvert -f WAVE -d LEI16@48000 -c 1 /tmp/saathi-q.aiff demo/audio/hi-dose-question.wav
 	@rm -f /tmp/saathi-q.aiff
 	@echo "wrote demo/audio/hi-dose-question.wav"
+
+# Seconds, no Groq key: are the frames and selectors the recorder drives all there?
+# Needs `make dev` running.
+demo-check:
+	cd demo && npm install --no-audit --no-fund && npx playwright install chromium \
+		&& node check-structure.mjs
 
 # Watch it happen in a real browser window, and record it.
 demo-video:

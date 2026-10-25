@@ -31,10 +31,6 @@ class Settings(BaseSettings):
     #: from a checkout, otherwise `./data`. Always resolved to an absolute path.
     data_dir: str = ""
 
-    #: Where the built console lives, when one service serves both. Empty in
-    #: development, where Vite serves the apps and proxies /api here.
-    console_dist: str = ""
-
     #: Origins allowed to call the API cross-site. Only browsers need this: a
     #: native app is not bound by CORS. The defaults are the local dev ports of
     #: the staff apps, the family app's web build (Expo, 8081) and the demo stage.

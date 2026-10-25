@@ -10,15 +10,17 @@
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev": "concurrently -k -n navigator,desk,doctor,admin,family-web,demo-stage -c cyan,green,magenta,blue,yellow,red \"npm run dev -w @saathi/navigator\" \"npm run dev -w @saathi/desk\" \"npm run dev -w @saathi/doctor\" \"npm run dev -w @saathi/admin\" \"npm run dev -w @saathi/family-web\" \"npm run dev -w @saathi/demo-stage\""
   },
   "devDependencies": {
+    "@types/node": "^22.10.0",
     "@types/react": "~19.3.0",
     "@types/react-dom": "~19.3.0",
+    "concurrently": "^10.0.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "typescript": "~6.0.3",
-    "vitest": "^2.1.9",
-    "@types/node": "^22.10.0"
+    "vitest": "^2.1.9"
   }
 }

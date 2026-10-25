@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import type { LiveSnapshot, Role } from "@saathi/api-client";
-import { fmtDate } from "./format";
+import { fmtDate, setSimToday } from "./format";
 import { Shield } from "./icons";
 
 /**
@@ -92,6 +92,11 @@ export function AppShell({
   useEffect(() => {
     document.title = `Saathi ${app} — ${identity.name}`;
   }, [app, identity.name]);
+
+  // "Yesterday", "in 3 days" and "2 days ago" are relative to the hospital's day,
+  // which in a demo is the simulated one. Set during render, before the children
+  // below format their dates, so the first paint is already right.
+  setSimToday(snapshot?.current ?? null);
 
   return (
     <div className="hx-app">

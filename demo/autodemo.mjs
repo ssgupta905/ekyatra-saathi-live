@@ -1,13 +1,15 @@
 /**
- * The automatic demo: two real apps, driven, recorded as one flow.
+ * The automatic demo: the real apps, driven, recorded as one flow.
  *
  *     make demo-video
  *
- * The family's phone and the hospital's screen are separate applications. The
+ * The family's phone, the desk and the navigator are separate applications. The
  * thing worth watching is one event crossing between them — a machine goes
  * down in Mumbai, and a phone in Gaya changes while someone is holding it — so
- * this drives `stage.html`, which mounts both in device frames, and the cursor
- * moves between the two the way attention does.
+ * this drives the demo stage (`frontend/apps/demo-stage`), which mounts all
+ * three in device frames, and the cursor moves between them the way attention
+ * does. The story bar and the clock controls live on the stage page itself:
+ * they are the presenter's, and no role's app has them.
  *
  * **What is real and what is staged.** Everything the system does is real:
  * every press runs the `LiveRunner` method a person's click would, the planner
@@ -37,7 +39,14 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(HERE, "../recordings");
 
-const CONSOLE_URL = process.env.SAATHI_CONSOLE_URL ?? "http://localhost:5173";
+//: The demo stage, which frames the others. It finds them by the addresses in its
+//: own config.json; override these only if you moved an app off its usual port.
+const STAGE_URL = process.env.SAATHI_STAGE_URL ?? "http://localhost:5190";
+const APP_URLS = {
+  family: process.env.SAATHI_FAMILY_URL ?? "http://localhost:5180",
+  desk: process.env.SAATHI_DESK_URL ?? "http://localhost:5174",
+  navigator: process.env.SAATHI_NAVIGATOR_URL ?? "http://localhost:5173",
+};
 const API_URL = process.env.SAATHI_API_URL ?? "http://localhost:8001";
 //: 1080p, so the recording plays full-screen on any projector or monitor
 //: without the browser scaling it down. At 1600×1000 the two screens were
@@ -188,11 +197,12 @@ class Demo {
     await this.page.waitForTimeout(500);
   }
 
-  /** Give one screen the whole stage, or put both back.
+  /** Give one screen the whole stage, or put them all back.
    *
-   *  Side by side is right for the moment an event crosses between the two,
-   *  and wrong for reading a thread or a worklist — at half width each screen
-   *  is legible on a monitor and not on a projector. */
+   *  Side by side is right for the moment an event crosses between them, and
+   *  wrong for reading a thread or a worklist — at a third of the width each
+   *  screen is legible on a monitor and not on a projector. Modes: All, Phone,
+   *  Desk, Navigator. */
   async focus(mode) {
     await this.click(this.page.locator(".st-focus button", { hasText: mode }), {
       label: `focus ${mode}`,
@@ -290,7 +300,10 @@ class Demo {
 
 async function preflight() {
   const checks = [
-    ["console", CONSOLE_URL],
+    ["demo stage", STAGE_URL],
+    ["family app", APP_URLS.family],
+    ["desk app", APP_URLS.desk],
+    ["navigator app", APP_URLS.navigator],
     ["API", `${API_URL}/api/health`],
   ];
   const missing = [];
@@ -313,9 +326,8 @@ async function preflight() {
   for (const [name, url, why] of missing) {
     console.error(`  ${name} not reachable at ${url}  (${why})`);
   }
-  console.error("\nStart them in two terminals, then run this again:\n");
-  console.error("  make api PORT=8001");
-  console.error("  SAATHI_API_PORT=8001 make console\n");
+  console.error("\nStart everything in one terminal, then run this again:\n");
+  console.error("  SAATHI_API_PORT=8001 make dev PORT=8001\n");
   process.exit(1);
 }
 
@@ -367,14 +379,16 @@ async function main() {
   const demo = new Demo(page);
 
   try {
-    await page.goto(`${CONSOLE_URL}/stage.html?phones=${encodeURIComponent(PHONE)}`, {
+    await page.goto(`${STAGE_URL}/?phones=${encodeURIComponent(PHONE)}`, {
       waitUntil: "domcontentloaded",
     });
 
-    // The two apps, each in its own frame. Everything below addresses them by
-    // name, so a click is unambiguously on the phone or on the desk.
+    // The three apps, each in its own frame. Everything below addresses them by
+    // name, so a click is unambiguously on the phone, the desk or the navigator.
+    // The story bar is the stage's own, so it is addressed on the page.
     const phone = page.frameLocator('iframe[title^="Family app"]');
-    const desk = page.frameLocator('iframe[title="Hospital app"]');
+    const desk = page.frameLocator('iframe[title="Desk app"]');
+    const nav = page.frameLocator('iframe[title="Navigator app"]');
 
     // The title card goes up first, over the loading apps. Otherwise the first
     // seconds of the recording — and the poster frame every player shows as
@@ -382,17 +396,19 @@ async function main() {
     await demo.raiseTitle("EKYATRA Saathi", "Two screens. One system.");
 
     await phone.locator(".fx-app").waitFor({ timeout: 25000 });
-    await desk.locator(".story-bar").waitFor({ timeout: 25000 });
+    await desk.locator(".iss-text").waitFor({ timeout: 25000 });
+    await nav.locator(".hx-worklist").waitFor({ timeout: 25000 });
+    await page.locator(".story-bar").waitFor({ timeout: 25000 });
     await page.waitForTimeout(1600);
     await demo.dropTitle();
     await demo.shot("both-screens");
     await demo.say(
-      "On the left, a family's phone in Gaya, Bihar. On the right, the " +
-        "hospital's screen in Mumbai — 1,771 km apart.",
-      3400,
+      "On the left, a family's phone in Gaya, Bihar. In the middle, the desk in " +
+        "Mumbai. On the right, the navigator — 1,771 km from the family.",
+      3600,
     );
     await demo.say(
-      "Two separate applications sharing one backend. The question they answer " +
+      "Three separate applications sharing one backend. The question they answer " +
         "together: is this trip worth making?",
       3400,
     );
@@ -403,8 +419,8 @@ async function main() {
 
     // The desk takes the stage: this beat happens entirely in Mumbai, and at
     // half width a thirty-family worklist is unreadable in a room.
-    await demo.focus("Hospital");
-    const advance = desk.locator(".story-bar button.btn.primary");
+    await demo.focus("Desk");
+    const advance = page.locator(".story-bar button.btn.primary");
 
     await demo.say(
       "Shambhu is booked for an MRI tomorrow. His family is about to start a " +
@@ -446,7 +462,7 @@ async function main() {
     await page.waitForTimeout(2800);
 
     // Both, for the one moment that is actually about the crossing.
-    await demo.focus("Both");
+    await demo.focus("All");
     await demo.say(
       "Watch the phone. Every affected family is told not to travel BEFORE " +
         "anything has worked out a new date.",
@@ -463,7 +479,7 @@ async function main() {
     await demo.scroll(phone.locator(".fx-scroll"), 300);
     await demo.say("Why, in the only form that helps: what is being waited for, and when.", 3200);
 
-    await demo.focus("Hospital");
+    await demo.focus("Navigator");
     await demo.say(
       "Meanwhile the planner re-runs. It fetched the journey from Gaya live — " +
         "1,739 km, twenty hours by road, from OpenStreetMap. Nobody typed that.",
@@ -481,7 +497,7 @@ async function main() {
     await demo.click(advance);
     await page.waitForTimeout(2800);
 
-    await demo.focus("Both");
+    await demo.focus("All");
     await demo.say("And the phone changes, in Hindi, while someone is holding it.", 3200);
     await demo.shot("plan-approved");
 
@@ -498,9 +514,9 @@ async function main() {
       await page.waitForTimeout(3400);
     }
 
-    await demo.focus("Hospital");
+    await demo.focus("Navigator");
     await demo.say("The family confirms on the voice line. Press one.", 2400);
-    await demo.runOut(desk, advance);
+    await demo.runOut(page, advance);
 
     /* ---------- Act 2: the family speaks ---------- */
 
@@ -571,19 +587,19 @@ async function main() {
     /* ---------- Act 4: why, on the hospital's side ---------- */
 
     await demo.title("4 · Why", "A navigator has to be able to defend this");
-    await demo.focus("Hospital");
+    await demo.focus("Navigator");
     await demo.say(
       "The pathway and the trace sit folded away. At 7:40 in the morning a " +
         "navigator needs what happened, not a diagram — but when a family " +
         "argues with the answer, it is one click.",
       4400,
     );
-    await demo.click(desk.locator(".hx-lens button", { hasText: "Why this answer" }), {
+    await demo.click(nav.locator(".hx-lens button", { hasText: "Why this answer" }), {
       label: "why",
     });
     await page.waitForTimeout(2800);
     await demo.say("Every claim behind the decision, and the source each one came from.", 3200);
-    await demo.scroll(desk.locator(".hx-work"), 420);
+    await demo.scroll(nav.locator(".hx-work"), 420);
     await demo.say(
       "Underneath it, the evidence ledger: append-only and hash-chained, so a " +
         "claim cannot be changed after a family acted on it.",
@@ -594,14 +610,14 @@ async function main() {
     // switching the view under it leaves the narration describing a pane that
     // is no longer on screen.
     await demo.clear();
-    await demo.click(desk.locator(".hx-lens button", { hasText: "Pathway" }));
+    await demo.click(nav.locator(".hx-lens button", { hasText: "Pathway" }));
     await page.waitForTimeout(1400);
 
     /* ---------- Act 5: story two ---------- */
 
     await demo.title("5 · A second family", "Anita Devi · in maintenance");
     await demo.clear();
-    const anita = desk.locator(".story-bar .segmented button", { hasText: "Anita" });
+    const anita = page.locator(".story-bar .segmented button", { hasText: "Anita" });
     await demo.click(anita, { label: "Anita's story" });
     await page.waitForTimeout(1400);
 
@@ -609,7 +625,7 @@ async function main() {
     // navigator's own, and a story bar reaching into it would be the console
     // causing something rather than reflecting it. So click her, the way a
     // navigator would, or the whole act narrates Anita over Shambhu's board.
-    await demo.click(desk.locator(".hx-row", { hasText: "P-ANITA" }), {
+    await demo.click(nav.locator(".hx-row", { hasText: "P-ANITA" }), {
       label: "Anita's board",
     });
     await page.waitForTimeout(1600);
@@ -629,8 +645,8 @@ async function main() {
       "And here is the interesting part: the second disruption makes the plan BETTER than the original. One trip instead of two.",
       "The family confirms — her husband on the voice line, her daughter on WhatsApp.",
     ];
-    await demo.runOut(desk, advance, lines);
-    await demo.focus("Both");
+    await demo.runOut(page, advance, lines);
+    await demo.focus("All");
     await demo.shot("story-two-done");
 
     await demo.title("What was real", "", 3000);
