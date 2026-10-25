@@ -69,6 +69,24 @@ describe("the apps", () => {
     expect(read(app, "src/App.tsx")).toContain("AppShell");
   });
 
+  it.each(apps.filter((a) => a !== "demo-stage"))("%s asks the server who is looking before it shows anything", (app) => {
+    const main = read(app, "src/main.tsx");
+    expect(main).toContain("<AuthGate");
+    // The gate wraps the app, not the other way round.
+    expect(main.indexOf("<AuthGate")).toBeLessThan(main.indexOf("<App />"));
+  });
+
+  it("let each app through only to the role it is for", () => {
+    const roleOf = (app: string) => read(app, "src/main.tsx").match(/roles=\{\["(\w+)"\]\}/)?.[1];
+    expect(Object.fromEntries(STAFF.map((app) => [app, roleOf(app)]))).toEqual({
+      navigator: "navigator",
+      desk: "desk",
+      doctor: "doctor",
+      admin: "admin",
+    });
+    expect(roleOf("family-web")).toBe("caregiver");
+  });
+
   it("keep the family app free of the staff stylesheet", () => {
     // A phone should not download the hospital's whole kit.
     expect(read("family-web", "src/main.tsx")).not.toContain("styles.css\"");

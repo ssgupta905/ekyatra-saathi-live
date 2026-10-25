@@ -25,7 +25,8 @@ import {
   PlanBoard,
   fmtDate,
 } from "@saathi/ui-web";
-import { IDENTITY } from "./identity";
+import { useIdentity } from "@saathi/auth";
+import { IDENTITY as PERSONA } from "./identity";
 
 /**
  * The navigator's screen: the families, and what each one needs from a person.
@@ -96,6 +97,7 @@ function WorklistRow({
 }
 
 export default function App() {
+  const IDENTITY = useIdentity(PERSONA);
   const world = useLiveWorld();
   const [rows, setRows] = useState<Board[]>([]);
   const [pending, setPending] = useState<PendingOption[]>([]);

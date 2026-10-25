@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useLiveWorld } from "@saathi/api-client";
 import { AgentStatus, AppShell, Card, ExplainPane, PendingApprovalsQueue } from "@saathi/ui-web";
-import { IDENTITY } from "./identity";
+import { useIdentity } from "@saathi/auth";
+import { IDENTITY as PERSONA } from "./identity";
 
 /**
  * The doctor's screen: the decisions only a doctor may make.
@@ -15,6 +16,7 @@ import { IDENTITY } from "./identity";
  * the source of each, so a doctor is approving with the reasoning in front of them.
  */
 export default function App() {
+  const IDENTITY = useIdentity(PERSONA);
   const world = useLiveWorld();
   const [family, setFamily] = useState<string | null>(null);
 

@@ -38,12 +38,18 @@ import org.ekyatra.saathi.ui.theme.Tokens
 private val Featured = listOf("P-SHAMBHU", "P-ANITA")
 
 /**
- * Which family is this phone? A stand-in until login exists: in a pilot the family
- * arrives from a link in their message, and sees only their own plan. Here the
- * team picks one, so every family can be tested.
+ * Which family is this phone? Signed in, the server lists only this person's own
+ * (usually one, which opens by itself); with login off, the demo, the team picks
+ * from all of them so every family can be tested.
  */
 @Composable
-fun PickerScreen(api: SaathiApi, onPick: (String) -> Unit) {
+fun PickerScreen(
+    api: SaathiApi,
+    signedIn: Boolean = false,
+    autoPick: Boolean = false,
+    onSignOut: () -> Unit = {},
+    onPick: (String) -> Unit,
+) {
     var patients by remember { mutableStateOf<List<PatientSummary>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var attempt by remember { mutableIntStateOf(0) }
@@ -52,6 +58,7 @@ fun PickerScreen(api: SaathiApi, onPick: (String) -> Unit) {
         error = null
         try {
             patients = api.patients().sortedBy { if (it.id in Featured) Featured.indexOf(it.id) else Featured.size }
+            patients?.singleOrNull()?.takeIf { autoPick }?.let { onPick(it.id) }
         } catch (e: ApiException) {
             error = e.message
         }
@@ -60,7 +67,7 @@ fun PickerScreen(api: SaathiApi, onPick: (String) -> Unit) {
     Column(Modifier.fillMaxSize().background(Tokens.surface).safeDrawingPadding()) {
         Column(Modifier.padding(20.dp, 24.dp, 20.dp, 12.dp)) {
             Text("Saathi", fontSize = 30.sp, fontWeight = FontWeight.SemiBold, color = Tokens.ink)
-            Text("Choose a family", fontSize = 16.sp, color = Tokens.ink3)
+            Text(if (signedIn) "Your family" else "Choose a family", fontSize = 16.sp, color = Tokens.ink3)
         }
 
         Box(Modifier.weight(1f)) {
@@ -80,6 +87,19 @@ fun PickerScreen(api: SaathiApi, onPick: (String) -> Unit) {
                     items(list, key = { it.id }) { patient -> FamilyRow(patient) { onPick(patient.id) } }
                 }
             }
+        }
+
+        if (signedIn) {
+            Text(
+                "Sign out",
+                fontSize = 15.sp,
+                color = Tokens.blue500,
+                modifier = Modifier
+                    .heightIn(min = 44.dp)
+                    .clickable(onClick = onSignOut)
+                    .padding(20.dp, 10.dp)
+                    .testTag("sign-out"),
+            )
         }
 
         Text(

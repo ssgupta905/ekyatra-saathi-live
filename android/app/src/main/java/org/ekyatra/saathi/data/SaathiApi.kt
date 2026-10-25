@@ -29,14 +29,27 @@ class ApiException(message: String, val status: Int? = null, cause: Throwable? =
 class SaathiApi(
     val baseUrl: String,
     val client: OkHttpClient = defaultClient(),
+    /** Where the sign-in is remembered. Empty when login is off (the demo). */
+    val tokens: TokenStore = MemoryTokenStore(),
 ) {
+    /** Called when the server stops trusting the token, so the app can ask again. */
+    @Volatile
+    var onUnauthorized: (() -> Unit)? = null
+
     fun url(path: String): String = baseUrl.trimEnd('/') + path
 
     private suspend fun execute(request: Request, label: String): String =
         withContext(Dispatchers.IO) {
             try {
-                client.newCall(request).execute().use { response ->
+                val signed = tokens.get()?.let {
+                    request.newBuilder().header("Authorization", "Bearer $it").build()
+                } ?: request
+                client.newCall(signed).execute().use { response ->
                     val body = response.body.string()
+                    if (response.code == 401 && !request.url.encodedPath.contains("/auth/")) {
+                        tokens.clear()
+                        onUnauthorized?.invoke()
+                    }
                     if (!response.isSuccessful) {
                         throw ApiException(
                             "$label failed: ${response.code}${detail(body)}",
@@ -60,13 +73,13 @@ class SaathiApi(
         if (text.isNullOrBlank()) "" else " · $text"
     }.getOrDefault("")
 
-    private suspend fun get(path: String): String =
+    internal suspend fun get(path: String): String =
         execute(Request.Builder().url(url(path)).build(), "GET $path")
 
-    private suspend fun send(method: String, path: String, body: RequestBody): String =
+    internal suspend fun send(method: String, path: String, body: RequestBody): String =
         execute(Request.Builder().url(url(path)).method(method, body).build(), "$method $path")
 
-    private fun json(block: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): RequestBody =
+    internal fun json(block: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): RequestBody =
         buildJsonObject(block).toString().toRequestBody("application/json".toMediaType())
 
     suspend fun health(): String = get("/health")

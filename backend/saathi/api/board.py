@@ -24,6 +24,7 @@ from fastapi import APIRouter, HTTPException
 
 from ..domain.enums import REPORT_STEPS, Decision, StepKind, StepStatus
 from ..graph.dependencies import DEFAULT_EDGES, DependencyGraph
+from .access import AnyStaff
 from .deps import ContainerDep
 
 logger = logging.getLogger(__name__)
@@ -172,12 +173,12 @@ def build_board(state, patient_id: str) -> dict:
     }
 
 
-@router.get("/patients/{patient_id}/board")
+@router.get("/patients/{patient_id}/board", dependencies=[AnyStaff])
 async def patient_board(state: ContainerDep, patient_id: str) -> dict:
     return build_board(state, patient_id)
 
 
-@router.get("/boards")
+@router.get("/boards", dependencies=[AnyStaff])
 async def boards(state: ContainerDep, watched: bool = True, limit: int = 12) -> dict:
     """Every board a navigator is holding, worst first.
 

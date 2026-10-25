@@ -92,8 +92,17 @@ sealed interface StreamSignal {
 fun SaathiApi.events(): Flow<StreamSignal> = callbackFlow {
     // The stream is endless by design, so it must not time out reading.
     val streaming = client.newBuilder().readTimeout(0, TimeUnit.MILLISECONDS).build()
+    // Signed in, the stream opens with a one-minute ticket: a header would do on a
+    // phone, but the server has one way in for every client and it is the ticket.
+    val ticket = if (tokens.get() != null) {
+        runCatching { streamTicket() }.getOrElse {
+            trySend(StreamSignal.Closed)
+            close()
+            return@callbackFlow
+        }
+    } else null
     val request = Request.Builder()
-        .url(url("/stream"))
+        .url(url(if (ticket != null) "/stream?ticket=$ticket" else "/stream"))
         .header("Accept", "text/event-stream")
         .build()
 

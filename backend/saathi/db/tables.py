@@ -64,6 +64,19 @@ class FamilyMemberRow(Base):
     patient: Mapped[PatientRow] = relationship(back_populates="family")
 
 
+class UserRow(Base):
+    """A staff account. Families have none: they prove a phone number instead."""
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    username: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(160))
+    role: Mapped[str] = mapped_column(String(16))
+    password_hash: Mapped[str] = mapped_column(String(255))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
 class ResourceRow(Base):
     """A named, bookable hospital thing a desk can report unavailable."""
 

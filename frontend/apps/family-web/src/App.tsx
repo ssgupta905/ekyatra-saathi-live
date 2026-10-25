@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { family, type FamilyHome, type Thread as ThreadData, useLiveWorld } from "@saathi/api-client";
+import { useSession } from "@saathi/auth";
 import { LANGS, t, type Lang } from "@saathi/i18n";
 import { Verdict } from "./Verdict";
 import { Why } from "./Why";
@@ -28,13 +29,18 @@ import { Inbox, Pin, Shield, Spark } from "@saathi/ui-web";
 /** Which family this phone belongs to. In a pilot this comes from the link in
  *  their SMS; here it is the query string, so two phones can be opened side by
  *  side in the recorded demo. */
-function patientFromUrl(): string {
-  const params = new URLSearchParams(window.location.search);
-  return params.get("patient") ?? "P-SHAMBHU";
+function patientFromUrl(allowed: string[] | null): string {
+  const asked = new URLSearchParams(window.location.search).get("patient");
+  // Signed in, a family sees only its own: the link may name one of them, and
+  // anything else falls back to the first. Not signed in (the demo), the link decides.
+  if (allowed) return asked && allowed.includes(asked) ? asked : (allowed[0] ?? "");
+  return asked ?? "P-SHAMBHU";
 }
 
 export default function FamilyApp() {
-  const patientId = useMemo(patientFromUrl, []);
+  const { principal, signOut } = useSession();
+  const allowed = principal?.patient_ids ?? null;
+  const patientId = useMemo(() => patientFromUrl(allowed), [allowed]);
   const [home, setHome] = useState<FamilyHome | null>(null);
   const [thread, setThread] = useState<ThreadData | null>(null);
   const [switching, setSwitching] = useState(false);
@@ -113,6 +119,11 @@ export default function FamilyApp() {
               {option.endonym}
             </button>
           ))}
+          {principal && (
+            <button type="button" className="fx-signout" onClick={signOut}>
+              Sign out
+            </button>
+          )}
         </div>
       </header>
 

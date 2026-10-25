@@ -36,6 +36,7 @@ from ..ingest.records_import import (
     parse_fhir_bundle,
     step_problem,
 )
+from .access import AdminOnly, Desk, DeskWork, PrincipalDep
 from .deps import ContainerDep
 
 router = APIRouter()
@@ -98,7 +99,7 @@ def _member(patient_id: str, body: FamilyMemberIn) -> FamilyMember:
     )
 
 
-@router.post("/patients", status_code=201)
+@router.post("/patients", status_code=201, dependencies=[DeskWork])
 async def register_patient(state: ContainerDep, body: PatientIn) -> dict:
     _real_only(state)
     patient_id = body.id or f"P-{uuid.uuid4().hex[:8].upper()}"
@@ -121,7 +122,7 @@ async def register_patient(state: ContainerDep, body: PatientIn) -> dict:
     return patient.model_dump(mode="json")
 
 
-@router.patch("/patients/{patient_id}")
+@router.patch("/patients/{patient_id}", dependencies=[DeskWork])
 async def edit_patient(state: ContainerDep, patient_id: str, body: PatientPatch) -> dict:
     _real_only(state)
     changes = body.model_dump(exclude_unset=True, exclude={"plan_target"})
@@ -139,7 +140,7 @@ async def edit_patient(state: ContainerDep, patient_id: str, body: PatientPatch)
     return patient.model_dump(mode="json")
 
 
-@router.post("/patients/{patient_id}/family", status_code=201)
+@router.post("/patients/{patient_id}/family", status_code=201, dependencies=[DeskWork])
 async def add_family_member(state: ContainerDep, patient_id: str, body: FamilyMemberIn) -> dict:
     _real_only(state)
     member = _member(patient_id, body)
@@ -196,7 +197,7 @@ def _forecast(state: ContainerDep, step: CareStep) -> dict | None:
     }
 
 
-@router.post("/patients/{patient_id}/steps", status_code=201)
+@router.post("/patients/{patient_id}/steps", status_code=201, dependencies=[DeskWork])
 async def add_step(state: ContainerDep, patient_id: str, body: StepIn) -> dict:
     _real_only(state)
     step = CareStep(
@@ -223,7 +224,7 @@ async def add_step(state: ContainerDep, patient_id: str, body: StepIn) -> dict:
     return {"step": step.model_dump(mode="json"), "forecast": _forecast(state, step)}
 
 
-@router.patch("/steps/{step_id}")
+@router.patch("/steps/{step_id}", dependencies=[DeskWork])
 async def edit_step(state: ContainerDep, step_id: str, body: StepPatch) -> dict:
     _real_only(state)
     existing = state.world.step(step_id)
@@ -247,15 +248,19 @@ class ReleaseIn(BaseModel):
     note: str = ""
 
 
-@router.post("/steps/{step_id}/release")
+@router.post("/steps/{step_id}/release", dependencies=[Desk])
 async def release_step(
-    state: ContainerDep, step_id: str, body: Annotated[ReleaseIn | None, Body()] = None
+    state: ContainerDep,
+    principal: PrincipalDep,
+    step_id: str,
+    body: Annotated[ReleaseIn | None, Body()] = None,
 ) -> dict:
     """A person says this report is ready. It is recorded, and the family re-planned."""
     _real_only(state)
     try:
         body = body or ReleaseIn()
-        step = await state.runner.release_step(step_id, by=body.by, note=body.note)
+        by = principal.name if principal else body.by
+        step = await state.runner.release_step(step_id, by=by, note=body.note)
     except LookupError as exc:
         raise HTTPException(404, "unknown step") from exc
     except ValueError as exc:
@@ -274,7 +279,7 @@ class ResourceIn(BaseModel):
     department: str = Field(min_length=1)
 
 
-@router.post("/resources", status_code=201)
+@router.post("/resources", status_code=201, dependencies=[AdminOnly])
 async def register_resource(state: ContainerDep, body: ResourceIn) -> dict:
     _real_only(state)
     resource = Resource(**body.model_dump())
@@ -364,7 +369,7 @@ async def import_template() -> str:
     return csv_template()
 
 
-@router.post("/import/csv")
+@router.post("/import/csv", dependencies=[Desk])
 async def import_csv(request: Request, state: ContainerDep, commit: bool = False) -> dict:
     """The CSV template as the request body (`text/csv`).
 
@@ -380,7 +385,7 @@ async def import_csv(request: Request, state: ContainerDep, commit: bool = False
     return _report(batch, committed=await _apply(state, batch) if commit else None)
 
 
-@router.post("/import/fhir")
+@router.post("/import/fhir", dependencies=[Desk])
 async def import_fhir(
     state: ContainerDep,
     bundle: Annotated[dict, Body()],

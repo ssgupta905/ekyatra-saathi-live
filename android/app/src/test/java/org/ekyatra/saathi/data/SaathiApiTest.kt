@@ -111,4 +111,104 @@ class SaathiApiTest {
             assertTrue(e.message!!.contains("could not reach"))
         }
     }
+
+    // ---- signing in ----
+
+    private val session =
+        """{"token":"tok-1","expires_in":604800,"principal":{"id":"c1","name":"Kamble","role":"caregiver","patient_ids":["P-A"]}}"""
+
+    @Test
+    fun `no token means no authorization header`() = runTest {
+        val recorder = Recorder(body = "[]")
+        api(recorder).patients()
+        assertEquals(null, recorder.requests.single().header("Authorization"))
+    }
+
+    @Test
+    fun `a stored token rides on every request`() = runTest {
+        val recorder = Recorder(body = "[]")
+        val signedIn = SaathiApi(
+            "http://host/api", OkHttpClient.Builder().addInterceptor(recorder).build(),
+            MemoryTokenStore("tok-1"),
+        )
+        signedIn.patients()
+        assertEquals("Bearer tok-1", recorder.requests.single().header("Authorization"))
+    }
+
+    @Test
+    fun `verifying the code remembers the token and says which families are theirs`() = runTest {
+        val recorder = Recorder(body = session)
+        val tokens = MemoryTokenStore()
+        val result = SaathiApi(
+            "http://host/api", OkHttpClient.Builder().addInterceptor(recorder).build(), tokens,
+        ).verifyOtp("98000 11122", "123456")
+
+        assertEquals("tok-1", tokens.get())
+        assertEquals(listOf("P-A"), result.principal.patientIds)
+        val request = recorder.requests.single()
+        assertEquals("/api/auth/otp/verify", request.url.encodedPath)
+        assertTrue(request.bodyText().contains(""""code":"123456""""))
+    }
+
+    @Test
+    fun `a wrong code stores nothing`() = runTest {
+        val tokens = MemoryTokenStore()
+        val failing = SaathiApi(
+            "http://host/api",
+            OkHttpClient.Builder().addInterceptor(Recorder(401, """{"detail":"that code is wrong"}""")).build(),
+            tokens,
+        )
+        try {
+            failing.verifyOtp("98000 11122", "000000")
+            fail("expected an ApiException")
+        } catch (e: ApiException) {
+            assertEquals(401, e.status)
+        }
+        assertEquals(null, tokens.get())
+    }
+
+    @Test
+    fun `a rejected token signs the person out and tells the app`() = runTest {
+        val tokens = MemoryTokenStore("stale")
+        var told = false
+        val expired = SaathiApi(
+            "http://host/api",
+            OkHttpClient.Builder().addInterceptor(Recorder(401, """{"detail":"sign in first"}""")).build(),
+            tokens,
+        ).apply { onUnauthorized = { told = true } }
+        try {
+            expired.patients()
+        } catch (_: ApiException) {
+        }
+        assertEquals(null, tokens.get())
+        assertTrue(told)
+    }
+
+    @Test
+    fun `a wrong code is not mistaken for an expired session`() = runTest {
+        val tokens = MemoryTokenStore("keep")
+        var told = false
+        val api = SaathiApi(
+            "http://host/api",
+            OkHttpClient.Builder().addInterceptor(Recorder(401, """{"detail":"wrong"}""")).build(),
+            tokens,
+        ).apply { onUnauthorized = { told = true } }
+        try {
+            api.verifyOtp("98000 11122", "000000")
+        } catch (_: ApiException) {
+        }
+        assertEquals("keep", tokens.get())
+        assertEquals(false, told)
+    }
+
+    @Test
+    fun `the stream ticket is asked for with a post`() = runTest {
+        val recorder = Recorder(body = """{"ticket":"t-9"}""")
+        val ticket = SaathiApi(
+            "http://host/api", OkHttpClient.Builder().addInterceptor(recorder).build(),
+            MemoryTokenStore("tok-1"),
+        ).streamTicket()
+        assertEquals("t-9", ticket)
+        assertEquals("POST", recorder.requests.single().method)
+    }
 }

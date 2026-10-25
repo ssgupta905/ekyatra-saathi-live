@@ -1,0 +1,21 @@
+{
+  "name": "@saathi/auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Sign-in for every app: staff by password, families by phone and code.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./auth.css": "./src/auth.css"
+  },
+  "types": "./src/index.ts",
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "dependencies": {
+    "@saathi/api-client": "*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  }
+}

@@ -27,6 +27,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from ..domain.enums import Language, StepKind, StepStatus
+from .access import FamilyOrStaff, PrincipalDep, ensure_may_see
 from .deps import ContainerDep
 
 logger = logging.getLogger(__name__)
@@ -111,7 +112,7 @@ class LanguageChoice(BaseModel):
 
 
 
-@router.get("/patients/{patient_id}/notifications")
+@router.get("/patients/{patient_id}/notifications", dependencies=[FamilyOrStaff])
 async def notifications(state: ContainerDep, patient_id: str, limit: int = 30) -> dict:
     """What this family was told, and what they said, newest last.
 
@@ -163,6 +164,7 @@ async def transcribe(
     state: ContainerDep,
     audio: Annotated[UploadFile, File()],
     patient_id: Annotated[str, Form()],
+    principal: PrincipalDep,
     language: Annotated[str | None, Form()] = None,
 ) -> dict:
     """Turn a spoken reply into text. Does not act on it.
@@ -172,6 +174,7 @@ async def transcribe(
     is sent — mishearing a date in a language the operator does not read is not
     a failure anyone would catch later.
     """
+    ensure_may_see(principal, patient_id)
     patient = state.world.patient(patient_id)
     if patient is None:
         raise HTTPException(404, "unknown patient")
@@ -238,7 +241,7 @@ def _latest_plan_message(runner, patient_id: str) -> dict | None:
     return None
 
 
-@router.get("/patients/{patient_id}/home")
+@router.get("/patients/{patient_id}/home", dependencies=[FamilyOrStaff])
 async def home(state: ContainerDep, patient_id: str) -> dict:
     """Everything the family's phone shows, in one call.
 
@@ -333,7 +336,7 @@ async def home(state: ContainerDep, patient_id: str) -> dict:
     }
 
 
-@router.patch("/patients/{patient_id}/language")
+@router.patch("/patients/{patient_id}/language", dependencies=[FamilyOrStaff])
 async def choose_language(state: ContainerDep, patient_id: str, body: LanguageChoice) -> dict:
     """The family picks their language. Every message after this obeys.
 

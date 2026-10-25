@@ -656,3 +656,15 @@
 }
 
 .fx-divider span { flex: 0 0 auto; }
+
+.fx-signout {
+  margin-left: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}

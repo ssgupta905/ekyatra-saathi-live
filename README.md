@@ -41,7 +41,7 @@ That is the configuration CI runs and the one to fall back on if the venue's wif
 - [The problem](#the-problem) · [The rule](#the-rule)
 - [How it fits together](#how-it-fits-together)
 - [**Invariants — do not break these**](#invariants--do-not-break-these)
-- [The live demo](#the-live-demo) · [The staff apps](#the-staff-apps) · [Real records](#real-records)
+- [The live demo](#the-live-demo) · [The staff apps](#the-staff-apps) · [Real records](#real-records) · [Who may do what](#who-may-do-what)
 - [Layout](#layout) · [Configuration](#configuration)
 - [Working on it](#working-on-it) · [Troubleshooting](#troubleshooting)
 - [**Known gaps — where to pick up**](#known-gaps--where-to-pick-up)
@@ -244,9 +244,9 @@ different device. They share a backend, a design system and nothing else.
 The story bar and the clock controls are the presenter's tools and exist **only** on the stage:
 no role's app has them, because in a real hospital nobody can make a Tuesday arrive sooner.
 Each app reads its API address (and, for the stage, where the others are) from a `config.json`
-beside it, so one build can be pointed at any backend. Each shows who is signed in; until real
-login exists (the next step) that is one fixed person per role, and the server decides what the
-role may do: a navigator cannot approve what touches treatment.
+beside it, so one build can be pointed at any backend. Each shows who is signed in. In the demo that is one fixed person per role; in the real world
+it is whoever logged in (see [Who may do what](#who-may-do-what)), and the server decides what
+the role may do: a navigator cannot approve what touches treatment.
 
 **Multilingual, and where the line is.** `frontend/packages/i18n/src/i18n.ts` holds chrome
 only — "Plan", "Send", the names of the twelve step kinds, and the three labels
@@ -406,9 +406,48 @@ else knows which database it is.
 `SAATHI_SIM_MODE` together with `SAATHI_WORLD=real` fails at startup; and the entry endpoints
 answer 409 in the demo, because a reset would silently discard what was entered.
 
-**Not yet.** Nobody logs in, so anyone who can reach the API can enter records (the next step);
-`name` is stored and returned by `/api/patients` without access control until then. Plans and
-rendered messages are recomputed on start rather than stored.
+**Not stored.** Plans, rendered messages, inbound messages and approvals are recomputed on
+start rather than stored.
+
+## Who may do what
+
+In the real world every app asks who is looking before it shows anything. In the demo it does
+not: the stage frames every role at once and a login screen would be in the way. `SAATHI_AUTH`
+(`auto` by default) is `on` in the real world and `off` in the demo; the server tells each app
+which, at `/api/auth/config`.
+
+```bash
+make dev-users   # seema (navigator), imran (desk), amrita (doctor), neha (admin); password saathi-dev
+.venv/bin/python -m saathi.cli.users add --username U --name "N" --role desk   # a real account
+```
+
+| Role | May do |
+|---|---|
+| navigator | read everything staff read; enter records; approve a re-plan that does not touch treatment |
+| desk | report an outage; mark a report released; import records; enter records |
+| doctor | read; approve a re-plan, including ones that touch treatment |
+| admin | the readiness settings, the audit log, resources, clock controls |
+| caregiver | **only their own family**: plan, messages, language, replying, voice |
+
+- **The role is who signed in, never what a request says.** The approval's role and name come
+  from the token; the body is ignored. A navigator typing `"doctor"` still hits the treatment gate.
+- **Staff** sign in with a username and password (argon2; five wrong tries lock the account for
+  a minute; a wrong name and a wrong password look the same). **Families** ask for a code to
+  their phone and enter it; a number that is not on record gets the same reply as one that is.
+  Tokens last 8 hours for staff and 7 days for a family.
+- **Another family looks like one that does not exist** (404, not 403), and a family's event
+  stream carries only events about itself.
+- **The event stream** takes a one-minute, one-use ticket (`POST /auth/stream-ticket`), because a
+  browser's `EventSource` cannot send a header and a token in a URL ends up in logs.
+- **The family app (Android)** signs in the same way and keeps its token in the app's private
+  storage (not encrypted at rest).
+- **Behind the port.** `ports/identity.py` is all the rest of the system sees. `local` is built;
+  `oidc` (an organisation's sign-in) fails at startup with a message rather than falling back.
+  Production refuses to start without `SAATHI_AUTH_SECRET` and `oidc`, because the local
+  adapter **logs the one-time code instead of sending it** (no SMS provider is wired in).
+
+**Not yet.** No password reset, no second factor for staff, and the code is read from the
+server log. The sign-in screens are English only.
 
 ## The family app (Android)
 
@@ -431,8 +470,9 @@ the wrapper. The emulator reaches this Mac's API at `10.0.2.2:8000`; for a real 
 
 The words and colours are **generated from the web sources** (`frontend/packages/i18n`,
 `frontend/packages/theme`) by `make android-strings`, and a frontend test fails if the committed
-Kotlin goes stale, so the phone and the web cannot drift apart. Until login exists, the first
-screen lets the team pick which family a phone belongs to.
+Kotlin goes stale, so the phone and the web cannot drift apart. Against the demo, the first
+screen lets the team pick which family a phone belongs to; against the real world, a family signs
+in with their phone number and sees only their own.
 
 ---
 
@@ -446,7 +486,9 @@ backend/saathi/
   engagement/      PELT change-point detector for disengagement
   planner/         typed tools + the LangGraph state machine (every edge decided by code)
   ledger/          hash-chained append-only evidence ledger (memory reference)
-  adapters/        clock, record-store and durable-ledger adapters behind `ports/`
+  adapters/        clock, record-store, durable-ledger and identity adapters behind `ports/`
+  cli/             `python -m saathi.cli.users`, for creating staff accounts
+  packages/auth    (frontend) the sign-in gate every app is wrapped in
   db/              the schema and its Alembic migrations
   language/        rendering.py (the shared binding) + groq_layer.py + claude.py,
                    clinical guard, Bhashini ASR/NMT/TTS
@@ -502,6 +544,9 @@ credentials appear.
 | `SAATHI_LIVE_START_OFFSET_DAYS` | `3` | Days to rewind at boot, so reports land while someone is watching. |
 | `SAATHI_LIVE_AUTOSTART` | `false` | Start the clock on boot. |
 | `SAATHI_WORLD` | `demo` | `demo` or `real`. See [Real records](#real-records). |
+| `SAATHI_AUTH` | `auto` | `auto` (on in the real world, off in the demo), `on`, or `off`. |
+| `SAATHI_AUTH_SECRET` | dev value | Signs tokens. Production refuses to start on the default. |
+| `SAATHI_IDENTITY_PROVIDER` | `local` | `local`, or `oidc` (not built yet). |
 | `SAATHI_RECORDS_URL` | `sqlite:///./saathi_records.db` | Where the real world's records and ledger live. A Postgres URL moves it. |
 | `SAATHI_REAL_TICK_SECONDS` | `300` | How often the real world re-plans. |
 | `SAATHI_CONFORMAL_ALPHA` | `0.1` | 1 − α is the coverage guarantee on readiness windows. |

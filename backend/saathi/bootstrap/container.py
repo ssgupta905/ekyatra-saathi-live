@@ -28,6 +28,7 @@ from ..live.runner import LiveRunner
 from ..live.world import LiveWorld
 from ..planner.graph import VisitPlanner
 from ..ports.clock import Clock
+from ..ports.identity import IdentityProvider
 from ..ports.language import LanguageLayer
 from ..ports.ledger import EvidenceLedger
 from ..readiness.conformal import ConformalReadinessPredictor, TurnaroundSample
@@ -47,6 +48,8 @@ class Container:
     bus: EventBus
     runner: LiveRunner
     alerts: list = field(default_factory=list)
+    #: None when login is off (the demo). Every access rule treats that as "open".
+    identity: IdentityProvider | None = None
 
     @property
     def cohort(self) -> SyntheticCohort:
@@ -73,6 +76,49 @@ def build_language_layer(settings: Settings) -> LanguageLayer | None:
         return ClaudeLanguageLayer(model=settings.claude_model, api_key=settings.anthropic_api_key)
     logger.warning("no GROQ_API_KEY or ANTHROPIC_API_KEY — planner will decide but not compose")
     return None
+
+
+class _WorldPhones:
+    """Which families a phone number is on, read from the live records."""
+
+    def __init__(self, world: LiveWorld) -> None:
+        self._world = world
+
+    def families_for(self, phone: str) -> tuple[tuple[str, str], ...]:
+        from ..adapters.identity.local import digits
+
+        found: list[tuple[str, str]] = []
+        for patient in self._world.patients():
+            if digits(patient.caregiver_phone) == phone:
+                greeting = next(
+                    (m.name for m in patient.family_members if digits(m.phone) == phone),
+                    patient.name or "Family",
+                )
+                found.append((patient.id, greeting))
+            else:
+                member = next((m for m in patient.family_members if digits(m.phone) == phone), None)
+                if member is not None:
+                    found.append((patient.id, member.name))
+        return tuple(found)
+
+
+def build_identity(settings: Settings, world: LiveWorld) -> IdentityProvider | None:
+    """Local accounts, or an organisation's sign-in. None when login is off."""
+    if not settings.auth_on:
+        return None
+    if settings.identity_provider == "oidc":
+        from ..adapters.identity.oidc import OidcIdentity
+
+        return OidcIdentity()
+    from ..adapters.identity import LocalIdentity
+    from ..adapters.records.sql import migrate
+
+    migrate(settings.records_url)
+    if settings.auth_secret.startswith("dev-only"):
+        logger.warning("signing tokens with the built-in dev secret; set SAATHI_AUTH_SECRET")
+    return LocalIdentity(
+        settings.records_url, secret=settings.auth_secret, phones=_WorldPhones(world)
+    )
 
 
 def build_actors(settings: Settings, world: LiveWorld):
@@ -154,4 +200,5 @@ def build_container(settings: Settings | None = None, today: date | None = None)
         bus=bus,
         runner=runner,
         alerts=alerts,
+        identity=build_identity(settings, world),
     )

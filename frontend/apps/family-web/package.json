@@ -14,7 +14,8 @@
     "@saathi/i18n": "*",
     "@saathi/ui-web": "*",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "@saathi/auth": "*"
   },
   "devDependencies": {
     "@types/react": "~19.3.0",

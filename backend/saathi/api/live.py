@@ -15,12 +15,21 @@ import logging
 from collections.abc import AsyncIterator
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from ..domain.enums import DisruptionKind, Role
 from ..live.events import QUEUE_LIMIT as _QUEUE_LIMIT
+from .access import (
+    AdminOnly,
+    AnyStaff,
+    Approver,
+    Desk,
+    PrincipalDep,
+    current_principal,
+    ensure_may_see,
+)
 from .deps import ContainerDep
 
 logger = logging.getLogger(__name__)
@@ -45,13 +54,31 @@ def _frame(event) -> str:
 
 
 @router.get("/stream")
-async def stream(request: Request, state: ContainerDep) -> StreamingResponse:
+async def stream(
+    request: Request, state: ContainerDep, ticket: str | None = None
+) -> StreamingResponse:
     """Server-sent events: every real thing the world does, as it happens.
 
     The replay buffer goes out first so a console that connects mid-demo opens
     with context rather than a blank activity log.
     """
     bus = state.bus
+    watcher = None
+    if state.identity is not None:
+        # An event stream cannot carry an Authorization header, so it opens with
+        # a one-minute ticket the signed-in app asked for (`/auth/stream-ticket`).
+        watcher = state.identity.redeem_stream_ticket(ticket or "")
+        if watcher is None:
+            raise HTTPException(
+                401, "ask for a stream ticket first", headers={"www-authenticate": "Bearer"}
+            )
+
+    def visible(event) -> bool:
+        # A family hears only about itself: other families' events carry their
+        # ids and plans, and a caregiver has no business with either.
+        return watcher is None or watcher.is_staff or (
+            event.patient_id is not None and watcher.may_see(event.patient_id)
+        )
 
     async def events() -> AsyncIterator[str]:
         # Starlette cancels this task when the client goes away, and the
@@ -61,14 +88,16 @@ async def stream(request: Request, state: ContainerDep) -> StreamingResponse:
         # teardown path here.
         async with bus.subscribe() as queue:
             for event in bus.recent(40):
-                yield _frame(event)
+                if visible(event):
+                    yield _frame(event)
             while True:
                 try:
                     event = await asyncio.wait_for(queue.get(), timeout=HEARTBEAT_SECONDS)
                 except TimeoutError:
                     yield ": keepalive\n\n"
                     continue
-                yield _frame(event)
+                if visible(event):
+                    yield _frame(event)
 
     return StreamingResponse(
         events(),
@@ -86,7 +115,7 @@ async def stream(request: Request, state: ContainerDep) -> StreamingResponse:
 # ---------------------------------------------------------------- the clock
 
 
-@router.get("/live")
+@router.get("/live", dependencies=[AnyStaff])
 async def live_snapshot(state: ContainerDep) -> dict:
     return state.runner.snapshot()
 
@@ -98,7 +127,7 @@ class ControlRequest(BaseModel):
     story: str | None = None
 
 
-@router.post("/live/control")
+@router.post("/live/control", dependencies=[AdminOnly])
 async def control(state: ContainerDep, body: ControlRequest) -> dict:
     runner = state.runner
     if state.world.real:
@@ -135,7 +164,7 @@ async def control(state: ContainerDep, body: ControlRequest) -> dict:
 # ---------------------------------------------------------------- the stories
 
 
-@router.get("/story")
+@router.get("/story", dependencies=[AnyStaff])
 async def story_state(state: ContainerDep) -> dict:
     """Which stories exist, where each has got to, and who acts next.
 
@@ -149,7 +178,7 @@ async def story_state(state: ContainerDep) -> dict:
 # ---------------------------------------------------------------- the desk
 
 
-@router.get("/desk/queue")
+@router.get("/desk/queue", dependencies=[AnyStaff])
 async def desk_queue(state: ContainerDep) -> list[dict]:
     return [c.to_json() for c in state.world.pending_candidates()]
 
@@ -158,7 +187,7 @@ class ConfirmRequest(BaseModel):
     candidate_id: str
 
 
-@router.post("/desk/confirm")
+@router.post("/desk/confirm", dependencies=[Desk])
 async def desk_confirm(state: ContainerDep, body: ConfirmRequest) -> dict:
     """A human confirming a record. The only way a report becomes available."""
     ok = await state.runner.confirm(body.candidate_id, automatic=False)
@@ -179,12 +208,17 @@ class InjectRequest(BaseModel):
 
 
 @router.post("/live/inject")
-async def inject(state: ContainerDep, body: InjectRequest) -> dict:
+async def inject(state: ContainerDep, body: InjectRequest, principal: PrincipalDep) -> dict:
     """Put a message in a family's mouth and let the real guard read it.
 
     Nothing downstream knows this was staged: `guard.screen_inbound` runs, and a
     clinical question raises a real alert exactly as it would at 3am.
     """
+    if principal is not None and principal.is_staff:
+        # Writing as a family is the family's act. A staff account that could do
+        # it would be putting words in a patient's mouth with its own name on none of them.
+        raise HTTPException(403, "only the family can send as the family")
+    ensure_may_see(principal, body.patient_id)
     record = await state.runner.receive_inbound(
         body.patient_id, kind=body.kind, text=body.text
     )
@@ -195,7 +229,7 @@ async def inject(state: ContainerDep, body: InjectRequest) -> dict:
     return record.to_json()
 
 
-@router.get("/inbound")
+@router.get("/inbound", dependencies=[AnyStaff])
 async def inbound(state: ContainerDep, patient_id: str | None = None) -> list[dict]:
     rows = state.runner.inbound
     if patient_id:
@@ -260,7 +294,7 @@ def _read_without_a_model(text: str, resources, today: date) -> dict | None:
     }
 
 
-@router.post("/disruptions/read")
+@router.post("/disruptions/read", dependencies=[Desk])
 async def read_work_log(state: ContainerDep, body: WorkLogRequest) -> dict:
     """Read a department's own words and propose the outage they describe.
 
@@ -316,7 +350,7 @@ async def read_work_log(state: ContainerDep, body: WorkLogRequest) -> dict:
     }
 
 
-@router.post("/disruptions")
+@router.post("/disruptions", dependencies=[Desk])
 async def raise_disruption(state: ContainerDep, body: DisruptionRequest) -> dict:
     """A desk's one-tap report. Everything downstream — the holding message,
     the re-solve, the options — happens because the runner reacted to this,
@@ -331,12 +365,12 @@ async def raise_disruption(state: ContainerDep, body: DisruptionRequest) -> dict
     return {"disruption": disruption.model_dump(mode="json"), "affected_patient_ids": affected}
 
 
-@router.get("/disruptions")
+@router.get("/disruptions", dependencies=[AnyStaff])
 async def list_disruptions(state: ContainerDep) -> list[dict]:
     return [d.model_dump(mode="json") for d in state.world.open_disruptions()]
 
 
-@router.get("/disruptions/pending")
+@router.get("/disruptions/pending", dependencies=[AnyStaff])
 async def pending_options(state: ContainerDep) -> list[dict]:
     """Every option set currently waiting on a human — the navigator's and
     doctor's call list for the disruption loop, without needing to already
@@ -359,7 +393,7 @@ async def pending_options(state: ContainerDep) -> list[dict]:
     return rows
 
 
-@router.get("/disruptions/{disruption_id}/options/{patient_id}")
+@router.get("/disruptions/{disruption_id}/options/{patient_id}", dependencies=[AnyStaff])
 async def disruption_options(state: ContainerDep, disruption_id: str, patient_id: str) -> dict:
     """Ranked options for one patient. Order is the only ranking — there is
     no score field anywhere in the response."""
@@ -376,9 +410,9 @@ class ApproveRequest(BaseModel):
     approved_by: str
 
 
-@router.post("/disruptions/{disruption_id}/approve")
+@router.post("/disruptions/{disruption_id}/approve", dependencies=[Approver])
 async def approve_disruption_option(
-    state: ContainerDep, disruption_id: str, body: ApproveRequest
+    state: ContainerDep, disruption_id: str, body: ApproveRequest, principal: PrincipalDep
 ) -> dict:
     """The brief's single approval action. A navigator approving an option
     that touches treatment or dose timing is rejected — structurally, not
@@ -387,8 +421,10 @@ async def approve_disruption_option(
         approval = await state.runner.approve_option(
             patient_id=body.patient_id,
             option_index=body.option_index,
-            approved_by_role=body.approved_by_role,
-            approved_by=body.approved_by,
+            # Signed in, the role and the name are who signed in, whatever the
+            # body claims; the treatment gate must not be passable by typing "doctor".
+            approved_by_role=principal.role if principal else body.approved_by_role,
+            approved_by=principal.name if principal else body.approved_by,
         )
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from exc
@@ -402,7 +438,7 @@ class IVRConfirmRequest(BaseModel):
     digit: str
 
 
-@router.post("/live/ivr-confirm")
+@router.post("/live/ivr-confirm", dependencies=[Depends(current_principal)])
 async def ivr_confirm(state: ContainerDep, body: IVRConfirmRequest) -> dict:
     """The family's own "press 1" — logged like any other fact. In the
     credential-free live demo this is a simulated digit press, never a real
@@ -416,7 +452,7 @@ async def ivr_confirm(state: ContainerDep, body: IVRConfirmRequest) -> dict:
 # ---------------------------------------------------------------- the actors
 
 
-@router.get("/patients/{patient_id}/brief")
+@router.get("/patients/{patient_id}/brief", dependencies=[AnyStaff])
 async def call_brief(state: ContainerDep, patient_id: str) -> dict:
     """Four lines to read before dialling, each citing a row that exists."""
     actors = state.runner.actors
@@ -444,7 +480,7 @@ class NarrationRequest(BaseModel):
     nodes: list[dict]
 
 
-@router.post("/patients/{patient_id}/narration")
+@router.post("/patients/{patient_id}/narration", dependencies=[AnyStaff])
 async def narration(state: ContainerDep, patient_id: str, body: NarrationRequest) -> dict:
     """Say the on-screen explanation in the family's language.
 

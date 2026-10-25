@@ -46,6 +46,15 @@ class Settings(BaseSettings):
         "http://localhost:8081"
     )
 
+    # --- who may do what ---
+    #: "auto" turns login on in the real world and off in the demo, where the
+    #: stage shows every role at once and a login screen would be in the way.
+    auth: Literal["auto", "on", "off"] = "auto"
+    identity_provider: Literal["local", "oidc"] = "local"
+    #: Signs tokens. A fixed default keeps local sign-ins valid across a reload;
+    #: production refuses to start without a real one.
+    auth_secret: str = "dev-only-secret-change-me-before-any-real-use"
+
     # --- storage ---
     #: Where the real world's records live. A SQLAlchemy URL: moving to Postgres
     #: is changing this string (`postgresql+psycopg://user:pw@host/db`) and
@@ -160,6 +169,31 @@ class Settings(BaseSettings):
                 "controls must never be reachable on real records"
             )
         return self
+
+    @model_validator(mode="after")
+    def _auth_is_sound(self) -> Settings:
+        if not self.auth_on:
+            if self.environment.lower() == "production":
+                raise ValueError(
+                    "SAATHI_AUTH=off is not allowed when SAATHI_ENVIRONMENT=production"
+                )
+            return self
+        production = self.environment.lower() == "production"
+        if production and (len(self.auth_secret) < 32 or self.auth_secret.startswith("dev-only")):
+            raise ValueError(
+                "SAATHI_AUTH_SECRET must be set to your own value of at least 32 characters "
+                "in production"
+            )
+        if production and self.identity_provider == "local":
+            raise ValueError(
+                "production needs SAATHI_IDENTITY_PROVIDER=oidc: local accounts log one-time "
+                "codes instead of sending them"
+            )
+        return self
+
+    @property
+    def auth_on(self) -> bool:
+        return self.auth == "on" or (self.auth == "auto" and self.world == "real")
 
     @property
     def real_world(self) -> bool:

@@ -7,7 +7,8 @@ import { ImportRecords } from "./ImportRecords";
 import { IssueReporter } from "./IssueReporter";
 import { PendingReports } from "./PendingReports";
 import { RegisterFamily } from "./RegisterFamily";
-import { IDENTITY } from "./identity";
+import { useIdentity } from "@saathi/auth";
+import { IDENTITY as PERSONA } from "./identity";
 
 /**
  * The desk's screen. Two jobs, and nothing else.
@@ -22,6 +23,7 @@ import { IDENTITY } from "./identity";
  * a family travels.
  */
 export default function App() {
+  const IDENTITY = useIdentity(PERSONA);
   const world = useLiveWorld();
   const [queue, setQueue] = useState<DeskCandidate[]>([]);
   const [affected, setAffected] = useState<string[] | null>(null);

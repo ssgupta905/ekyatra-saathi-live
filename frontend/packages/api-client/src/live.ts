@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { live, type LiveSnapshot } from "./api";
-import { apiUrl } from "./client";
+import { streamUrl } from "./client";
 
 export type EventKind =
   | "clock.tick"
@@ -251,9 +251,18 @@ export function useLiveWorld(options: LiveWorldOptions = {}): LiveWorldState {
     let closed = false;
     let source: EventSourceLike | null = null;
 
-    const connect = () => {
+    const connect = async () => {
       if (closed) return;
-      const current = createEventSource(apiUrl("/stream"));
+      let url: string;
+      try {
+        url = await streamUrl();
+      } catch {
+        // Could not get a ticket (server down, or signed out): try again shortly.
+        if (!closed) retry = setTimeout(connect, RECONNECT_MS);
+        return;
+      }
+      if (closed) return;
+      const current = createEventSource(url);
       source = current;
 
       current.onopen = () => setConnected(true);

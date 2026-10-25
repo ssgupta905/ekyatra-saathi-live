@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { admin, useLiveWorld, type AdminConfig } from "@saathi/api-client";
 import { AgentStatus, AppShell, Card } from "@saathi/ui-web";
 import { AuditLog } from "./AuditLog";
-import { IDENTITY } from "./identity";
+import { useIdentity } from "@saathi/auth";
+import { IDENTITY as PERSONA } from "./identity";
 
 /**
  * Readiness rules, languages, call cadence, and the audit log — read-only for now.
@@ -10,6 +11,7 @@ import { IDENTITY } from "./identity";
  * auditability, which this screen gives in full.
  */
 export default function App() {
+  const IDENTITY = useIdentity(PERSONA);
   const world = useLiveWorld();
   const [config, setConfig] = useState<AdminConfig | null>(null);
 

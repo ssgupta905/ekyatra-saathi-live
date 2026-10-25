@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { api, records, type CareStep, type Patient } from "@saathi/api-client";
 import { Card } from "@saathi/ui-web";
 
-import { IDENTITY } from "./identity";
+import { useIdentity } from "@saathi/auth";
+import { IDENTITY as PERSONA } from "./identity";
 
 interface Row {
   patient: Patient;
@@ -15,6 +16,7 @@ interface Row {
  * ledger, and the family's plan moves at once.
  */
 export function PendingReports({ revision, onReleased }: { revision: number; onReleased: () => void }) {
+  const IDENTITY = useIdentity(PERSONA);
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 

@@ -17,6 +17,7 @@ from ..domain.models import Alert, CareStep, Patient, VisitPlan
 from ..engagement.pelt import detect_disengagement
 from ..language import guard
 from ..synthetic.generate import QUEUE_PROFILES, evaluate
+from .access import AdminOnly, AnyStaff, FamilyOrStaff, PrincipalDep
 from .deps import ContainerDep
 
 router = APIRouter()
@@ -60,18 +61,26 @@ async def health(state: ContainerDep) -> dict:
 
 
 @router.get("/patients", response_model=list[Patient])
-async def list_patients(state: ContainerDep) -> list[Patient]:
-    return list(state.cohort.patients)
+async def list_patients(state: ContainerDep, principal: PrincipalDep) -> list[Patient]:
+    """Every family, for staff; a caregiver's own, for a caregiver."""
+    patients = list(state.cohort.patients)
+    if principal is None or principal.is_staff:
+        return patients
+    return [p for p in patients if principal.may_see(p.id)]
 
 
-@router.get("/patients/{patient_id}/steps", response_model=list[CareStep])
+@router.get(
+    "/patients/{patient_id}/steps",
+    response_model=list[CareStep],
+    dependencies=[FamilyOrStaff],
+)
 async def patient_steps(state: ContainerDep, patient_id: str) -> list[CareStep]:
     if state.patient(patient_id) is None:
         raise HTTPException(404, "unknown patient")
     return list(state.steps_for(patient_id))
 
 
-@router.post("/plan", response_model=PlanResponse)
+@router.post("/plan", response_model=PlanResponse, dependencies=[AnyStaff])
 async def plan(state: ContainerDep, body: PlanRequest, recompute: bool = False) -> PlanResponse:
     """The current plan for this patient.
 
@@ -124,7 +133,7 @@ class EngagementRequest(BaseModel):
     response_latency_hours: list[float]
 
 
-@router.post("/engagement/check", response_model=Alert | None)
+@router.post("/engagement/check", response_model=Alert | None, dependencies=[AnyStaff])
 async def engagement_check(state: ContainerDep, body: EngagementRequest) -> Alert | None:
     """Run PELT over a caregiver's reply latencies and raise an alert on a shift."""
     result = detect_disengagement(body.response_latency_hours)
@@ -146,7 +155,7 @@ async def engagement_check(state: ContainerDep, body: EngagementRequest) -> Aler
     return alert
 
 
-@router.get("/alerts", response_model=list[Alert])
+@router.get("/alerts", response_model=list[Alert], dependencies=[AnyStaff])
 async def list_alerts(state: ContainerDep) -> list[Alert]:
     return list(state.alerts)
 
@@ -162,7 +171,7 @@ class InboundVerdict(BaseModel):
     triggers: list[str] = []
 
 
-@router.post("/messages/inbound", response_model=InboundVerdict)
+@router.post("/messages/inbound", response_model=InboundVerdict, dependencies=[AnyStaff])
 async def inbound(state: ContainerDep, body: InboundMessage) -> InboundVerdict:
     """Screen a caregiver's message. Clinical questions go to a human, always."""
     verdict = guard.screen_inbound(body.text)
@@ -183,7 +192,7 @@ async def inbound(state: ContainerDep, body: InboundMessage) -> InboundVerdict:
     )
 
 
-@router.get("/admin/config")
+@router.get("/admin/config", dependencies=[AdminOnly])
 async def admin_config(state: ContainerDep) -> dict:
     """The admin's read-only view of the readiness rules, languages and
     channels the system runs with. Surfaces real settings — no field here is
@@ -216,7 +225,7 @@ async def admin_config(state: ContainerDep) -> dict:
     }
 
 
-@router.get("/ledger")
+@router.get("/ledger", dependencies=[AdminOnly])
 async def ledger_all(
     state: ContainerDep, source: SourceSystem | None = None, since: datetime | None = None
 ) -> dict:
@@ -243,7 +252,7 @@ async def ledger_all(
     }
 
 
-@router.get("/ledger/{patient_id}")
+@router.get("/ledger/{patient_id}", dependencies=[AnyStaff])
 async def ledger_for_patient(state: ContainerDep, patient_id: str) -> dict:
     """Everything Saathi has asserted about this patient, and its provenance."""
     entries = state.ledger.for_patient(patient_id)
@@ -263,7 +272,7 @@ async def ledger_for_patient(state: ContainerDep, patient_id: str) -> dict:
     }
 
 
-@router.get("/metrics")
+@router.get("/metrics", dependencies=[AnyStaff])
 async def metrics(state: ContainerDep, recompute: bool = False) -> dict:
     """Score the cohort against planted ground truth.
 

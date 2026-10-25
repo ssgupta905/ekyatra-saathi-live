@@ -1,4 +1,4 @@
-.PHONY: migrate api-real help install demo demo-audio demo-mov demo-video demo-video-headless demo-check fetch-reference test lint api web dev web-test web-typecheck emulator android-build android-test android-install android-run android-strings docker seed clean
+.PHONY: dev-users migrate api-real help install demo demo-audio demo-mov demo-video demo-video-headless demo-check fetch-reference test lint api web dev web-test web-typecheck emulator android-build android-test android-install android-run android-strings docker seed clean
 
 PY ?= .venv/bin/python
 # Override when something else already owns 8000:  make api PORT=8001
@@ -69,6 +69,12 @@ api:
 api-real: migrate
 	SAATHI_WORLD=real PYTHONPATH=backend $(PY) -m uvicorn saathi.main:app --reload --port $(PORT) \
 		--timeout-graceful-shutdown 2
+
+# Four staff accounts for local use (seema, imran, amrita, neha), all with the
+# password saathi-dev. Refuses to run in production. A real account:
+#   .venv/bin/python -m saathi.cli.users add --username U --name N --role desk
+dev-users:
+	PYTHONPATH=backend $(PY) -m saathi.cli.users dev-users
 
 # Bring the records database to the current schema. The API also does this on
 # start; this is for doing it on purpose, ahead of a deploy.

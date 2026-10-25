@@ -128,6 +128,8 @@ def test_a_sql_store_survives_being_reopened(tmp_path):
 @pytest.fixture
 def real_env(tmp_path, monkeypatch):
     monkeypatch.setenv("SAATHI_WORLD", "real")
+    # These tests are about the records. Who may enter them is test_auth.py.
+    monkeypatch.setenv("SAATHI_AUTH", "off")
     monkeypatch.setenv("SAATHI_RECORDS_URL", f"sqlite:///{tmp_path}/real.db")
     get_settings.cache_clear()
     yield
