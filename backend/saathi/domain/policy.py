@@ -62,6 +62,18 @@ class StepPolicy(BaseModel):
     confirmed_by: str | None = None
 
 
+#: Documents a hospital can ask a family to bring, by id. The vocabulary a
+#: hospital's `requirements` are written in; labels are what the family reads.
+ENTITLEMENTS: dict[str, str] = {
+    "ayushman": "Ayushman Bharat card",
+    "state_scheme": "State health scheme card",
+    "rail_concession": "Railway concession certificate",
+    "hospital_file": "Hospital file / patient ID card",
+    "demand_draft": "Demand draft for the pathology fee",
+    "blocks_slides": "Outside biopsy blocks or slides",
+}
+
+
 class Centre(BaseModel):
     """A place a step can happen, as the network configures it.
 
@@ -119,7 +131,7 @@ class HospitalPolicy(BaseModel):
     #: directory simply offers no nearer-centre option.
     centres: tuple[Centre, ...] = ()
     #: What families are asked to bring, per step kind. Keyed by `StepKind`
-    #: value; the ids are `tools.schemes.KNOWN_ENTITLEMENTS` keys. Empty means
+    #: value; the ids are `ENTITLEMENTS` keys. Empty means
     #: this hospital has not said, so nothing is demanded on its behalf.
     requirements: dict[str, list[str]] = Field(default_factory=dict)
 

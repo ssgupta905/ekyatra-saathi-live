@@ -158,3 +158,6 @@
 @media (min-width: 1180px) {
   .cc-family .split { grid-template-columns: minmax(300px, 0.7fr) minmax(0, 1.5fr); }
 }
+
+.cc-rules-scope { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; }
+.cc-rules-scope ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }

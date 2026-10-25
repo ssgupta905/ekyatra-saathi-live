@@ -27,6 +27,7 @@ import httpx
 
 from ..domain.enums import SourceSystem, StepKind
 from ..domain.models import Patient
+from ..domain.policy import ENTITLEMENTS
 from .base import PROVIDER_LIVE, PROVIDER_LOCAL, ToolResult, ToolUnavailable
 
 logger = logging.getLogger(__name__)
@@ -64,14 +65,7 @@ class Entitlement:
 #: answers through the admin console; these ids are the vocabulary, not the
 #: answers — whether a given hospital wants a demand draft for a given step is
 #: `HospitalPolicy`'s business, and the default below asks for nothing.
-KNOWN_ENTITLEMENTS: dict[str, str] = {
-    "ayushman": "Ayushman Bharat card",
-    "state_scheme": "State health scheme card",
-    "rail_concession": "Railway concession certificate",
-    "hospital_file": "Hospital file / patient ID card",
-    "demand_draft": "Demand draft for the pathology fee",
-    "blocks_slides": "Outside biopsy blocks or slides",
-}
+KNOWN_ENTITLEMENTS = ENTITLEMENTS
 
 
 class SchemeTool:

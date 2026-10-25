@@ -16,6 +16,7 @@ from datetime import date, timedelta
 
 from ..domain.enums import Decision, StepKind
 from ..domain.models import CareStep, Disruption, MaintenanceCycle, Patient, PlanOption
+from ..domain.policy import HospitalPolicy
 from ..graph.dependencies import DependencyGraph
 from ..readiness.conformal import ConformalReadinessPredictor
 from . import care_rules, itinerary, schedule, tools
@@ -119,6 +120,8 @@ def enumerate_candidates(
     today: date,
     *,
     cycle: MaintenanceCycle | None = None,
+    policy: HospitalPolicy | None = None,
+    round_trip_hours: float | None = None,
 ) -> tuple[PlanOption, ...]:
     """Ranked candidates for one patient hit by `disruption`.
 
@@ -130,6 +133,13 @@ def enumerate_candidates(
       step — never any nights added to the current stay, but an extra round
       trip. Only offered when the delay would otherwise be long enough that
       waiting in the city is itself costly (more than `_SPLIT_THRESHOLD_DAYS`).
+
+    With the hospital's saved rules (`policy`), dates follow them: a moved step
+    lands on a day it actually runs, anything after it keeps its lead days and
+    standing-meeting days, "costly" is the family's own journey measured against
+    the hospital's stay-or-go threshold, and a journey that would need booking
+    sooner than the hospital's reservation notice is counted. Without saved
+    rules none of that applies and the options are exactly as before.
     """
     affected = _affected_step_ids(steps, disruption)
     if not affected:
@@ -141,29 +151,82 @@ def enumerate_candidates(
 
     candidates: list[PlanOption] = []
 
-    bundled_steps = _shift(steps, affected, resume_on)
+    bundled_steps = _moved(steps, affected, resume_on, graph, today, policy)
     dose_delay = 0
     if cycle is not None and target_kind is StepKind.MAINTENANCE_DOSE and baseline_travel:
         dose_delay = (resume_on - baseline_travel).days
     bundled_option = _build_option(
         patient, bundled_steps, target_kind, graph, predictor, today,
         nights_added=0, extra_trips=0, dose_delay_days=max(dose_delay, 0),
+        short_notice_journeys=_short_notice(bundled_steps, today, policy, round_trip_hours),
     )
     if bundled_option is not None:
-        candidates.append(bundled_option)
+        candidates.append(_under_rules(bundled_option, policy))
 
     delay_days = (resume_on - today).days
-    if delay_days > _SPLIT_THRESHOLD_DAYS and baseline_travel is not None:
-        split_steps = _shift(steps, affected, resume_on)
+    threshold = policy.gap_days(round_trip_hours) if policy else _SPLIT_THRESHOLD_DAYS
+    if delay_days > threshold and baseline_travel is not None:
+        split_steps = _moved(steps, affected, resume_on, graph, today, policy)
         split_option = _build_option(
             patient, split_steps, target_kind, graph, predictor, today,
             nights_added=-delay_days, extra_trips=2, dose_delay_days=max(dose_delay, 0),
+            short_notice_journeys=_short_notice(split_steps, today, policy, round_trip_hours),
         )
         if split_option is not None:
-            candidates.append(split_option)
+            candidates.append(_under_rules(split_option, policy))
 
     candidates.sort(key=_rank_key)
     return filter_options(tuple(candidates), cycle)
+
+
+def _moved(
+    steps: Sequence[CareStep],
+    affected: set[str],
+    resume_on: date,
+    graph: DependencyGraph,
+    today: date,
+    policy: HospitalPolicy | None,
+) -> list[CareStep]:
+    """The disrupted steps moved to when the resource is back.
+
+    Under saved rules each lands on the first day it actually runs, and steps
+    after it are pushed behind their lead days; never earlier, only later.
+    """
+    if policy is None:
+        return _shift(steps, affected, resume_on)
+    moved = [
+        s.model_copy(update={"scheduled_for": policy.next_slot(s.kind, resume_on)})
+        if s.id in affected
+        else s
+        for s in steps
+    ]
+    return list(schedule.shift_dependents(moved, graph, today, policy))
+
+
+def _short_notice(
+    steps: Sequence[CareStep],
+    today: date,
+    policy: HospitalPolicy | None,
+    round_trip_hours: float | None,
+) -> int:
+    if policy is None or not policy.needs_reservation(round_trip_hours):
+        return 0
+    return itinerary.short_notice_journeys(
+        steps,
+        not_before=today,
+        lead_days=policy.reservation_lead_days,
+        gap_days=policy.gap_days(round_trip_hours),
+    )
+
+
+def _under_rules(option: PlanOption, policy: HospitalPolicy | None) -> PlanOption:
+    """Say so when a hospital's own rules shaped the dates, so a navigator can see why."""
+    if policy is None:
+        return option
+    note = f"Dates follow {policy.hospital_id}'s saved rules"
+    if policy.unconfirmed:
+        note += f" (provisional for {', '.join(policy.unconfirmed)})"
+    return option.model_copy(update={"rationale": f"{option.rationale} {note}.".strip()})
 
 
 #: Below this many days, waiting in the city is cheaper than two more trips.

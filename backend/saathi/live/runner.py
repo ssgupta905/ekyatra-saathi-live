@@ -719,6 +719,10 @@ class LiveRunner:
         direct = options_module.enumerate_candidates(
             patient, steps, disruption, target_kind, self.planner.graph,
             self.planner.predictor, self.world.today, cycle=cycle,
+            # The hospital's saved rules, when it has saved any; None keeps the
+            # built-in behaviour.
+            policy=self.planner.rules_for(patient.hospital_id),
+            round_trip_hours=round_trip_hours,
         )
         if direct:
             return direct

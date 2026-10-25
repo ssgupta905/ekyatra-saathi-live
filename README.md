@@ -341,12 +341,17 @@ left-hand sections are the ones that role uses, and the server decides what it m
 | Story view | all staff, demo | The brief's two stories in four lanes, with the scorecard |
 | Operator | navigator, admin, demo | The clock, and a question put in a family's mouth |
 | Registries | all staff read, admin edits | Hospitals and departments, treatment centres and what each can do, doctors and clinicians, bookable resources, and staff accounts (create, change role, deactivate, reset a password) |
-| Configuration | admin | Each hospital's rules (step days, slot times, lead days, how far a step may move, documents to bring, travel thresholds), versioned and audited, and marked **draft: not yet read by the planner**; readiness settings; what is switched on |
+| Configuration | admin | Each hospital's rules (step days, slot times, lead days, how far a step may move, documents to bring, travel thresholds), versioned and audited, and **in force once saved**; readiness settings; what is switched on |
 | Audit log | admin | Every fact asserted, across every family and the registry, newest first, filterable by source, family and words, with who made each change and the chain checked |
 
 Sections link: `#/families/P-ANITA/why` opens Anita's reasoning directly; `#/registries/centres` opens the centres.
 
-**The rules are honest about themselves.** `HospitalPolicy` (in `domain/policy.py`) is stored, versioned and audited from the Configuration screen, but the planner still plans with its built-in defaults. Every rules response and the screen itself say so. Wiring the planner to read the saved rules is its own change.
+**Hospital rules are in force once saved.** A hospital that has saved no rules is planned exactly as before. Once an administrator saves a version of its `HospitalPolicy` (in `domain/policy.py`), the planner reads it, and every family is re-planned at once:
+
+- **What to bring** adds the documents that hospital asks for at each step.
+- **Disruption re-plans** put a moved step on a day it actually runs, keep the lead days after its prerequisites (pushing later steps, never pulling them earlier), offer "go home and come back" only when the family's own journey makes waiting in the city the costlier choice, and count journeys that would need booking sooner than the hospital's reservation notice. The options say "dates follow TMH-MUM's saved rules", flagged provisional where no clinician has confirmed a step.
+
+Not read yet, and the screen says so: slot times (plans give a date, not a time), how far a step may move when a family asks (that request flow isn't wired), and treatment centres (the nearer-centre option isn't wired).
 
 
 One light theme — an Apple-web palette on a `#f5f5f7` plane — and one organising idea:

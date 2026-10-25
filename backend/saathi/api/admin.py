@@ -1,10 +1,13 @@
 """Configuration an administrator can see and, for each hospital's rules, edit.
 
-The rules (`HospitalPolicy`: per-step lead days, weekdays, slot times and shift
-tolerance; travel thresholds; documents to bring) are stored, versioned and
-ledgered here, and say plainly that **the planner does not read them yet**.
-Wiring the planner to them is its own change; until then this screen must not
-pretend an edit moves a family's date.
+The rules (`HospitalPolicy`) are stored, versioned and ledgered here, and once a
+hospital has saved a version **the planner reads it**: what families are asked to
+bring, and in a disruption re-plan, which days a step runs, the lead days after
+its prerequisites, the stay-or-go threshold and the reservation notice. Saving
+re-plans every family at once, so the effect is visible immediately.
+
+What the planner does not read yet is said on every response, so nobody edits a
+value expecting an effect it does not have.
 """
 
 from __future__ import annotations
@@ -23,11 +26,27 @@ from .registry import ledger, who
 
 router = APIRouter(prefix="/admin")
 
-#: Said on every policy response, so no screen can show these rules as live.
-NOT_YET_USED = (
-    "Draft: stored and audited, but not yet read by the planner. Plans are still made "
-    "with the built-in defaults."
+#: What the planner reads from a hospital's saved rules, and what it does not yet.
+READ_BY_PLANNER = (
+    "what a family is asked to bring",
+    "in a disruption re-plan: the days each step runs and its lead days after prerequisites",
+    "in a disruption re-plan: when waiting in the city beats going home",
+    "in a disruption re-plan: journeys needing a reservation, and how much notice",
 )
+NOT_READ_YET = (
+    "slot times (plans give a date, not a time)",
+    "how far a step may move when a family asks (that request flow is not wired yet)",
+    "treatment centres (the nearer-centre option is not wired yet)",
+)
+
+
+def _note(saved: bool) -> str:
+    if saved:
+        return "In force: the planner reads these rules for this hospital."
+    return (
+        "No rules saved for this hospital: it is planned with Saathi's built-in behaviour, "
+        "not the placeholders below. Saving makes them this hospital's rules."
+    )
 
 
 def _registry(state: ContainerDep):
@@ -63,8 +82,10 @@ async def get_policy(state: ContainerDep, hospital_id: str) -> dict:
         "version": version,
         "saved_by": saved_by,
         "source": source,
-        "used_by_planner": False,
-        "note": NOT_YET_USED,
+        "used_by_planner": source == "saved",
+        "note": _note(source == "saved"),
+        "read_by_planner": list(READ_BY_PLANNER),
+        "not_read_yet": list(NOT_READ_YET),
         "centres": [
             c.model_dump(mode="json") for c in registry.centres() if c.hospital_id == hospital_id
         ],
@@ -95,8 +116,13 @@ async def put_policy(
     version = registry.save_policy(hospital_id, policy.model_dump(mode="json"), who(principal))
     ledger(state, principal, f"policy/{hospital_id}",
            f"rules for {hospital_id} saved as version {version}")  # fmt: skip
-    return {"hospital_id": hospital_id, "version": version, "used_by_planner": False,
-            "note": NOT_YET_USED}  # fmt: skip
+    if state.rules is not None:
+        state.rules.invalidate()
+    # Re-plan now, so a changed rule shows in every family's plan at once rather
+    # than at the next tick (which on real records may be minutes away).
+    await state.runner.plan_all()
+    return {"hospital_id": hospital_id, "version": version, "used_by_planner": True,
+            "note": _note(True)}  # fmt: skip
 
 
 def _scheme_and_host(url: str | None) -> str | None:

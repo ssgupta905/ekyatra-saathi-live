@@ -31,14 +31,28 @@ def as_(client, username):
     return {"authorization": f"Bearer {r.json()['token']}"}
 
 
-def test_a_hospital_starts_on_the_unconfirmed_defaults_and_says_they_are_not_live(real):
+def test_a_hospital_with_no_saved_rules_says_it_runs_on_built_in_behaviour(real):
     body = real.get("/api/admin/policy/TMH-MUM", headers=as_(real, "neha")).json()
 
     assert body["source"] == "default"
     assert body["version"] == 0
     assert body["used_by_planner"] is False
-    assert "not yet read by the planner" in body["note"]
+    assert "built-in behaviour" in body["note"]
     assert all(step["confirmed"] is False for step in body["policy"]["steps"].values())
+    # It says exactly what the planner would read, and what it would not.
+    assert any("bring" in item for item in body["read_by_planner"])
+    assert any("slot times" in item for item in body["not_read_yet"])
+
+
+def test_saved_rules_say_they_are_in_force(real):
+    admin = as_(real, "neha")
+    policy = real.get("/api/admin/policy/TMH-MUM", headers=admin).json()["policy"]
+
+    saved = real.put("/api/admin/policy/TMH-MUM", json=policy, headers=admin).json()
+    body = real.get("/api/admin/policy/TMH-MUM", headers=admin).json()
+
+    assert saved["used_by_planner"] is True and body["used_by_planner"] is True
+    assert "In force" in body["note"]
 
 
 def test_saving_rules_makes_a_new_version_and_an_audit_row(real):

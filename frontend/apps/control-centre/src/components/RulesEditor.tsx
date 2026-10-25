@@ -45,10 +45,10 @@ const parseLead = (text: string): Record<string, number> =>
  * happen, how far it must follow its prerequisites, how far it may move, what a
  * family is asked to bring, and when a journey needs booking ahead.
  *
- * Every save is a new version, kept, with the editor's name in the audit log.
- * And it says, at the top and on every save, that the planner does not read
- * these yet: a screen that let an administrator believe they had moved a
- * family's date would be worse than no screen.
+ * Every save is a new version, kept, with the editor's name in the audit log,
+ * and every family is re-planned at once. The screen says exactly which rules
+ * the planner reads and which it does not yet, so an administrator never edits
+ * a value expecting an effect it does not have.
  */
 export function RulesEditor({ canEdit }: { canEdit: boolean }) {
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
@@ -115,9 +115,30 @@ export function RulesEditor({ canEdit }: { canEdit: boolean }) {
 
   return (
     <>
-      <Notice tone="warn">
-        <strong>Draft rules.</strong> {view?.note}
-      </Notice>
+      {view && (
+        <Notice tone={view.used_by_planner ? "calm" : "warn"}>
+          <strong>{view.used_by_planner ? `In force — version ${view.version}.` : "Not in force."}</strong>{" "}
+          {view.note}
+          <div className="cc-rules-scope">
+            <div>
+              <span className="hint">The planner reads</span>
+              <ul>
+                {view.read_by_planner.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <span className="hint">Not read yet</span>
+              <ul>
+                {view.not_read_yet.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Notice>
+      )}
 
       <Card
         title="Hospital rules"
@@ -280,7 +301,7 @@ export function RulesEditor({ canEdit }: { canEdit: boolean }) {
             <button type="button" className="btn primary" onClick={save}>
               Save as a new version
             </button>
-            <span className="hint">Versions are kept, never overwritten; each save is in the audit log.</span>
+            <span className="hint">Versions are kept, never overwritten; each save is in the audit log and re-plans every family.</span>
           </div>
         )}
         {message && <Notice tone={message.tone}>{message.text}</Notice>}

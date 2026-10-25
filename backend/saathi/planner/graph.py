@@ -14,7 +14,7 @@ a family to travel.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import date
 from time import perf_counter
 
@@ -22,6 +22,7 @@ from langgraph.graph import END, START, StateGraph
 
 from ..domain.enums import Channel, Decision, StepKind
 from ..domain.models import CareStep, Disruption, Patient, VisitPlan
+from ..domain.policy import HospitalPolicy
 from ..graph.dependencies import DependencyGraph, InMemoryDependencyGraph
 from ..ledger.evidence import InMemoryEvidenceLedger
 from ..ports.language import LanguageLayer
@@ -42,6 +43,7 @@ class VisitPlanner:
         predictor: ConformalReadinessPredictor | None = None,
         ledger: EvidenceLedger | None = None,
         language_layer: LanguageLayer | None = None,
+        rules_for: Callable[[str], HospitalPolicy | None] | None = None,
     ) -> None:
         self.graph = dependency_graph or InMemoryDependencyGraph()
         self.predictor = predictor or ConformalReadinessPredictor()
@@ -49,7 +51,15 @@ class VisitPlanner:
         #: Optional so the planner can be exercised without API credentials —
         #: the demo and the tests run the full decision path with it unset.
         self.language_layer = language_layer
+        #: A hospital's saved rules, by hospital id, or None when it has saved
+        #: none — in which case planning is exactly what it was before rules
+        #: existed. Set by the composition root once the registry is built.
+        self.rules_for: Callable[[str], HospitalPolicy | None] = rules_for or (lambda _: None)
         self._compiled = self._build().compile()
+
+    def _requirements(self, state: PlannerState) -> dict[str, list[str]] | None:
+        rules = self.rules_for(state["patient"].hospital_id)
+        return rules.requirements if rules else None
 
     # ---------------- nodes ----------------
 
@@ -120,7 +130,7 @@ class VisitPlanner:
             bundled_step_ids=state.get("bundled_step_ids", ()),
             blocked_by=state.get("blockers", ()),
             what_to_bring=(
-                tools.documents_to_bring(target, bundled_kinds)
+                tools.documents_to_bring(target, bundled_kinds, self._requirements(state))
                 if target and state["decision"] is Decision.GO
                 else ()
             ),

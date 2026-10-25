@@ -20,6 +20,7 @@ from ..adapters.clock import SystemClock
 from ..adapters.ledger import SqlEvidenceLedger
 from ..adapters.records import SqlRecordStore
 from ..config import Settings, get_settings
+from ..domain.policy import HospitalPolicy
 from ..graph.dependencies import InMemoryDependencyGraph
 from ..language.claude import ClaudeLanguageLayer
 from ..ledger.evidence import InMemoryEvidenceLedger
@@ -53,6 +54,8 @@ class Container:
     identity: IdentityProvider | None = None
     #: Hospitals, centres, clinicians and each hospital's rules.
     registry: RegistryStore | None = None
+    #: The planner's view of each hospital's saved rules; cleared when they change.
+    rules: HospitalRules | None = None
 
     @property
     def cohort(self) -> SyntheticCohort:
@@ -122,6 +125,40 @@ def build_identity(settings: Settings, world: LiveWorld) -> IdentityProvider | N
     return LocalIdentity(
         settings.records_url, secret=settings.auth_secret, phones=_WorldPhones(world)
     )
+
+
+class HospitalRules:
+    """Each hospital's saved rules, as the planner reads them.
+
+    Read on every plan, so cached; `invalidate` is called whenever an
+    administrator saves a new version. A hospital with no saved rules returns
+    None, and the planner then behaves exactly as it did before rules existed.
+    A stored version that no longer validates is ignored rather than allowed to
+    stop planning, and says so in the log.
+    """
+
+    def __init__(self, registry: RegistryStore) -> None:
+        self._registry = registry
+        self._cache: dict[str, HospitalPolicy | None] = {}
+
+    def __call__(self, hospital_id: str) -> HospitalPolicy | None:
+        if hospital_id not in self._cache:
+            stored = self._registry.policy(hospital_id)
+            policy = None
+            if stored is not None:
+                try:
+                    policy = HospitalPolicy.model_validate(stored[0])
+                except ValueError:
+                    logger.exception("saved rules for %s do not validate; ignoring", hospital_id)
+            self._cache[hospital_id] = policy
+        return self._cache[hospital_id]
+
+    def version(self, hospital_id: str) -> int | None:
+        stored = self._registry.policy(hospital_id)
+        return stored[1] if stored else None
+
+    def invalidate(self) -> None:
+        self._cache.clear()
 
 
 def build_registry(settings: Settings) -> RegistryStore:
@@ -212,6 +249,10 @@ def build_container(settings: Settings | None = None, today: date | None = None)
     # work and nobody can see that they did.
     toolbox.on_result = runner.on_tool_result
 
+    registry = build_registry(settings)
+    rules = HospitalRules(registry)
+    planner.rules_for = rules
+
     return Container(
         settings=settings,
         clock=world.clock.source,
@@ -222,5 +263,6 @@ def build_container(settings: Settings | None = None, today: date | None = None)
         runner=runner,
         alerts=alerts,
         identity=build_identity(settings, world),
-        registry=build_registry(settings),
+        registry=registry,
+        rules=rules,
     )

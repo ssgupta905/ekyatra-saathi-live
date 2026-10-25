@@ -9,7 +9,7 @@ None of these are exposed to Claude. The language layer has no tools at all.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import date, timedelta
 
 from ..domain.enums import (
@@ -27,6 +27,7 @@ from ..domain.models import (
     MaintenanceCycle,
     ReadinessWindow,
 )
+from ..domain.policy import ENTITLEMENTS
 from ..graph.dependencies import DependencyGraph
 from ..ports.ledger import EvidenceLedger
 from ..readiness.bookings import window_from_booking
@@ -235,12 +236,29 @@ STEP_DOCUMENTS: dict[StepKind, tuple[str, ...]] = {
 }
 
 
-def documents_to_bring(target: CareStep, bundled_kinds: Iterable[StepKind]) -> tuple[str, ...]:
+def documents_to_bring(
+    target: CareStep,
+    bundled_kinds: Iterable[StepKind],
+    requirements: Mapping[str, Sequence[str]] | None = None,
+) -> tuple[str, ...]:
+    """What to carry: the common list, each step's own, then what this hospital asks for.
+
+    `requirements` is the hospital's saved rules (step kind -> document ids).
+    A hospital that has said nothing asks for nothing extra.
+    """
+    kinds = (target.kind, *bundled_kinds)
     items = list(BASE_DOCUMENTS)
-    for kind in (target.kind, *bundled_kinds):
+    for kind in kinds:
         for doc in STEP_DOCUMENTS.get(kind, ()):
             if doc not in items:
                 items.append(doc)
+    for kind in kinds:
+        for doc_id in (requirements or {}).get(kind.value, ()):
+            label = ENTITLEMENTS.get(doc_id, doc_id)
+            # "Hospital file / patient ID card" is already on the common list
+            # in lower case; asking twice for one card helps nobody.
+            if label.lower() not in {item.lower() for item in items}:
+                items.append(label)
     return tuple(items)
 
 

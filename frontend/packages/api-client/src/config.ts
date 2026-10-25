@@ -33,9 +33,12 @@ export interface RulesView {
   version: number;
   saved_by: string | null;
   source: "default" | "saved";
-  /** Always false for now: the screen must say so. */
+  /** True once this hospital has saved a version: the planner then reads it. */
   used_by_planner: boolean;
   note: string;
+  /** Exactly what the planner takes from saved rules, and what it does not yet. */
+  read_by_planner: string[];
+  not_read_yet: string[];
   centres: NetworkCentre[];
 }
 
