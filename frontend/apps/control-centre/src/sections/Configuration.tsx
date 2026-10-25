@@ -1,17 +1,27 @@
 import { useEffect, useState } from "react";
-import { admin, type AdminConfig } from "@saathi/api-client";
-import { Card, Notice } from "@saathi/ui-web";
+import { admin, config as configApi, type AdminConfig, type Integrations } from "@saathi/api-client";
+import { Card, Chip, Notice } from "@saathi/ui-web";
+import { RulesEditor } from "../components/RulesEditor";
+import { usePersona } from "../session";
+
+const on = (value: boolean | string | null | undefined, off = "off") =>
+  value ? <Chip tone="go">{typeof value === "string" ? value : "on"}</Chip> : <Chip tone="neutral">{off}</Chip>;
 
 /**
- * How the system is set up. Read-only for now, and says where each value comes
- * from, so nobody edits a number here expecting the planner to change.
+ * How the system is set up: each hospital's rules (editable, versioned, and
+ * honestly marked as not yet used by the planner), the readiness settings, and
+ * what is switched on. Says where each value comes from, so nobody edits a
+ * number here expecting something it does not do.
  */
 export function Configuration() {
+  const { persona } = usePersona();
   const [config, setConfig] = useState<AdminConfig | null>(null);
+  const [integrations, setIntegrations] = useState<Integrations | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     admin.config().then(setConfig).catch((e: Error) => setError(e.message));
+    configApi.integrations().then(setIntegrations).catch(() => undefined);
   }, []);
 
   if (error) return <Notice tone="warn">{error}</Notice>;
@@ -19,6 +29,9 @@ export function Configuration() {
 
   return (
     <div className="widget-grid">
+      <div className="span-2 cc-stack">
+        <RulesEditor canEdit={persona.role === "admin"} />
+      </div>
       <Card
         title="Readiness rules"
         hint={`${Math.round(config.readiness.coverage * 100)}% coverage guarantee · α ${config.readiness.conformal_alpha}`}
@@ -74,19 +87,27 @@ export function Configuration() {
         </table>
       </Card>
 
-      <Card title="Integrations">
-        <table className="audit-table">
-          <tbody>
-            <tr>
-              <td>Language layer</td>
-              <td>{config.language_layer_enabled ? "on" : "off (no GROQ_API_KEY / ANTHROPIC_API_KEY)"}</td>
-            </tr>
-            <tr>
-              <td>Actors</td>
-              <td>{config.actors_enabled ? "on" : "off"}</td>
-            </tr>
-          </tbody>
-        </table>
+      <Card title="What is switched on" note="Read from the server's environment. Keys, passwords and full addresses are never shown.">
+        {integrations ? (
+          <table className="audit-table">
+            <tbody>
+              <tr><td>World</td><td>{integrations.world === "real" ? "real records" : "demo"}</td></tr>
+              <tr><td>Login</td><td>{on(integrations.login.on && integrations.login.provider)}{integrations.login.on && integrations.login.secret_is_default && <span className="hint"> · signing with the dev secret</span>}</td></tr>
+              <tr><td>Records database</td><td>{integrations.world === "real" ? on(integrations.records_database) : <span className="hint">in memory (demo)</span>}</td></tr>
+              <tr><td>Language layer</td><td>{on(integrations.language_layer, "off: no GROQ_API_KEY / ANTHROPIC_API_KEY")}</td></tr>
+              <tr><td>Actors</td><td>{on(integrations.actors)}</td></tr>
+              <tr><td>Speech to text</td><td>{on(integrations.speech_to_text)}</td></tr>
+              <tr><td>Journey lookups</td><td>{on(integrations.reference_cache.present && "cached")}{integrations.reference_cache.network_lookups && <span className="hint"> · live calls allowed</span>} <span className="hint">{integrations.geocoder} · {integrations.router}</span></td></tr>
+              <tr><td>Hospital feed</td><td>{on(integrations.feeds.hospital, "not connected")}</td></tr>
+              <tr><td>Scheme feed</td><td>{on(integrations.feeds.schemes, "not connected")}</td></tr>
+              <tr><td>ABDM</td><td>{on(integrations.feeds.abdm, "not connected")}</td></tr>
+              <tr><td>WhatsApp</td><td>{on(integrations.channels.whatsapp, "not connected")}</td></tr>
+              <tr><td>Bhashini</td><td>{on(integrations.channels.bhashini, "not connected")}</td></tr>
+            </tbody>
+          </table>
+        ) : (
+          <p className="empty">Loading…</p>
+        )}
       </Card>
     </div>
   );

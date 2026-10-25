@@ -1,71 +1,103 @@
 import { useEffect, useState } from "react";
-import { admin } from "@saathi/api-client";
+import { config, type AuditPage } from "@saathi/api-client";
 import { Badge, Card } from "@saathi/ui-web";
 
-interface AuditRow {
-  id: string;
-  patient_id: string;
-  source: string;
-  source_record_id: string;
-  claim: string;
-  recorded_at: string;
-  entry_hash: string;
-}
+const SOURCES = ["", "hospital_feed", "abdm", "navigator", "caregiver_reply", "derived"];
+const PAGE = 100;
 
 /**
- * Every action and its source, across every patient — the admin's audit
- * trail. Reads the same hash-chained ledger every other view does; nothing
- * new is stored for this screen, only a cross-patient filter over it.
+ * Every fact the system has asserted, across every family and the registry,
+ * newest first. Filter by source or family, search the claim, page through.
+ * Reads the same hash-chained ledger every other view does; nothing new is
+ * stored for this screen.
  */
 export function AuditLog() {
-  const [rows, setRows] = useState<AuditRow[]>([]);
-  const [intact, setIntact] = useState<boolean | null>(null);
+  const [page, setPage] = useState<AuditPage | null>(null);
+  const [source, setSource] = useState("");
+  const [patient, setPatient] = useState("");
+  const [q, setQ] = useState("");
+  const [offset, setOffset] = useState(0);
 
   useEffect(() => {
-    admin
-      .ledger()
-      .then((body) => {
-        setRows(body.entries as unknown as AuditRow[]);
-        setIntact(body.intact);
-      })
-      .catch(() => undefined);
-  }, []);
+    const timer = setTimeout(() => {
+      config
+        .audit({ source, patient_id: patient.trim(), q: q.trim(), limit: PAGE, offset })
+        .then(setPage)
+        .catch(() => undefined);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [source, patient, q, offset]);
+
+  useEffect(() => setOffset(0), [source, patient, q]);
+
+  const total = page?.total ?? 0;
 
   return (
     <Card
       title="Audit log"
-      hint="Every action and its source"
-      aside={intact !== null && <Badge tone={intact ? "go" : "critical"}>{intact ? "chain intact" : "BROKEN"}</Badge>}
+      hint={page ? `${total} entries${total > PAGE ? ` · ${offset + 1}–${Math.min(offset + PAGE, total)}` : ""}` : "loading…"}
+      aside={page && <Badge tone={page.intact ? "go" : "critical"}>{page.intact ? "chain intact" : "BROKEN"}</Badge>}
       flush
     >
+      <div className="iss-fields cc-audit-filters">
+        <label>
+          Source
+          <select value={source} onChange={(e) => setSource(e.target.value)}>
+            {SOURCES.map((s) => (
+              <option key={s} value={s}>
+                {s ? s.replace(/_/g, " ") : "any"}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Family (or "registry")
+          <input value={patient} placeholder="e.g. P-ANITA" onChange={(e) => setPatient(e.target.value)} />
+        </label>
+        <label>
+          Search claims
+          <input value={q} placeholder="e.g. released, centre" onChange={(e) => setQ(e.target.value)} />
+        </label>
+      </div>
       <table className="audit-table">
         <thead>
           <tr>
             <th>When</th>
-            <th>Patient</th>
+            <th>Family</th>
             <th>Source</th>
             <th>Claim</th>
+            <th>By</th>
             <th>Hash</th>
           </tr>
         </thead>
         <tbody>
-          {rows
-            .slice()
-            .reverse()
-            .slice(0, 200)
-            .map((row) => (
+          {(page?.entries ?? []).map((row) => {
+            const by = (row.metadata.by ?? row.metadata.confirmed_by ?? row.metadata.chosen_by) as string | undefined;
+            return (
               <tr key={row.id}>
                 <td className="mono">{new Date(row.recorded_at).toLocaleString()}</td>
                 <td>{row.patient_id}</td>
                 <td>
-                  <Badge tone="info">{row.source}</Badge>
+                  <Badge tone="neutral">{row.source.replace(/_/g, " ")}</Badge>
                 </td>
                 <td>{row.claim}</td>
+                <td>{by ?? "—"}</td>
                 <td className="mono">{row.entry_hash}</td>
               </tr>
-            ))}
+            );
+          })}
         </tbody>
       </table>
+      {total > PAGE && (
+        <div className="iss-actions cc-pager">
+          <button type="button" className="btn small" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE))}>
+            Newer
+          </button>
+          <button type="button" className="btn small" disabled={offset + PAGE >= total} onClick={() => setOffset(offset + PAGE)}>
+            Older
+          </button>
+        </div>
+      )}
     </Card>
   );
 }

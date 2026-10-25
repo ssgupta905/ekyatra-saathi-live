@@ -145,3 +145,16 @@
 
 .cc-form { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 .cc-form .cc-check { flex-direction: row; align-items: center; gap: 8px; }
+
+.cc-stack { display: flex; flex-direction: column; gap: 12px; }
+.cc-sub { font-size: 13px; margin: 16px 0 8px; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.05em; }
+.cc-days { display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px; }
+.cc-days label, .cc-inline { display: inline-flex; align-items: center; gap: 3px; }
+.cc-audit-filters { padding: 12px 16px; border-bottom: 1px solid var(--line-soft); }
+.cc-pager { padding: 10px 16px; }
+
+/* Nine detail tabs: keep them all in view on a desk monitor rather than scrolling off. */
+.cc-family .segmented-control button { padding-left: 9px; padding-right: 9px; font-size: 12.5px; }
+@media (min-width: 1180px) {
+  .cc-family .split { grid-template-columns: minmax(300px, 0.7fr) minmax(0, 1.5fr); }
+}

@@ -332,17 +332,21 @@ left-hand sections are the ones that role uses, and the server decides what it m
 
 | Section | Who | What |
 |---|---|---|
-| Families | all staff | The call list (search; alerts first, then the furthest away), the answer with its run timings, the brief to read before calling, and tabs: **Why**, **Pathway**, **Timeline**, **Checklist**, **Message** (plan → write → guard → send), **Family** (what they wrote in), **Ledger** |
+| Families | all staff | The call list (search; alerts first, then the furthest away), the answer with its run timings, the brief to read before calling, and tabs: **Why**, **Pathway**, **Timeline**, **Reports**, **Checklist**, **Message** (plan → write → guard → send), **Family** (what they wrote in), **Ledger**, and on real records **Record** (edit the family and its steps) |
+| Reports | all staff | Every report against the window it should land in (overdue, due, not due yet, no forecast, released), its turnaround, and on whose word it was released; per lab queue, past reports, the interval, and whether the promised coverage is being kept. Status, timing and provenance only, never content |
 | Plan boards | all staff | Every family's pathway at once |
 | Disruptions & approvals | navigator, doctor, admin | Outages in force, and the re-plans waiting on a person; a doctor sees only what needs a doctor |
 | Desk | desk, admin | Report what went wrong in the log's own words; confirm releases; on real records, register families, add steps, release reports, import CSV or FHIR |
 | Cohort | navigator, doctor, admin | The scorecard (demo), who needs a person, the desk queue, work done |
 | Story view | all staff, demo | The brief's two stories in four lanes, with the scorecard |
 | Operator | navigator, admin, demo | The clock, and a question put in a family's mouth |
-| Configuration | admin | Readiness rules, languages and channels, integrations (read-only for now) |
-| Audit log | admin | Every fact asserted, across every family, with the hash chain checked |
+| Registries | all staff read, admin edits | Hospitals and departments, treatment centres and what each can do, doctors and clinicians, bookable resources, and staff accounts (create, change role, deactivate, reset a password) |
+| Configuration | admin | Each hospital's rules (step days, slot times, lead days, how far a step may move, documents to bring, travel thresholds), versioned and audited, and marked **draft: not yet read by the planner**; readiness settings; what is switched on |
+| Audit log | admin | Every fact asserted, across every family and the registry, newest first, filterable by source, family and words, with who made each change and the chain checked |
 
-Sections link: `#/families/P-ANITA/why` opens Anita's reasoning directly.
+Sections link: `#/families/P-ANITA/why` opens Anita's reasoning directly; `#/registries/centres` opens the centres.
+
+**The rules are honest about themselves.** `HospitalPolicy` (in `domain/policy.py`) is stored, versioned and audited from the Configuration screen, but the planner still plans with its built-in defaults. Every rules response and the screen itself say so. Wiring the planner to read the saved rules is its own change.
 
 
 One light theme — an Apple-web palette on a `#f5f5f7` plane — and one organising idea:

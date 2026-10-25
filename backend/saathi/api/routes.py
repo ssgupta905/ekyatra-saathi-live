@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, date, datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from ..domain.enums import AlertKind, Channel, Decision, Language, SourceSystem, StepKind
@@ -227,16 +227,35 @@ async def admin_config(state: ContainerDep) -> dict:
 
 @router.get("/ledger", dependencies=[AdminOnly])
 async def ledger_all(
-    state: ContainerDep, source: SourceSystem | None = None, since: datetime | None = None
+    state: ContainerDep,
+    source: SourceSystem | None = None,
+    since: datetime | None = None,
+    patient_id: str | None = None,
+    q: str | None = None,
+    limit: int = Query(default=200, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
 ) -> dict:
-    """The admin audit log: every action across every patient, and its source.
+    """The admin audit log: every action across every patient, newest first.
 
     Read-only, like the per-patient view — opening this page cannot grow the
-    ledger any more than opening a family's page can.
+    ledger any more than opening a family's page can. `q` matches the claim or
+    the record id; `total` is the count before paging.
     """
-    entries = state.ledger.all_entries(source=source, since=since)
+    entries = list(state.ledger.all_entries(source=source, since=since))
+    if patient_id:
+        entries = [e for e in entries if e.patient_id == patient_id]
+    if q:
+        needle = q.lower()
+        entries = [
+            e for e in entries if needle in e.claim.lower() or needle in e.source_record_id.lower()
+        ]
+    entries.reverse()
+    page = entries[offset : offset + limit]
     return {
         "intact": state.ledger.verify(),
+        "total": len(entries),
+        "offset": offset,
+        "limit": limit,
         "entries": [
             {
                 "id": e.id,
@@ -246,8 +265,9 @@ async def ledger_all(
                 "claim": e.claim,
                 "recorded_at": e.recorded_at.isoformat(),
                 "entry_hash": e.entry_hash[:12],
+                "metadata": e.metadata,
             }
-            for e in entries
+            for e in page
         ],
     }
 

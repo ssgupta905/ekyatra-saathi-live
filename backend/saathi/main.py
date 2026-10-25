@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .api.admin import router as admin_router
 from .api.auth import router as auth_router
 from .api.board import router as board_router
 from .api.family import router as family_router
@@ -33,6 +34,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(router, prefix="/api")
     app.include_router(auth_router, prefix="/api")
+    app.include_router(admin_router, prefix="/api")
     app.include_router(live_router, prefix="/api")
     app.include_router(board_router, prefix="/api")
     app.include_router(records_router, prefix="/api")
