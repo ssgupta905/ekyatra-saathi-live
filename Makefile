@@ -1,4 +1,4 @@
-.PHONY: help install demo demo-audio demo-mov demo-video demo-video-headless fetch-reference test lint api console docker seed clean
+.PHONY: help install demo demo-audio demo-mov demo-video demo-video-headless fetch-reference test lint api console web-test web-typecheck docker seed clean
 
 PY ?= .venv/bin/python
 # Override when something else already owns 8000:  make api PORT=8001
@@ -12,6 +12,8 @@ help:
 	@echo "make lint      ruff check + format check"
 	@echo "make api       serve the FastAPI app on :8000 (override with PORT=8001)"
 	@echo "make console   run the navigator console on :5173 (proxies /api to :8000)"
+	@echo "make web-test   frontend unit tests (api client, i18n, theme)"
+	@echo "make web-typecheck   strict TypeScript across every frontend package and app"
 	@echo "make demo-video  drive the console in a visible browser and record it"
 	@echo "make demo-video-headless   the same run with no window"
 	@echo "make demo-mov    convert the newest recording to .mov in ~/Documents"
@@ -45,7 +47,13 @@ api:
 		--timeout-graceful-shutdown 2
 
 console:
-	cd console && npm install && npm run dev
+	cd frontend && npm install --no-audit --no-fund && npm run dev -w ekyatra-saathi-console
+
+web-test:
+	cd frontend && npm test
+
+web-typecheck:
+	cd frontend && npm run typecheck
 
 # Convert the newest recording to a QuickTime .mov in ~/Documents.
 # Playwright only writes WebM/VP8, which nothing on a stock Mac decodes —
@@ -84,5 +92,5 @@ seed:
 		< backend/saathi/graph/schema.cypher
 
 clean:
-	rm -rf .venv console/node_modules console/dist .pytest_cache .ruff_cache saathi.db
+	rm -rf .venv frontend/node_modules frontend/apps/*/dist .pytest_cache .ruff_cache saathi.db
 	find . -name __pycache__ -type d -prune -exec rm -rf {} +

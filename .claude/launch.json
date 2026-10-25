@@ -4,7 +4,7 @@
     {
       "name": "console",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "console", "run", "dev"],
+      "runtimeArgs": ["--prefix", "frontend/apps/console", "run", "dev"],
       "port": 5173
     }
   ]

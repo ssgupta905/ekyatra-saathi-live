@@ -19,15 +19,17 @@ jobs:
       # The prototype must stay runnable with no credentials and no services.
       - run: python -m saathi.demo --patients 3
 
-  console:
+  frontend:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: console
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-      - run: npm install
+          node-version: "22"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
       - run: npm run build

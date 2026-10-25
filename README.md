@@ -239,7 +239,7 @@ SAATHI_LIVE_SECONDS_PER_DAY=2     # default 4
 They are separate applications sharing a backend. Open the phone on a phone and
 the desk on a laptop and they behave exactly as they do on the stage.
 
-**Multilingual, and where the line is.** `console/src/lib/i18n.ts` holds chrome
+**Multilingual, and where the line is.** `frontend/packages/i18n/src/i18n.ts` holds chrome
 only — "Plan", "Send", the names of the twelve step kinds, and the three labels
 for `plan.decision`. The same words on every family's screen, asserting nothing
 about any of them. Everything the system *says* is written by the language layer
@@ -366,10 +366,12 @@ backend/saathi/
   synthetic/       cohort generator with planted ground truth + the evaluation harness
   live/            clock, mutable world, event bus, the tick runner, the Groq actors
   api/             FastAPI routes for the console, plus the live stream and controls
-console/
-  src/lib/         typed API client, display vocabulary, the explanation model, SSE client
-  src/ui/          design tokens in styles.css, glyphs, shared primitives
-  src/components/  decision hero, trace, readiness interval, pipeline, desk queue, ledger
+frontend/          npm workspace: shared packages, and the apps built on them
+  packages/api-client  typed API client, the event reducer and SSE hook (web and mobile)
+  packages/i18n        the family app's words in hi / bn / or / en
+  packages/theme       design tokens (tokens.json -> generated CSS and React Native values)
+  packages/ui-web      staff web primitives, glyphs, formatting, the explanation model
+  apps/console         the hospital console, family phone and demo stage (being split by role)
 tests/             decision core, guard, ledger, scope boundary, the live world, the actors
 ```
 
@@ -381,8 +383,8 @@ tests/             decision core, guard, ledger, scope boundary, the live world,
 | a new care-step type | `domain/enums.py`, then `graph/dependencies.py` edges | enums are closed on purpose — a typo becomes an import error |
 | a new language backend | `language/<name>_layer.py` | import everything from `rendering.py`; add a twin of `test_groq_layer.py` |
 | a new actor | `live/actors.py` | it may produce an input or a reading, never a decision; return `None` on failure |
-| a new card in the console | `console/src/components/` | use `Card` from `ui/primitives.tsx` and tokens from `styles.css`; no new colours |
-| a new event the console reacts to | `live/events.py::EventKind`, published from `runner.py` | add it to `ALL_KINDS` and the tone/label maps in `console/src/lib/live.ts` |
+| a new card in the console | `frontend/apps/console/src/components/` | use `Card` from `@saathi/ui-web` and tokens from `@saathi/theme`; no new colours |
+| a new event the console reacts to | `live/events.py::EventKind`, published from `runner.py` | add it to `ALL_KINDS` and the tone/label maps in `frontend/packages/api-client/src/live.ts` |
 
 ---
 
@@ -417,7 +419,9 @@ make test                                                # the whole suite, ~20s
 .venv/bin/python -m pytest tests/test_live_world.py -q    # one file
 .venv/bin/python -m pytest -q -k "guard"                  # one topic
 make lint                                                # see the note below
-cd console && npm run build                              # strict TypeScript + Vite
+make web-typecheck                                       # strict TypeScript, every frontend package and app
+make web-test                                            # frontend unit tests (api client, i18n, theme)
+cd frontend && npm run build                              # Vite production builds
 ```
 
 **Conventions worth matching**

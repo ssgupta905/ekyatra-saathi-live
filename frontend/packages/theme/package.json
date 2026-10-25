@@ -1,0 +1,16 @@
+{
+  "name": "@saathi/theme",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Design tokens. tokens.json is the source; web CSS is generated from it.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/tokens.css"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "generate": "node scripts/generate-css.mjs",
+    "typecheck": "tsc --noEmit -p ."
+  }
+}

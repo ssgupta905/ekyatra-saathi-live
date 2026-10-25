@@ -1,0 +1,29 @@
+{
+  "name": "ekyatra-saathi-console",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Navigator console for EKYATRA Saathi \u2014 care team and NGO view.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@saathi/api-client": "*",
+    "@saathi/i18n": "*",
+    "@saathi/theme": "*",
+    "@saathi/ui-web": "*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "playwright": "^1.63.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}

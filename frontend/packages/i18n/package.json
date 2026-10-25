@@ -1,0 +1,14 @@
+{
+  "name": "@saathi/i18n",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The family app's own words (hi, bn, or, en). Shared by web and mobile.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  }
+}
