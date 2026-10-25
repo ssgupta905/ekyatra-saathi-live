@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 
 from ..domain.enums import Channel, Decision, Language
 from ..domain.models import CaregiverMessage, EvidenceRef, VisitPlan
-from ..ledger.evidence import InMemoryEvidenceLedger
+from ..ports.ledger import EvidenceLedger
 from . import guard
 
 logger = logging.getLogger(__name__)
@@ -119,7 +119,7 @@ class LanguageLayerError(RuntimeError):
     """Raised when rendering failed in a way the caller must handle."""
 
 
-def plan_brief(plan: VisitPlan, ledger: InMemoryEvidenceLedger) -> str:
+def plan_brief(plan: VisitPlan, ledger: EvidenceLedger) -> str:
     """Render the plan as the only context the model receives."""
     lines = [f"DECISION: {plan.decision.value}"]
 
@@ -159,7 +159,7 @@ def user_prompt(
     plan: VisitPlan,
     language: Language,
     channel: Channel,
-    ledger: InMemoryEvidenceLedger,
+    ledger: EvidenceLedger,
 ) -> str:
     voice_note = (
         " (this will be read aloud by a voice system)" if channel is Channel.IVR else ""
@@ -196,7 +196,7 @@ def accept(
     plan: VisitPlan,
     language: Language,
     channel: Channel,
-    ledger: InMemoryEvidenceLedger,
+    ledger: EvidenceLedger,
 ) -> CaregiverMessage:
     """Cross-check a rendered message against the plan, then guard it.
 

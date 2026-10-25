@@ -39,7 +39,7 @@ from ..domain.consent import (
     default_expiry,
 )
 from ..domain.enums import Channel, Language, SourceSystem
-from ..ledger.evidence import InMemoryEvidenceLedger
+from ..ports.ledger import EvidenceLedger
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class ConsentError(RuntimeError):
 class ConsentRegistry:
     """Consent records for every patient, backed by the evidence ledger."""
 
-    ledger: InMemoryEvidenceLedger
+    ledger: EvidenceLedger
     requests: dict[str, ConsentRequest] = field(default_factory=dict)
     grants: dict[str, ConsentGrant] = field(default_factory=dict)
     pointers: dict[str, RecordPointer] = field(default_factory=dict)

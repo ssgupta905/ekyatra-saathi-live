@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 import pytest
-from saathi.api.deps import build_state
+from saathi.bootstrap.container import build_container
 from saathi.config import Settings
 from saathi.domain.enums import Decision, StepStatus
 from saathi.live.events import EventKind
@@ -142,7 +142,7 @@ def test_ground_truth_is_never_handed_to_the_planner():
 @pytest.fixture
 def state():
     settings = Settings(_env_file=None, live_watched=4)
-    return build_state(settings, today=START)
+    return build_container(settings, today=START)
 
 
 async def test_a_tick_replans_every_patient(state):

@@ -6,9 +6,10 @@ messaging webhooks. Routes stay thin — all logic lives in the planner.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, date, datetime
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from ..domain.enums import AlertKind, Channel, Decision, Language, SourceSystem, StepKind
@@ -16,12 +17,10 @@ from ..domain.models import Alert, CareStep, Patient, VisitPlan
 from ..engagement.pelt import detect_disengagement
 from ..language import guard
 from ..synthetic.generate import QUEUE_PROFILES, evaluate
+from .deps import ContainerDep
 
 router = APIRouter()
 
-
-def _state(request: Request):
-    return request.app.state.saathi
 
 
 class PlanRequest(BaseModel):
@@ -45,8 +44,7 @@ class PlanResponse(BaseModel):
 
 
 @router.get("/health")
-async def health(request: Request) -> dict:
-    state = _state(request)
+async def health(state: ContainerDep) -> dict:
     layer = state.planner.language_layer
     return {
         "status": "ok",
@@ -62,20 +60,19 @@ async def health(request: Request) -> dict:
 
 
 @router.get("/patients", response_model=list[Patient])
-async def list_patients(request: Request) -> list[Patient]:
-    return list(_state(request).cohort.patients)
+async def list_patients(state: ContainerDep) -> list[Patient]:
+    return list(state.cohort.patients)
 
 
 @router.get("/patients/{patient_id}/steps", response_model=list[CareStep])
-async def patient_steps(request: Request, patient_id: str) -> list[CareStep]:
-    state = _state(request)
+async def patient_steps(state: ContainerDep, patient_id: str) -> list[CareStep]:
     if state.patient(patient_id) is None:
         raise HTTPException(404, "unknown patient")
     return list(state.steps_for(patient_id))
 
 
 @router.post("/plan", response_model=PlanResponse)
-async def plan(request: Request, body: PlanRequest, recompute: bool = False) -> PlanResponse:
+async def plan(state: ContainerDep, body: PlanRequest, recompute: bool = False) -> PlanResponse:
     """The current plan for this patient.
 
     By default this *reads* the runner's latest real planning run rather than
@@ -83,14 +80,15 @@ async def plan(request: Request, body: PlanRequest, recompute: bool = False) -> 
     cause it — a navigator opening a family should not be the reason its ledger
     grows. `?recompute=true` forces a fresh run for scripted use and tests.
     """
-    state = _state(request)
     patient = state.patient(body.patient_id)
     if patient is None:
         raise HTTPException(404, "unknown patient")
 
     run = state.runner.plans.get(body.patient_id)
     if recompute or run is None or body.today is not None:
-        result = state.planner.plan_visit(
+        # Planning can include a blocking LLM call; keep it off the event loop.
+        result = await asyncio.to_thread(
+            state.planner.plan_visit,
             patient=patient,
             steps=list(state.steps_for(body.patient_id)),
             target_kind=body.target_kind,
@@ -127,9 +125,8 @@ class EngagementRequest(BaseModel):
 
 
 @router.post("/engagement/check", response_model=Alert | None)
-async def engagement_check(request: Request, body: EngagementRequest) -> Alert | None:
+async def engagement_check(state: ContainerDep, body: EngagementRequest) -> Alert | None:
     """Run PELT over a caregiver's reply latencies and raise an alert on a shift."""
-    state = _state(request)
     result = detect_disengagement(body.response_latency_hours)
     if not result.disengaged:
         return None
@@ -150,8 +147,8 @@ async def engagement_check(request: Request, body: EngagementRequest) -> Alert |
 
 
 @router.get("/alerts", response_model=list[Alert])
-async def list_alerts(request: Request) -> list[Alert]:
-    return list(_state(request).alerts)
+async def list_alerts(state: ContainerDep) -> list[Alert]:
+    return list(state.alerts)
 
 
 class InboundMessage(BaseModel):
@@ -166,9 +163,8 @@ class InboundVerdict(BaseModel):
 
 
 @router.post("/messages/inbound", response_model=InboundVerdict)
-async def inbound(request: Request, body: InboundMessage) -> InboundVerdict:
+async def inbound(state: ContainerDep, body: InboundMessage) -> InboundVerdict:
     """Screen a caregiver's message. Clinical questions go to a human, always."""
-    state = _state(request)
     verdict = guard.screen_inbound(body.text)
     if not verdict.allowed:
         state.alerts.append(
@@ -188,13 +184,12 @@ async def inbound(request: Request, body: InboundMessage) -> InboundVerdict:
 
 
 @router.get("/admin/config")
-async def admin_config(request: Request) -> dict:
+async def admin_config(state: ContainerDep) -> dict:
     """The admin's read-only view of the readiness rules, languages and
     channels the system runs with. Surfaces real settings — no field here is
     invented for the console; it is what `Settings` and `QUEUE_PROFILES`
     already hold.
     """
-    state = _state(request)
     settings = state.settings
     return {
         "readiness": {
@@ -223,14 +218,13 @@ async def admin_config(request: Request) -> dict:
 
 @router.get("/ledger")
 async def ledger_all(
-    request: Request, source: SourceSystem | None = None, since: datetime | None = None
+    state: ContainerDep, source: SourceSystem | None = None, since: datetime | None = None
 ) -> dict:
     """The admin audit log: every action across every patient, and its source.
 
     Read-only, like the per-patient view — opening this page cannot grow the
     ledger any more than opening a family's page can.
     """
-    state = _state(request)
     entries = state.ledger.all_entries(source=source, since=since)
     return {
         "intact": state.ledger.verify(),
@@ -250,9 +244,8 @@ async def ledger_all(
 
 
 @router.get("/ledger/{patient_id}")
-async def ledger_for_patient(request: Request, patient_id: str) -> dict:
+async def ledger_for_patient(state: ContainerDep, patient_id: str) -> dict:
     """Everything Saathi has asserted about this patient, and its provenance."""
-    state = _state(request)
     entries = state.ledger.for_patient(patient_id)
     return {
         "intact": state.ledger.verify(),
@@ -271,26 +264,31 @@ async def ledger_for_patient(request: Request, patient_id: str) -> dict:
 
 
 @router.get("/metrics")
-async def metrics(request: Request, recompute: bool = False) -> dict:
+async def metrics(state: ContainerDep, recompute: bool = False) -> dict:
     """Score the cohort against planted ground truth.
 
     The runner rescores on every change, so this normally reads that result.
     `?recompute=true` re-plans the whole cohort from scratch.
     """
-    state = _state(request)
     if not recompute and state.runner.metrics:
         return state.runner.metrics
-    decisions: dict[str, date | None] = {}
-    for patient in state.cohort.patients:
-        result = state.planner.plan_visit(
-            patient=patient,
-            steps=list(state.steps_for(patient.id)),
-            target_kind=StepKind.REVIEW_CONSULT,
-        )
-        plan_obj = result.get("plan")
-        decisions[patient.id] = (
-            plan_obj.travel_on
-            if plan_obj and plan_obj.decision is Decision.GO
-            else None
-        )
+
+    def replan_cohort() -> dict[str, date | None]:
+        decisions: dict[str, date | None] = {}
+        for patient in state.cohort.patients:
+            result = state.planner.plan_visit(
+                patient=patient,
+                steps=list(state.steps_for(patient.id)),
+                target_kind=StepKind.REVIEW_CONSULT,
+            )
+            plan_obj = result.get("plan")
+            decisions[patient.id] = (
+                plan_obj.travel_on
+                if plan_obj and plan_obj.decision is Decision.GO
+                else None
+            )
+        return decisions
+
+    # A whole-cohort replan is long and may call a language model: off the loop.
+    decisions = await asyncio.to_thread(replan_cohort)
     return evaluate(state.cohort, decisions)

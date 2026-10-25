@@ -28,7 +28,7 @@ from ..domain.models import (
     ReadinessWindow,
 )
 from ..graph.dependencies import DependencyGraph
-from ..ledger.evidence import InMemoryEvidenceLedger
+from ..ports.ledger import EvidenceLedger
 from ..readiness.bookings import window_from_booking
 from ..readiness.conformal import ConformalReadinessPredictor
 
@@ -267,7 +267,7 @@ def where_to_go_first(target: CareStep, bundled_kinds: Sequence[StepKind]) -> st
 
 
 def record_status_evidence(
-    ledger: InMemoryEvidenceLedger,
+    ledger: EvidenceLedger,
     patient_id: str,
     steps: Sequence[CareStep],
     relevant_ids: Iterable[str],

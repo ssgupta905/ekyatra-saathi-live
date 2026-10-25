@@ -10,7 +10,6 @@ scoring — happens because the system reacted, not because the endpoint said so
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import json
 import logging
 from collections.abc import AsyncIterator
@@ -22,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from ..domain.enums import DisruptionKind, Role
 from ..live.events import QUEUE_LIMIT as _QUEUE_LIMIT
+from .deps import ContainerDep
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +35,6 @@ HEARTBEAT_SECONDS = 15.0
 QUEUE_LIMIT = _QUEUE_LIMIT
 
 
-def _state(request: Request):
-    return request.app.state.saathi
-
-
-def _runner(request: Request):
-    return _state(request).runner
 
 
 # ---------------------------------------------------------------- the stream
@@ -51,13 +45,12 @@ def _frame(event) -> str:
 
 
 @router.get("/stream")
-async def stream(request: Request) -> StreamingResponse:
+async def stream(request: Request, state: ContainerDep) -> StreamingResponse:
     """Server-sent events: every real thing the world does, as it happens.
 
     The replay buffer goes out first so a console that connects mid-demo opens
     with context rather than a blank activity log.
     """
-    state = _state(request)
     bus = state.bus
 
     async def events() -> AsyncIterator[str]:
@@ -94,8 +87,8 @@ async def stream(request: Request) -> StreamingResponse:
 
 
 @router.get("/live")
-async def live_snapshot(request: Request) -> dict:
-    return _runner(request).snapshot()
+async def live_snapshot(state: ContainerDep) -> dict:
+    return state.runner.snapshot()
 
 
 class ControlRequest(BaseModel):
@@ -106,8 +99,8 @@ class ControlRequest(BaseModel):
 
 
 @router.post("/live/control")
-async def control(request: Request, body: ControlRequest) -> dict:
-    runner = _runner(request)
+async def control(state: ContainerDep, body: ControlRequest) -> dict:
+    runner = state.runner
     match body.action:
         case "play":
             await runner.play()
@@ -140,22 +133,22 @@ async def control(request: Request, body: ControlRequest) -> dict:
 
 
 @router.get("/story")
-async def story_state(request: Request) -> dict:
+async def story_state(state: ContainerDep) -> dict:
     """Which stories exist, where each has got to, and who acts next.
 
     The console's story bar renders from this rather than carrying its own copy
     of the brief's table, so the beats cannot drift out of step with what
     `advance_story` will actually run.
     """
-    return _runner(request).story_state()
+    return state.runner.story_state()
 
 
 # ---------------------------------------------------------------- the desk
 
 
 @router.get("/desk/queue")
-async def desk_queue(request: Request) -> list[dict]:
-    return [c.to_json() for c in _state(request).world.pending_candidates()]
+async def desk_queue(state: ContainerDep) -> list[dict]:
+    return [c.to_json() for c in state.world.pending_candidates()]
 
 
 class ConfirmRequest(BaseModel):
@@ -163,9 +156,9 @@ class ConfirmRequest(BaseModel):
 
 
 @router.post("/desk/confirm")
-async def desk_confirm(request: Request, body: ConfirmRequest) -> dict:
+async def desk_confirm(state: ContainerDep, body: ConfirmRequest) -> dict:
     """A human confirming a record. The only way a report becomes available."""
-    ok = await _runner(request).confirm(body.candidate_id, automatic=False)
+    ok = await state.runner.confirm(body.candidate_id, automatic=False)
     if not ok:
         raise HTTPException(404, "no such candidate, or it was already confirmed")
     return {"confirmed": True}
@@ -183,13 +176,13 @@ class InjectRequest(BaseModel):
 
 
 @router.post("/live/inject")
-async def inject(request: Request, body: InjectRequest) -> dict:
+async def inject(state: ContainerDep, body: InjectRequest) -> dict:
     """Put a message in a family's mouth and let the real guard read it.
 
     Nothing downstream knows this was staged: `guard.screen_inbound` runs, and a
     clinical question raises a real alert exactly as it would at 3am.
     """
-    record = await _runner(request).receive_inbound(
+    record = await state.runner.receive_inbound(
         body.patient_id, kind=body.kind, text=body.text
     )
     if record is None:
@@ -200,8 +193,8 @@ async def inject(request: Request, body: InjectRequest) -> dict:
 
 
 @router.get("/inbound")
-async def inbound(request: Request, patient_id: str | None = None) -> list[dict]:
-    rows = _runner(request).inbound
+async def inbound(state: ContainerDep, patient_id: str | None = None) -> list[dict]:
+    rows = state.runner.inbound
     if patient_id:
         rows = [r for r in rows if r.patient_id == patient_id]
     return [r.to_json() for r in rows[-50:]]
@@ -265,7 +258,7 @@ def _read_without_a_model(text: str, resources, today: date) -> dict | None:
 
 
 @router.post("/disruptions/read")
-async def read_work_log(request: Request, body: WorkLogRequest) -> dict:
+async def read_work_log(state: ContainerDep, body: WorkLogRequest) -> dict:
     """Read a department's own words and propose the outage they describe.
 
     Proposes. It does not raise anything. A desk thinks "MRI-2 down till
@@ -275,7 +268,6 @@ async def read_work_log(request: Request, body: WorkLogRequest) -> dict:
     a person still supplies the decision, which is invariant 3 and the reason
     this is a separate endpoint from the one that acts.
     """
-    state = _state(request)
     resources = list(state.world.resources.values())
     if not resources:
         raise HTTPException(409, "no resources are registered to report against")
@@ -322,11 +314,11 @@ async def read_work_log(request: Request, body: WorkLogRequest) -> dict:
 
 
 @router.post("/disruptions")
-async def raise_disruption(request: Request, body: DisruptionRequest) -> dict:
+async def raise_disruption(state: ContainerDep, body: DisruptionRequest) -> dict:
     """A desk's one-tap report. Everything downstream — the holding message,
     the re-solve, the options — happens because the runner reacted to this,
     not because this endpoint decided anything."""
-    disruption, affected = await _runner(request).raise_disruption(
+    disruption, affected = await state.runner.raise_disruption(
         resource_id=body.resource_id,
         kind=body.kind,
         unavailable_from=body.unavailable_from,
@@ -337,16 +329,16 @@ async def raise_disruption(request: Request, body: DisruptionRequest) -> dict:
 
 
 @router.get("/disruptions")
-async def list_disruptions(request: Request) -> list[dict]:
-    return [d.model_dump(mode="json") for d in _state(request).world.open_disruptions()]
+async def list_disruptions(state: ContainerDep) -> list[dict]:
+    return [d.model_dump(mode="json") for d in state.world.open_disruptions()]
 
 
 @router.get("/disruptions/pending")
-async def pending_options(request: Request) -> list[dict]:
+async def pending_options(state: ContainerDep) -> list[dict]:
     """Every option set currently waiting on a human — the navigator's and
     doctor's call list for the disruption loop, without needing to already
     know a disruption or patient id."""
-    runner = _runner(request)
+    runner = state.runner
     rows = []
     for option_set in runner.options.values():
         requires_doctor = any(
@@ -365,10 +357,10 @@ async def pending_options(request: Request) -> list[dict]:
 
 
 @router.get("/disruptions/{disruption_id}/options/{patient_id}")
-async def disruption_options(request: Request, disruption_id: str, patient_id: str) -> dict:
+async def disruption_options(state: ContainerDep, disruption_id: str, patient_id: str) -> dict:
     """Ranked options for one patient. Order is the only ranking — there is
     no score field anywhere in the response."""
-    option_set = _runner(request).options.get(patient_id)
+    option_set = state.runner.options.get(patient_id)
     if option_set is None or option_set.disruption_id != disruption_id:
         return {"options": []}
     return option_set.to_json()
@@ -383,13 +375,13 @@ class ApproveRequest(BaseModel):
 
 @router.post("/disruptions/{disruption_id}/approve")
 async def approve_disruption_option(
-    request: Request, disruption_id: str, body: ApproveRequest
+    state: ContainerDep, disruption_id: str, body: ApproveRequest
 ) -> dict:
     """The brief's single approval action. A navigator approving an option
     that touches treatment or dose timing is rejected — structurally, not
     by a UI hint — exactly as the model's own travel decision is bound."""
     try:
-        approval = await _runner(request).approve_option(
+        approval = await state.runner.approve_option(
             patient_id=body.patient_id,
             option_index=body.option_index,
             approved_by_role=body.approved_by_role,
@@ -408,11 +400,11 @@ class IVRConfirmRequest(BaseModel):
 
 
 @router.post("/live/ivr-confirm")
-async def ivr_confirm(request: Request, body: IVRConfirmRequest) -> dict:
+async def ivr_confirm(state: ContainerDep, body: IVRConfirmRequest) -> dict:
     """The family's own "press 1" — logged like any other fact. In the
     credential-free live demo this is a simulated digit press, never a real
     Exotel callback."""
-    ok = await _runner(request).confirm_ivr(body.confirmation_id, body.digit)
+    ok = await state.runner.confirm_ivr(body.confirmation_id, body.digit)
     if not ok:
         raise HTTPException(404, "no such confirmation, or it was already confirmed")
     return {"confirmed": True}
@@ -422,9 +414,8 @@ async def ivr_confirm(request: Request, body: IVRConfirmRequest) -> dict:
 
 
 @router.get("/patients/{patient_id}/brief")
-async def call_brief(request: Request, patient_id: str) -> dict:
+async def call_brief(state: ContainerDep, patient_id: str) -> dict:
     """Four lines to read before dialling, each citing a row that exists."""
-    state = _state(request)
     actors = state.runner.actors
     patient = state.world.patient(patient_id)
     if patient is None:
@@ -451,7 +442,7 @@ class NarrationRequest(BaseModel):
 
 
 @router.post("/patients/{patient_id}/narration")
-async def narration(request: Request, patient_id: str, body: NarrationRequest) -> dict:
+async def narration(state: ContainerDep, patient_id: str, body: NarrationRequest) -> dict:
     """Say the on-screen explanation in the family's language.
 
     The console sends what it is displaying, so there is one source of truth for
@@ -459,7 +450,6 @@ async def narration(request: Request, patient_id: str, body: NarrationRequest) -
     patient's current plan, and a line that fails is marked held rather than
     dropped — the navigator needs to know it is missing.
     """
-    state = _state(request)
     actors = state.runner.actors
     patient = state.world.patient(patient_id)
     if patient is None:
@@ -483,19 +473,4 @@ async def narration(request: Request, patient_id: str, body: NarrationRequest) -
     }
 
 
-# ---------------------------------------------------------------- lifecycle
-
-
-async def start_runner(app_state) -> None:
-    """Called from the app lifespan. Autostart is opt-in."""
-    await app_state.runner.start()
-    if app_state.settings.live_autostart:
-        await app_state.runner.play()
-
-
-async def stop_runner(app_state) -> None:
-    with contextlib.suppress(Exception):
-        await app_state.runner.stop()
-
-
-__all__ = ["router", "start_runner", "stop_runner"]
+__all__ = ["router"]

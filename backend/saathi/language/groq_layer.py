@@ -30,7 +30,7 @@ from pydantic import ValidationError
 
 from ..domain.enums import Channel, Language
 from ..domain.models import CaregiverMessage, VisitPlan
-from ..ledger.evidence import InMemoryEvidenceLedger
+from ..ports.ledger import EvidenceLedger
 from .rendering import (
     MAX_TOKENS,
     RESPONSE_SCHEMA,
@@ -97,7 +97,7 @@ class GroqLanguageLayer:
         plan: VisitPlan,
         language: Language,
         channel: Channel,
-        ledger: InMemoryEvidenceLedger,
+        ledger: EvidenceLedger,
     ) -> CaregiverMessage:
         def diverted(reason: str) -> CaregiverMessage:
             return divert(plan, language, channel, plan.evidence, reason)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 import pytest
-from saathi.api.deps import build_state
+from saathi.bootstrap.container import build_container
 from saathi.config import Settings
 from saathi.domain.enums import DisruptionKind, ResourceKind, Role, StepKind, StepStatus
 from saathi.domain.models import Resource
@@ -17,7 +17,7 @@ START = date(2026, 11, 13)
 @pytest.fixture
 def state():
     settings = Settings(_env_file=None, live_watched=4)
-    return build_state(settings, today=START)
+    return build_container(settings, today=START)
 
 
 def _rig_long_delay(state, patient_id: str) -> None:

@@ -26,7 +26,7 @@ from pathlib import Path
 
 from ..config import get_settings
 from .base import ToolUnavailable
-from .cache import DEFAULT_CACHE_PATH, ReferenceCache
+from .cache import ReferenceCache
 from .geo import GeoTool
 
 #: Nominatim's published rate limit.
@@ -69,7 +69,9 @@ def main(argv: list[str] | None = None) -> int:
         metavar="ID=PLACE",
         help="Where a hospital is, e.g. TMH-MUM=Mumbai. Repeatable.",
     )
-    parser.add_argument("--cache", default=str(DEFAULT_CACHE_PATH))
+    parser.add_argument(
+        "--cache", default=None, help="Defaults to <data_dir>/reference_cache.json."
+    )
     parser.add_argument("--geocoder", default=None)
     parser.add_argument("--router", default=None)
     parser.add_argument(
@@ -91,7 +93,9 @@ def main(argv: list[str] | None = None) -> int:
             "SAATHI_HOSPITAL_PLACES in the environment."
         )
 
-    cache = ReferenceCache(Path(args.cache)).load()
+    cache = ReferenceCache(
+        Path(args.cache) if args.cache else settings.reference_cache_file
+    ).load()
     before = len(cache)
     geo = GeoTool(
         cache,

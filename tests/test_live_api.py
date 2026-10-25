@@ -13,8 +13,8 @@ from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
-from saathi.api.deps import build_state
 from saathi.api.live import QUEUE_LIMIT, stream
+from saathi.bootstrap.container import build_container
 from saathi.config import Settings
 from saathi.live.events import EventBus
 from saathi.main import create_app
@@ -110,12 +110,12 @@ async def test_the_stream_replays_what_already_happened():
     to finish before it will let go of one.
     """
     app = create_app()
-    state = build_state(Settings(_env_file=None), today=date(2026, 9, 25))
-    app.state.saathi = state
+    state = build_container(Settings(_env_file=None), today=date(2026, 9, 25))
+    app.state.container = state
     await state.runner.plan_all()
     await state.runner.tick()
 
-    response = await stream(_request(app))
+    response = await stream(_request(app), state)
     assert response.media_type == "text/event-stream"
     assert response.headers["cache-control"] == "no-cache, no-transform"
     # Without this a proxy buffers the whole stream, which is the opposite of live.
@@ -142,10 +142,11 @@ async def test_the_stream_replays_what_already_happened():
 async def test_the_stream_closing_releases_its_subscription():
     """A console that goes away must not leave the bus fanning out to nobody."""
     app = create_app()
-    app.state.saathi = build_state(Settings(_env_file=None), today=date(2026, 9, 25))
-    bus = app.state.saathi.bus
+    state = build_container(Settings(_env_file=None), today=date(2026, 9, 25))
+    app.state.container = state
+    bus = state.bus
 
-    response = await stream(_request(app))
+    response = await stream(_request(app), state)
     body = response.body_iterator
     await anext(body)
     assert bus.subscriber_count == 1

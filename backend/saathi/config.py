@@ -8,8 +8,9 @@ what CI runs. Each integration turns on when its credentials appear.
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,8 +19,17 @@ class Settings(BaseSettings):
         env_file=".env", env_prefix="SAATHI_", extra="ignore"
     )
 
+    # --- runtime ---
     environment: str = "local"
     log_level: str = "INFO"
+    #: Run as a demo: dev-only control endpoints are mounted and a simulator may
+    #: drive the clock. Never allowed when `environment` is "production".
+    sim_mode: bool = False
+    #: The hospital's timezone. "Today" is the hospital's date, not the server's.
+    hospital_timezone: str = "Asia/Kolkata"
+    #: Where reference data lives. Empty means: the repo's `data/` when running
+    #: from a checkout, otherwise `./data`. Always resolved to an absolute path.
+    data_dir: str = ""
 
     #: Where the built console lives, when one service serves both. Empty in
     #: development, where Vite serves the apps and proxies /api here.
@@ -101,8 +111,8 @@ class Settings(BaseSettings):
     #: too many lookups for a public service, so the cache is filled once by
     #: `make fetch-reference` and read from thereafter.
     tools_allow_network: bool = False
-    #: Where the fetched facts live.
-    reference_cache_path: str = "data/reference_cache.json"
+    #: Where the fetched facts live. Empty means `<data_dir>/reference_cache.json`.
+    reference_cache_path: str = ""
     #: Optional entitlement/scheme endpoint. Without it, what a family holds is
     #: whatever they or a desk have told us — and "unknown" otherwise, which is
     #: the answer that puts the document on the checklist.
@@ -122,6 +132,28 @@ class Settings(BaseSettings):
     bhashini_api_key: str | None = None
     bhashini_user_id: str | None = None
 
+    @model_validator(mode="after")
+    def _no_sim_in_production(self) -> Settings:
+        if self.sim_mode and self.environment.lower() == "production":
+            raise ValueError(
+                "SAATHI_SIM_MODE is on while SAATHI_ENVIRONMENT=production: "
+                "demo controls must never be reachable in production"
+            )
+        return self
+
+    @property
+    def data_path(self) -> Path:
+        if self.data_dir:
+            return Path(self.data_dir).expanduser().resolve()
+        checkout = Path(__file__).resolve().parents[2] / "data"
+        return checkout if checkout.is_dir() else (Path.cwd() / "data").resolve()
+
+    @property
+    def reference_cache_file(self) -> Path:
+        if self.reference_cache_path:
+            return Path(self.reference_cache_path).expanduser().resolve()
+        return self.data_path / "reference_cache.json"
+
     @property
     def language_layer_enabled(self) -> bool:
         return bool(self.groq_api_key or self.anthropic_api_key)
@@ -133,6 +165,14 @@ class Settings(BaseSettings):
     @property
     def neo4j_enabled(self) -> bool:
         return bool(self.neo4j_uri and self.neo4j_user and self.neo4j_password)
+
+    @property
+    def abdm_enabled(self) -> bool:
+        return bool(self.abdm_base_url and self.abdm_client_id and self.abdm_client_secret)
+
+    @property
+    def hospital_feed_enabled(self) -> bool:
+        return bool(self.hospital_feed_url)
 
     @property
     def whatsapp_enabled(self) -> bool:

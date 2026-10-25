@@ -23,8 +23,9 @@ from langgraph.graph import END, START, StateGraph
 from ..domain.enums import Channel, Decision, StepKind
 from ..domain.models import CareStep, Disruption, Patient, VisitPlan
 from ..graph.dependencies import DependencyGraph, InMemoryDependencyGraph
-from ..language.claude import ClaudeLanguageLayer
 from ..ledger.evidence import InMemoryEvidenceLedger
+from ..ports.language import LanguageLayer
+from ..ports.ledger import EvidenceLedger
 from ..readiness.conformal import ConformalReadinessPredictor
 from . import tools
 from .state import PlannerState
@@ -39,8 +40,8 @@ class VisitPlanner:
         self,
         dependency_graph: DependencyGraph | None = None,
         predictor: ConformalReadinessPredictor | None = None,
-        ledger: InMemoryEvidenceLedger | None = None,
-        language_layer: ClaudeLanguageLayer | None = None,
+        ledger: EvidenceLedger | None = None,
+        language_layer: LanguageLayer | None = None,
     ) -> None:
         self.graph = dependency_graph or InMemoryDependencyGraph()
         self.predictor = predictor or ConformalReadinessPredictor()

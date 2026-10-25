@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 from datetime import date
 
-from .api.deps import build_state
+from .bootstrap.container import build_container
 from .domain.enums import Decision, StepKind
 from .synthetic.generate import evaluate, would_be_wasted
 
@@ -23,7 +23,7 @@ def main() -> None:
     parser.add_argument("--patients", type=int, default=6, help="how many journeys to print")
     args = parser.parse_args()
 
-    state = build_state()
+    state = build_container()
     cohort = state.cohort
 
     print(RULE)

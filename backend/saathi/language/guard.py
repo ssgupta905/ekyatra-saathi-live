@@ -23,7 +23,7 @@ from dataclasses import dataclass
 
 from ..domain.enums import Decision
 from ..domain.models import CaregiverMessage, EvidenceRef, VisitPlan
-from ..ledger.evidence import InMemoryEvidenceLedger
+from ..ports.ledger import EvidenceLedger
 
 #: Words that signal a clinical question or a clinical claim. Matched
 #: case-insensitively on word boundaries. Multilingual terms are included
@@ -202,7 +202,7 @@ def check_outbound(
     body: str,
     plan: VisitPlan,
     evidence: tuple[EvidenceRef, ...],
-    ledger: InMemoryEvidenceLedger,
+    ledger: EvidenceLedger,
 ) -> GuardVerdict:
     """Validate rendered text against the plan that authorised it."""
     clinical = _matches(body, CLINICAL_TERMS)

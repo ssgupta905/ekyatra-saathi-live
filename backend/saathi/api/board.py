@@ -19,12 +19,12 @@ carry a finding, and the one piece of clinical vocabulary — the step's own nam
 from __future__ import annotations
 
 import logging
-from functools import lru_cache
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 
 from ..domain.enums import REPORT_STEPS, Decision, StepKind, StepStatus
-from ..graph.dependencies import DEFAULT_EDGES, DependencyGraph, InMemoryDependencyGraph
+from ..graph.dependencies import DEFAULT_EDGES, DependencyGraph
+from .deps import ContainerDep
 
 logger = logging.getLogger(__name__)
 
@@ -49,15 +49,13 @@ STEP_LABELS: dict[StepKind, str] = {
 }
 
 
-@lru_cache(maxsize=1)
-def _depths() -> dict[str, int]:
+def _depths(graph: DependencyGraph) -> dict[str, int]:
     """How far down the pathway each kind sits.
 
     The longest path to a node, not the shortest: a review consult waits for
     the slowest of its prerequisites, and drawing it beside the fastest would
     misrepresent the wait that actually exists.
     """
-    graph = InMemoryDependencyGraph()
     depth: dict[StepKind, int] = {}
 
     def resolve(kind: StepKind, seen: frozenset[StepKind]) -> int:
@@ -78,7 +76,13 @@ def _depths() -> dict[str, int]:
     return {kind.value: value for kind, value in depth.items()}
 
 
-def _node(step, graph: DependencyGraph, target_id: str | None, blocked_ids: set[str]) -> dict:
+def _node(
+    step,
+    graph: DependencyGraph,
+    depths: dict[str, int],
+    target_id: str | None,
+    blocked_ids: set[str],
+) -> dict:
     satisfied = step.status in SATISFIED
     return {
         "id": step.id,
@@ -92,7 +96,7 @@ def _node(step, graph: DependencyGraph, target_id: str | None, blocked_ids: set[
         ),
         "queue": step.queue,
         "resource_id": step.resource_id,
-        "column": _depths().get(step.kind.value, 0),
+        "column": depths.get(step.kind.value, 0),
         "satisfied": satisfied,
         "is_target": step.id == target_id,
         "is_blocking": step.id in blocked_ids,
@@ -117,7 +121,8 @@ def build_board(state, patient_id: str) -> dict:
     blocked_ids = {b.step_id for b in plan.blocked_by} if plan else set()
     present = {s.kind.value for s in steps}
 
-    nodes = [_node(step, graph, target_id, blocked_ids) for step in steps]
+    depths = _depths(graph)
+    nodes = [_node(step, graph, depths, target_id, blocked_ids) for step in steps]
     nodes.sort(key=lambda n: (n["column"], n["label"]))
 
     # Only edges between steps this patient actually has. A pathway edge to a
@@ -168,19 +173,18 @@ def build_board(state, patient_id: str) -> dict:
 
 
 @router.get("/patients/{patient_id}/board")
-async def patient_board(request: Request, patient_id: str) -> dict:
-    return build_board(request.app.state.saathi, patient_id)
+async def patient_board(state: ContainerDep, patient_id: str) -> dict:
+    return build_board(state, patient_id)
 
 
 @router.get("/boards")
-async def boards(request: Request, watched: bool = True, limit: int = 12) -> dict:
+async def boards(state: ContainerDep, watched: bool = True, limit: int = 12) -> dict:
     """Every board a navigator is holding, worst first.
 
     Ordered by how much is in the family's way, then by how far they would have
     to travel — not by a score. There is no ranking number here and no field to
     put one in; the order is a consequence of two facts a navigator can see.
     """
-    state = request.app.state.saathi
     ids = list(state.world.watched) if watched else [p.id for p in state.world.patients()]
 
     built = [build_board(state, pid) for pid in ids[:limit]]

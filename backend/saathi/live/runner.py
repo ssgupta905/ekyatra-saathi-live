@@ -54,10 +54,10 @@ from ..language import guard
 from ..language.guard import InboundCategory
 from ..language.holding import render_holding_message
 from ..language.process_answers import render_process_answer
-from ..ledger.evidence import InMemoryEvidenceLedger
 from ..planner import options as options_module
 from ..planner.graph import VisitPlanner
 from ..planner.process_facts import resolve_process_fact
+from ..ports.ledger import EvidenceLedger
 from ..synthetic.generate import evaluate
 from .events import EventBus, EventKind
 from .world import DeskCandidate, LiveWorld
@@ -201,7 +201,7 @@ class LiveRunner:
     world: LiveWorld
     bus: EventBus
     planner: VisitPlanner
-    ledger: InMemoryEvidenceLedger
+    ledger: EvidenceLedger
     alerts: list[Alert]
     #: Set when Groq credentials are present. Every use is guarded; with it
     #: unset the world still ticks and every decision is still made.

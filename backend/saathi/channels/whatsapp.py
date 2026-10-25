@@ -1,37 +1,22 @@
 """WhatsApp Business API delivery.
 
-Delivery is the last mile and the one that fails silently. Every send returns a
-`DeliveryReceipt` that the caller records, because "we sent it" and "they got
-it" are different claims and only the second one keeps a family off a bus.
+Implements the `Transport` port (`ports/transport.py`). Every send returns a
+`DeliveryReceipt` that the caller records.
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Protocol
 
 import httpx
 
 from ..domain.models import CaregiverMessage
+from ..ports.transport import DeliveryReceipt
 
 logger = logging.getLogger(__name__)
 
 GRAPH_URL = "https://graph.facebook.com/v21.0"
-
-
-@dataclass(frozen=True)
-class DeliveryReceipt:
-    channel: str
-    accepted: bool
-    provider_message_id: str | None
-    sent_at: datetime
-    error: str | None = None
-
-
-class Transport(Protocol):
-    async def send(self, message: CaregiverMessage) -> DeliveryReceipt: ...
 
 
 class WhatsAppTransport:

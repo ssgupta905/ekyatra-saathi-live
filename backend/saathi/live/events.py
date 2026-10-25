@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import threading
 from collections import deque
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -101,12 +102,26 @@ class WorldEvent:
 
 
 class EventBus:
-    """Fan-out to every open console, plus a short replay buffer."""
+    """Fan-out to every open console, plus a short replay buffer.
+
+    `publish` is safe from any thread. Planning and tool lookups run on worker
+    threads, and `asyncio.Queue` is not thread-safe: delivering to it from off
+    the event loop can drop a wake-up and leave a console waiting on an event
+    that is already queued. So once the bus is bound to its loop, an off-loop
+    publish hands delivery to that loop; ordering and history are fixed first,
+    under a lock, so sequence numbers stay strictly increasing either way.
+    """
 
     def __init__(self, history: int = 200) -> None:
         self._subscribers: set[asyncio.Queue[WorldEvent]] = set()
         self._history: deque[WorldEvent] = deque(maxlen=history)
         self._seq = 0
+        self._lock = threading.Lock()
+        self._loop: asyncio.AbstractEventLoop | None = None
+
+    def bind_loop(self, loop: asyncio.AbstractEventLoop) -> None:
+        """Name the loop that owns the subscriber queues. Called once at startup."""
+        self._loop = loop
 
     def publish(
         self,
@@ -118,19 +133,38 @@ class EventBus:
         duration_ms: float | None = None,
         **payload: Any,
     ) -> WorldEvent:
-        self._seq += 1
-        event = WorldEvent(
-            kind=kind,
-            at=datetime.now(UTC),
-            sim_date=sim_date,
-            patient_id=patient_id,
-            summary=summary,
-            duration_ms=duration_ms,
-            payload=payload,
-            seq=self._seq,
-        )
-        self._history.append(event)
-        for queue in self._subscribers:
+        with self._lock:
+            self._seq += 1
+            event = WorldEvent(
+                kind=kind,
+                at=datetime.now(UTC),
+                sim_date=sim_date,
+                patient_id=patient_id,
+                summary=summary,
+                duration_ms=duration_ms,
+                payload=payload,
+                seq=self._seq,
+            )
+            self._history.append(event)
+        self._dispatch(event)
+        return event
+
+    def _dispatch(self, event: WorldEvent) -> None:
+        loop = self._loop
+        if loop is not None and not loop.is_closed() and not self._on_loop(loop):
+            loop.call_soon_threadsafe(self._deliver, event)
+        else:
+            self._deliver(event)
+
+    @staticmethod
+    def _on_loop(loop: asyncio.AbstractEventLoop) -> bool:
+        try:
+            return asyncio.get_running_loop() is loop
+        except RuntimeError:
+            return False
+
+    def _deliver(self, event: WorldEvent) -> None:
+        for queue in list(self._subscribers):
             try:
                 queue.put_nowait(event)
             except asyncio.QueueFull:
@@ -140,10 +174,10 @@ class EventBus:
                     queue.get_nowait()
                 with contextlib.suppress(asyncio.QueueFull):
                     queue.put_nowait(event)
-        return event
 
     def recent(self, limit: int = 50) -> list[WorldEvent]:
-        return list(self._history)[-limit:]
+        with self._lock:
+            return list(self._history)[-limit:]
 
     @contextlib.asynccontextmanager
     async def subscribe(self) -> AsyncIterator[asyncio.Queue[WorldEvent]]:

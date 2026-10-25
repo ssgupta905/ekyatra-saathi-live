@@ -20,7 +20,7 @@ from pydantic import ValidationError
 
 from ..domain.enums import Channel, Language
 from ..domain.models import CaregiverMessage, VisitPlan
-from ..ledger.evidence import InMemoryEvidenceLedger
+from ..ports.ledger import EvidenceLedger
 from .rendering import (
     LANGUAGE_NAMES,
     MAX_TOKENS,
@@ -58,10 +58,12 @@ class ClaudeLanguageLayer:
         self,
         client: anthropic.Anthropic | None = None,
         model: str = MODEL,
+        api_key: str | None = None,
     ) -> None:
-        # Zero-arg client resolves ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN, or
-        # an `ant auth login` profile, in that order.
-        self._client = client or anthropic.Anthropic()
+        # An explicit key (from settings) wins. With none, the client resolves
+        # ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN, or an `ant auth login`
+        # profile, in that order.
+        self._client = client or anthropic.Anthropic(api_key=api_key)
         self._model = model
 
     def describe(self) -> str:
@@ -72,7 +74,7 @@ class ClaudeLanguageLayer:
         plan: VisitPlan,
         language: Language,
         channel: Channel,
-        ledger: InMemoryEvidenceLedger,
+        ledger: EvidenceLedger,
     ) -> CaregiverMessage:
         """Render `plan` into a guarded `CaregiverMessage`.
 

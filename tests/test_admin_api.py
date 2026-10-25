@@ -19,7 +19,7 @@ def client():
 
 
 def _rig_scan(client, resource_id="MRI-2"):
-    state = client.app.state.saathi
+    state = client.app.state.container
     patient = state.world.patients()[0]
     steps = state.world.steps[patient.id]
     for index, step in enumerate(steps):
@@ -50,7 +50,7 @@ def test_admin_config_surfaces_real_readiness_settings(client):
 
 def test_pending_options_lists_patients_awaiting_a_human(client):
     patient_id = _rig_scan(client)
-    today = client.app.state.saathi.world.today
+    today = client.app.state.container.world.today
     client.post(
         "/api/disruptions",
         json={
@@ -62,7 +62,7 @@ def test_pending_options_lists_patients_awaiting_a_human(client):
     )
     pending = client.get("/api/disruptions/pending").json()
     ids = [row["patient_id"] for row in pending]
-    if patient_id in client.app.state.saathi.runner.options:
+    if patient_id in client.app.state.container.runner.options:
         assert patient_id in ids
 
 
@@ -75,7 +75,7 @@ def test_ledger_all_lists_entries_across_patients(client):
 
 def test_raising_a_disruption_returns_affected_patients(client):
     patient_id = _rig_scan(client)
-    today = client.app.state.saathi.world.today
+    today = client.app.state.container.world.today
 
     response = client.post(
         "/api/disruptions",
@@ -94,7 +94,7 @@ def test_raising_a_disruption_returns_affected_patients(client):
 
 def test_a_navigator_approving_a_treatment_option_is_rejected(client):
     patient_id = _rig_scan(client)
-    today = client.app.state.saathi.world.today
+    today = client.app.state.container.world.today
     client.post(
         "/api/disruptions",
         json={
@@ -104,7 +104,7 @@ def test_a_navigator_approving_a_treatment_option_is_rejected(client):
             "note": "test",
         },
     )
-    state = client.app.state.saathi
+    state = client.app.state.container
     option_set = state.runner.options.get(patient_id)
     if option_set is None:
         pytest.skip("fixture cohort did not produce a human-choice case this run")

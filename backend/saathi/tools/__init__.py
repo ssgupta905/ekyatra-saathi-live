@@ -111,7 +111,7 @@ def build_toolbox(settings: Settings) -> Toolbox:
     reports whether it has a live source, so the console can say so rather than
     implying everything is live.
     """
-    cache = ReferenceCache(settings.reference_cache_path).load()
+    cache = ReferenceCache(settings.reference_cache_file).load()
     geo = GeoTool(
         cache,
         geocoder_url=settings.geocoder_url,

@@ -35,7 +35,7 @@ from ..domain.enums import DisruptionKind, StepStatus
 from ..domain.models import CareStep, Patient, Resource
 from ..language import guard
 from ..language.rendering import LANGUAGE_NAMES
-from ..ledger.evidence import InMemoryEvidenceLedger
+from ..ports.ledger import EvidenceLedger
 from .world import LiveWorld
 
 logger = logging.getLogger(__name__)
@@ -494,7 +494,7 @@ class GroqActors:
         patient: Patient,
         plan_run: Any | None,
         steps: list[CareStep],
-        ledger: InMemoryEvidenceLedger,
+        ledger: EvidenceLedger,
         alerts: list,
         inbound: list,
     ) -> list[dict] | None:
@@ -607,7 +607,7 @@ class GroqActors:
         nodes: list[dict],
         patient: Patient,
         plan_run: Any | None,
-        ledger: InMemoryEvidenceLedger,
+        ledger: EvidenceLedger,
     ) -> list[dict] | None:
         """Say the navigator's own explanation in the family's language.
 

@@ -23,10 +23,11 @@ from datetime import date
 from typing import Annotated
 
 import groq
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from ..domain.enums import Language, StepKind, StepStatus
+from .deps import ContainerDep
 
 logger = logging.getLogger(__name__)
 
@@ -77,12 +78,9 @@ class LanguageChoice(BaseModel):
     chosen_by: str = Field(default="family", max_length=80)
 
 
-def _state(request: Request):
-    return request.app.state.saathi
-
 
 @router.get("/patients/{patient_id}/notifications")
-async def notifications(request: Request, patient_id: str, limit: int = 30) -> dict:
+async def notifications(state: ContainerDep, patient_id: str, limit: int = 30) -> dict:
     """What this family was told, and what they said, newest last.
 
     One merged thread rather than two lists: a family does not experience "the
@@ -90,7 +88,6 @@ async def notifications(request: Request, patient_id: str, limit: int = 30) -> d
     the holding message immediately above their own reply to it is the whole
     point of showing it at all.
     """
-    state = _state(request)
     patient = state.world.patient(patient_id)
     if patient is None:
         raise HTTPException(404, "unknown patient")
@@ -131,7 +128,7 @@ async def notifications(request: Request, patient_id: str, limit: int = 30) -> d
 
 @router.post("/voice/transcribe")
 async def transcribe(
-    request: Request,
+    state: ContainerDep,
     audio: Annotated[UploadFile, File()],
     patient_id: Annotated[str, Form()],
     language: Annotated[str | None, Form()] = None,
@@ -143,7 +140,6 @@ async def transcribe(
     is sent — mishearing a date in a language the operator does not read is not
     a failure anyone would catch later.
     """
-    state = _state(request)
     patient = state.world.patient(patient_id)
     if patient is None:
         raise HTTPException(404, "unknown patient")
@@ -211,7 +207,7 @@ def _latest_plan_message(runner, patient_id: str) -> dict | None:
 
 
 @router.get("/patients/{patient_id}/home")
-async def home(request: Request, patient_id: str) -> dict:
+async def home(state: ContainerDep, patient_id: str) -> dict:
     """Everything the family's phone shows, in one call.
 
     One call rather than five because this screen is read on a 2G connection in
@@ -221,7 +217,6 @@ async def home(request: Request, patient_id: str) -> dict:
     Nothing here is a finding, a result, or advice. The decision, a date, what
     is being waited for, and the words the language layer already wrote.
     """
-    state = _state(request)
     patient = state.world.patient(patient_id)
     if patient is None:
         raise HTTPException(404, "unknown patient")
@@ -307,7 +302,7 @@ async def home(request: Request, patient_id: str) -> dict:
 
 
 @router.patch("/patients/{patient_id}/language")
-async def choose_language(request: Request, patient_id: str, body: LanguageChoice) -> dict:
+async def choose_language(state: ContainerDep, patient_id: str, body: LanguageChoice) -> dict:
     """The family picks their language. Every message after this obeys.
 
     A real change to their record, logged and re-rendered — not a translation
@@ -315,7 +310,6 @@ async def choose_language(request: Request, patient_id: str, body: LanguageChoic
     "Plan" is chrome; everything the system *says* is re-written by the
     language layer and re-checked by the guard.
     """
-    state = _state(request)
     result = await state.runner.set_language(patient_id, body.language)
     if result is None:
         raise HTTPException(404, "unknown patient")

@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
-from saathi.api.deps import build_state
+from saathi.bootstrap.container import build_container
 from saathi.config import Settings
 from saathi.domain.enums import StepKind
 from saathi.live.events import EventKind
@@ -35,7 +35,7 @@ def test_anita_devi_sits_at_an_echo_gated_dose():
 @pytest.fixture
 def scripted_state():
     settings = Settings(_env_file=None, live_watched=4, live_scripted=True)
-    return build_state(settings, today=START)
+    return build_container(settings, today=START)
 
 
 async def test_the_scripted_world_plans_both_families_from_the_start(scripted_state):

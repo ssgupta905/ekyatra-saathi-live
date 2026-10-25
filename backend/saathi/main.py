@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -11,28 +10,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .api.board import router as board_router
-from .api.deps import build_state
 from .api.family import router as family_router
 from .api.live import router as live_router
-from .api.live import start_runner, stop_runner
 from .api.routes import router
+from .bootstrap.lifespan import lifespan
 from .config import get_settings
-from .live.world import default_start
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    settings = get_settings()
-    logging.basicConfig(level=settings.log_level)
-    # The world starts a few days back so reports land while someone is
-    # watching, rather than having all landed before the demo begins.
-    state = build_state(settings, today=default_start(settings.live_start_offset_days))
-    app.state.saathi = state
-    await start_runner(state)
-    try:
-        yield
-    finally:
-        await stop_runner(state)
 
 
 def create_app() -> FastAPI:

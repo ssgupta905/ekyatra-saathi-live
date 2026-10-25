@@ -1,7 +1,7 @@
 """What a language backend has to be.
 
 One method, and a name for the console to show. Everything that makes the
-output safe lives in `rendering.py` and is not a backend's to choose.
+output safe lives in `language/rendering.py` and is not a backend's to choose.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from typing import Protocol
 
 from ..domain.enums import Channel, Language
 from ..domain.models import CaregiverMessage, VisitPlan
-from ..ledger.evidence import InMemoryEvidenceLedger
+from .ledger import EvidenceLedger
 
 
 class LanguageLayer(Protocol):
@@ -19,7 +19,7 @@ class LanguageLayer(Protocol):
         plan: VisitPlan,
         language: Language,
         channel: Channel,
-        ledger: InMemoryEvidenceLedger,
+        ledger: EvidenceLedger,
     ) -> CaregiverMessage:
         """Turn a decided plan into a guarded message, or divert it to a human."""
         ...

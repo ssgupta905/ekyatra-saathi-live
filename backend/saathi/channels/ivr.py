@@ -18,7 +18,7 @@ from ..domain.enums import Language
 from ..domain.models import CaregiverMessage
 from ..language import guard
 from ..language.bhashini import BhashiniClient, BhashiniUnavailable
-from .whatsapp import DeliveryReceipt
+from ..ports.transport import DeliveryReceipt
 
 logger = logging.getLogger(__name__)
 
