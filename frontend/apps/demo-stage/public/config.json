@@ -1,8 +1,7 @@
 {
   "apiBase": "/api",
   "apps": {
-    "navigator": "http://localhost:5173",
-    "desk": "http://localhost:5174",
-    "family": "http://localhost:5180"
+    "family": "http://localhost:5180",
+    "control": "http://localhost:5173"
   }
 }

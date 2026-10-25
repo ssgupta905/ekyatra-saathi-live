@@ -1,0 +1,127 @@
+/* The control centre's frame: header, a section rail on the left, wide panes.
+   Everything inside a section uses the shared staff kit (staff.css) and the
+   recovered console rules (legacy.css). */
+
+.cc-app { min-height: 100vh; display: flex; flex-direction: column; background: var(--plane); }
+
+.cc-top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: var(--header-h);
+  padding: 0 18px;
+  background: var(--frost);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.cc-top .spacer { flex: 1; }
+
+.cc-world {
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: var(--r-pill);
+}
+.cc-world.demo { background: var(--uncertain-tint); color: var(--uncertain); }
+.cc-world.real { background: var(--go-tint); color: var(--go); }
+
+.cc-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 208px minmax(0, 1fr);
+  min-height: 0;
+}
+
+.cc-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 10px;
+  border-right: 1px solid var(--line-soft);
+  background: var(--surface);
+  position: sticky;
+  top: var(--header-h);
+  align-self: start;
+  height: calc(100vh - var(--header-h));
+}
+
+.cc-nav button {
+  text-align: left;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.cc-nav button:hover { background: var(--fill-quiet); }
+.cc-nav button.on { background: var(--blue-100); color: var(--blue-700); font-weight: 600; }
+
+.cc-main { padding: 18px 22px 40px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.cc-main > * { flex-shrink: 0; }
+
+.cc-heading h1 { font-size: 22px; letter-spacing: -0.02em; margin: 0; }
+.cc-heading p { margin: 3px 0 0; color: var(--ink-3); font-size: 13.5px; }
+
+/* Families: the call list and the family, side by side. */
+.cc-families {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.cc-families > :first-child { position: sticky; top: calc(var(--header-h) + 14px); max-height: calc(100vh - var(--header-h) - 40px); overflow: auto; }
+.cc-family { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+
+.cc-story { display: flex; flex-direction: column; gap: 14px; }
+.cc-loading { padding: 40px; color: var(--ink-3); }
+
+/* Sign in as… */
+.cc-picker { max-width: 1080px; margin: 0 auto; padding: 48px 24px; }
+.cc-picker header h1 { font-size: 30px; margin: 0; letter-spacing: -0.02em; }
+.cc-picker header h1 span { color: var(--ink-3); font-weight: 400; }
+.cc-picker header p { color: var(--ink-3); margin: 6px 0 0; }
+.cc-scope { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.cc-picker section { margin-top: 28px; }
+.cc-picker h2 { font-size: 15px; margin: 0 0 10px; }
+.cc-picker h2 span { font-weight: 400; color: var(--ink-4); margin-left: 8px; font-size: 13px; }
+.cc-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.cc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 16px;
+  text-align: left;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  color: var(--ink);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.cc-card:hover { border-color: var(--blue-300); }
+.cc-card span { color: var(--ink-3); font-size: 13px; }
+.cc-card em { color: var(--blue-500); font-size: 12px; font-style: normal; }
+.cc-foot { margin-top: 32px; color: var(--ink-4); font-size: 12.5px; }
+
+@media (max-width: 1100px) {
+  .cc-families { grid-template-columns: 1fr; }
+  .cc-families > :first-child { position: static; max-height: 320px; }
+}
+
+/* The detail is what a navigator reads; give it the larger share of a wide screen. */
+@media (min-width: 1180px) {
+  .cc-family .split { grid-template-columns: minmax(330px, 0.8fr) minmax(0, 1.35fr); }
+  .cc-family .split-aside { top: calc(var(--header-h) + 14px); }
+}
+.cc-family .segmented-control { overflow-x: auto; max-width: 100%; }
+.cc-families .rail { position: static; height: auto; border: 1px solid var(--line-soft); border-radius: var(--r-lg); }

@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 /**
  * The shape of the frontend, checked without a browser.
  *
- * There are six apps on six fixed ports, and one of them (the demo stage) frames
+ * There are three apps on three fixed ports, and one of them (the demo stage) frames
  * the others by address. If a port changes in one place and not another, the stage
  * shows a blank frame and nothing says why. These tests are where that is caught.
  */
@@ -19,7 +19,7 @@ const apps = readdirSync(here, { withFileTypes: true })
   .map((entry) => entry.name)
   .sort();
 
-const STAFF = ["navigator", "desk", "doctor", "admin"];
+const STAFF = ["control-centre"];
 
 function viteConfig(app: string): { name: string; port: number } {
   const match = read(app, "vite.config.ts").match(/appConfig\("([\w-]+)",\s*(\d+)\)/);
@@ -30,8 +30,8 @@ function viteConfig(app: string): { name: string; port: number } {
 const portOf = (app: string) => viteConfig(app).port;
 
 describe("the apps", () => {
-  it("are the six we expect", () => {
-    expect(apps).toEqual(["admin", "demo-stage", "desk", "doctor", "family-web", "navigator"]);
+  it("are the three we expect: the control centre, the family's site, the stage", () => {
+    expect(apps).toEqual(["control-centre", "demo-stage", "family-web"]);
   });
 
   it.each(apps)("%s is a complete app", (app) => {
@@ -64,27 +64,29 @@ describe("the apps", () => {
     expect(config.apiBase).toBe("/api");
   });
 
-  it.each(STAFF)("%s uses the shared staff stylesheet and the shell", (app) => {
+  it.each(STAFF)("%s uses the shared staff stylesheet", (app) => {
     expect(read(app, "src/main.tsx")).toContain("@saathi/ui-web/styles.css");
-    expect(read(app, "src/App.tsx")).toContain("AppShell");
   });
 
-  it.each(apps.filter((a) => a !== "demo-stage"))("%s asks the server who is looking before it shows anything", (app) => {
-    const main = read(app, "src/main.tsx");
-    expect(main).toContain("<AuthGate");
-    // The gate wraps the app, not the other way round.
-    expect(main.indexOf("<AuthGate")).toBeLessThan(main.indexOf("<App />"));
+  it("ask the server who is looking before they show anything", () => {
+    const control = read("control-centre", "src/main.tsx");
+    expect(control.indexOf("<PersonaGate")).toBeLessThan(control.indexOf("<App />"));
+    expect(read("control-centre", "src/session.tsx")).toContain('<AuthGate app="Control Centre" way="staff" roles={STAFF_ROLES}>');
+    const family = read("family-web", "src/main.tsx");
+    expect(family.indexOf("<AuthGate")).toBeLessThan(family.indexOf("<App />"));
+    expect(family).toContain('roles={["caregiver"]}');
   });
 
-  it("let each app through only to the role it is for", () => {
-    const roleOf = (app: string) => read(app, "src/main.tsx").match(/roles=\{\["(\w+)"\]\}/)?.[1];
-    expect(Object.fromEntries(STAFF.map((app) => [app, roleOf(app)]))).toEqual({
-      navigator: "navigator",
-      desk: "desk",
-      doctor: "doctor",
-      admin: "admin",
-    });
-    expect(roleOf("family-web")).toBe("caregiver");
+  it("offer every staff screen a section, each for the roles that use it", async () => {
+    const { SECTIONS, HOME } = await import("./control-centre/src/sections");
+    const ids = SECTIONS.map((s) => s.id);
+    for (const role of ["navigator", "desk", "doctor", "admin"] as const) {
+      expect(ids, `${role}'s home`).toContain(HOME[role]);
+      expect(SECTIONS.find((s) => s.id === HOME[role])!.roles).toContain(role);
+    }
+    expect(SECTIONS.find((s) => s.id === "audit")!.roles).toEqual(["admin"]);
+    expect(SECTIONS.find((s) => s.id === "config")!.roles).toEqual(["admin"]);
+    expect(SECTIONS.find((s) => s.id === "approvals")!.roles).not.toContain("desk");
   });
 
   it("keep the family app free of the staff stylesheet", () => {
@@ -98,25 +100,38 @@ describe("the demo stage", () => {
   const stage = JSON.parse(read("demo-stage", "public/config.json"));
 
   it("frames each app at the port that app actually runs on", () => {
-    expect(stage.apps.navigator).toBe(`http://localhost:${portOf("navigator")}`);
-    expect(stage.apps.desk).toBe(`http://localhost:${portOf("desk")}`);
+    expect(stage.apps.control).toBe(`http://localhost:${portOf("control-centre")}`);
     expect(stage.apps.family).toBe(`http://localhost:${portOf("family-web")}`);
   });
 
   it("falls back to the same ports when there is no config.json", () => {
     const source = read("demo-stage", "src/App.tsx");
     expect(source).toContain(`family: "http://localhost:${portOf("family-web")}"`);
-    expect(source).toContain(`desk: "http://localhost:${portOf("desk")}"`);
-    expect(source).toContain(`navigator: "http://localhost:${portOf("navigator")}"`);
+    expect(source).toContain(`control: "http://localhost:${portOf("control-centre")}"`);
   });
 
-  it("is the only place the presenter's controls live", () => {
-    for (const app of apps.filter((a) => a !== "demo-stage")) {
+  it("frames the control centre as the desk and as the navigator", () => {
+    const source = read("demo-stage", "src/App.tsx");
+    expect(source).toContain("?persona=imran&section=desk");
+    expect(source).toContain("?persona=seema&section=families");
+  });
+
+  it("keeps the presenter's controls off the family's screen", () => {
+    for (const app of ["family-web"]) {
       const source = readdirSync(resolve(here, app, "src")).map((f) => (f.endsWith(".tsx") ? read(app, "src", f) : ""));
       const text = source.join("\n");
       expect(text, `${app} has a story bar`).not.toContain("StoryBar");
       expect(text, `${app} has clock controls`).not.toContain("live.control");
     }
+  });
+});
+
+describe("the control centre's simulator screens", () => {
+  it("exist only in the demo world", async () => {
+    const { SECTIONS, sectionsFor } = await import("./control-centre/src/sections");
+    expect(SECTIONS.filter((s) => s.demoOnly).map((s) => s.id).sort()).toEqual(["operator", "story"]);
+    expect(sectionsFor("admin", false).map((s) => s.id)).not.toContain("operator");
+    expect(sectionsFor("admin", false).map((s) => s.id)).not.toContain("story");
   });
 });
 

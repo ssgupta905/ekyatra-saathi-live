@@ -65,7 +65,7 @@ api:
 
 # The real world: a hospital's own records on the real calendar, kept in the
 # database at SAATHI_RECORDS_URL (SQLite by default; a Postgres URL is the only
-# change needed to move). Starts empty; enter families in the desk app or import.
+# change needed to move). Starts empty; enter families in the control centre's Desk section, or import.
 api-real: migrate
 	SAATHI_WORLD=real PYTHONPATH=backend $(PY) -m uvicorn saathi.main:app --reload --port $(PORT) \
 		--timeout-graceful-shutdown 2
@@ -82,7 +82,7 @@ migrate:
 	PYTHONPATH=backend $(PY) -c "from saathi.adapters.records.sql import migrate; \
 	from saathi.config import get_settings; migrate(get_settings().records_url); print('records database is current')"
 
-# Ports: navigator 5173, desk 5174, doctor 5175, admin 5176, family-web 5180,
+# Ports: control-centre 5173, family-web 5180,
 # demo-stage 5190 (the one that shows them all side by side). Node 22+.
 web:
 	cd frontend && npm install --no-audit --no-fund && npm run dev

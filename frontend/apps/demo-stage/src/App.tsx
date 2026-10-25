@@ -38,8 +38,8 @@ const FOCUS: [Focus, string][] = [
 /** Where each app is. `config.json` wins; these are the local development ports. */
 const DEFAULT_APPS = {
   family: "http://localhost:5180",
-  desk: "http://localhost:5174",
-  navigator: "http://localhost:5173",
+  /** The control centre, framed twice: once as the desk, once as the navigator. */
+  control: "http://localhost:5173",
 };
 
 /** Which families get a phone. One by default; `?phones=P-SHAMBHU,P-ANITA` for two. */
@@ -105,7 +105,7 @@ export default function App() {
             <span className="st-sub">reports and confirms</span>
           </header>
           <div className="st-desk-shell">
-            <iframe title="Desk app" src={`${apps.desk}/`} />
+            <iframe title="Desk app" src={`${apps.control}/?persona=imran&section=desk`} />
           </div>
         </section>
 
@@ -116,7 +116,7 @@ export default function App() {
             <span className="st-sub">decides and calls</span>
           </header>
           <div className="st-desk-shell">
-            <iframe title="Navigator app" src={`${apps.navigator}/`} />
+            <iframe title="Navigator app" src={`${apps.control}/?persona=seema&section=families`} />
           </div>
         </section>
       </div>

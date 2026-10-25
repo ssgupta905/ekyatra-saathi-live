@@ -41,7 +41,7 @@ That is the configuration CI runs and the one to fall back on if the venue's wif
 - [The problem](#the-problem) · [The rule](#the-rule)
 - [How it fits together](#how-it-fits-together)
 - [**Invariants — do not break these**](#invariants--do-not-break-these)
-- [The live demo](#the-live-demo) · [The staff apps](#the-staff-apps) · [Real records](#real-records) · [Who may do what](#who-may-do-what)
+- [The live demo](#the-live-demo) · [The control centre](#the-control-centre) · [Real records](#real-records) · [Who may do what](#who-may-do-what)
 - [Layout](#layout) · [Configuration](#configuration)
 - [Working on it](#working-on-it) · [Troubleshooting](#troubleshooting)
 - [**Known gaps — where to pick up**](#known-gaps--where-to-pick-up)
@@ -227,26 +227,18 @@ SAATHI_LIVE_AUTOSTART=true        # start the clock on boot instead
 SAATHI_LIVE_SECONDS_PER_DAY=2     # default 4
 ```
 
-### Separate apps, not one
-
-Each role is its own application with its own port, because each is a different person on a
-different device. They share a backend, a design system and nothing else.
+### Two products: the hospital's control centre and the family's phone
 
 | App | Port | Who | What it is |
 |---|---|---|---|
-| `navigator` | 5173 | a patient navigator | Worklist, what the family wrote in, alerts, the ranked options, and why |
-| `desk` | 5174 | a ward or lab desk | Report what went wrong in the ward's own words; confirm what was released |
-| `doctor` | 5175 | a treating doctor | The decisions only a doctor may make, with the reasoning beside them |
-| `admin` | 5176 | an administrator | Readiness rules, languages, and the audit log |
+| `control-centre` | 5173 | every hospital role | One website with persona sign-in, where each role sees the screens its work uses ([below](#the-control-centre)) |
 | `family-web` | 5180 | demo only | The family's screen in a browser; the real phone is the [Android app](#the-family-app-android) |
-| `demo-stage` | 5190 | a camera | All of the above, live, in device frames, with the story bar and the clock |
+| `demo-stage` | 5190 | a camera | The family's phone beside the control centre (framed as the desk and as the navigator), with the story bar and the clock |
 
-The story bar and the clock controls are the presenter's tools and exist **only** on the stage:
-no role's app has them, because in a real hospital nobody can make a Tuesday arrive sooner.
+The family's app and the family site are the same screen on two devices, on purpose. The
+hospital's side is a different product: wide, dense, and every role in one place.
 Each app reads its API address (and, for the stage, where the others are) from a `config.json`
-beside it, so one build can be pointed at any backend. Each shows who is signed in. In the demo that is one fixed person per role; in the real world
-it is whoever logged in (see [Who may do what](#who-may-do-what)), and the server decides what
-the role may do: a navigator cannot approve what touches treatment.
+beside it, so one build can be pointed at any backend.
 
 **Multilingual, and where the line is.** `frontend/packages/i18n/src/i18n.ts` holds chrome
 only — "Plan", "Send", the names of the twelve step kinds, and the three labels
@@ -331,7 +323,27 @@ wording depends on moves — decision, travel date, blockers, checklist. Counter
 
 ---
 
-## The staff apps
+## The control centre
+
+One website for every hospital role. In the demo you **sign in as** one of the people in the
+brief (two navigators, three desks, two doctors, two administrators; the families open their
+own app). On real records the same page asks for a username and password. Either way the
+left-hand sections are the ones that role uses, and the server decides what it may do.
+
+| Section | Who | What |
+|---|---|---|
+| Families | all staff | The call list (search; alerts first, then the furthest away), the answer with its run timings, the brief to read before calling, and tabs: **Why**, **Pathway**, **Timeline**, **Checklist**, **Message** (plan → write → guard → send), **Family** (what they wrote in), **Ledger** |
+| Plan boards | all staff | Every family's pathway at once |
+| Disruptions & approvals | navigator, doctor, admin | Outages in force, and the re-plans waiting on a person; a doctor sees only what needs a doctor |
+| Desk | desk, admin | Report what went wrong in the log's own words; confirm releases; on real records, register families, add steps, release reports, import CSV or FHIR |
+| Cohort | navigator, doctor, admin | The scorecard (demo), who needs a person, the desk queue, work done |
+| Story view | all staff, demo | The brief's two stories in four lanes, with the scorecard |
+| Operator | navigator, admin, demo | The clock, and a question put in a family's mouth |
+| Configuration | admin | Readiness rules, languages and channels, integrations (read-only for now) |
+| Audit log | admin | Every fact asserted, across every family, with the hash chain checked |
+
+Sections link: `#/families/P-ANITA/why` opens Anita's reasoning directly.
+
 
 One light theme — an Apple-web palette on a `#f5f5f7` plane — and one organising idea:
 **the decision is never shown without the chain that produced it.**
@@ -363,10 +375,10 @@ families. The same code also runs on a hospital's own records.
 
 ```bash
 make api-real    # the API on SAATHI_WORLD=real: starts empty, on the real calendar, nothing simulated
-make web         # in a second terminal: the apps against it (desk is http://localhost:5174)
+make web         # in a second terminal: the apps against it (the control centre is http://localhost:5173)
 ```
 
-In the real world the desk app shows a different screen: register a family, add the steps of
+In the real world the control centre's Desk section shows more: register a family, add the steps of
 their journey, mark a report released, or import a file. Each change is planned on at once, so
 the family's answer moves the moment the fact does.
 
@@ -502,10 +514,7 @@ frontend/          npm workspace: shared packages, and the apps built on them
   packages/i18n        the family app's words in hi / bn / or / en
   packages/theme       design tokens (tokens.json -> generated CSS and React Native values)
   packages/ui-web      staff web primitives, glyphs, formatting, the explanation model
-  apps/navigator       the navigator's screen          (:5173)
-  apps/desk            the desk's screen               (:5174)
-  apps/doctor          the doctor's screen             (:5175)
-  apps/admin           readiness rules and the audit   (:5176)
+  apps/control-centre  every hospital role, one website (:5173)
   apps/family-web      the family's screen in a browser, demo only  (:5180)
   apps/demo-stage      every screen at once, with the presenter's controls  (:5190)
 android/           the family app: Kotlin + Jetpack Compose, a standard Gradle project
@@ -664,7 +673,7 @@ ABDM is deliberately last — it is an upgrade, not a prerequisite.
 
 ### 7. Narrow-viewport layout is unverified
 
-The staff apps are desktop apps and are only checked at desktop widths. The worklist rail
+The control centre is a desktop app and is only checked at desktop widths. The worklist rail
 collapses below 900px in CSS but that has not been seen rendered, so this is low priority.
 
 ---

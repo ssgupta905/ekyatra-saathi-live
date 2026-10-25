@@ -1,11 +1,38 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "navigator", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "frontend/apps/navigator", "run", "dev"], "port": 5173 },
-    { "name": "desk", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "frontend/apps/desk", "run", "dev"], "port": 5174 },
-    { "name": "doctor", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "frontend/apps/doctor", "run", "dev"], "port": 5175 },
-    { "name": "admin", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "frontend/apps/admin", "run", "dev"], "port": 5176 },
-    { "name": "family-web", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "frontend/apps/family-web", "run", "dev"], "port": 5180 },
-    { "name": "demo-stage", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "frontend/apps/demo-stage", "run", "dev"], "port": 5190 }
+    {
+      "name": "control-centre",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "frontend/apps/control-centre",
+        "run",
+        "dev"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "family-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "frontend/apps/family-web",
+        "run",
+        "dev"
+      ],
+      "port": 5180
+    },
+    {
+      "name": "demo-stage",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "frontend/apps/demo-stage",
+        "run",
+        "dev"
+      ],
+      "port": 5190
+    }
   ]
 }

@@ -56,7 +56,12 @@ export function AuthGate({ app, way, roles, children }: AuthGateProps) {
     installAuth(() => setState({ kind: "signedOut" }));
     try {
       const config = await auth.config();
-      if (!config.required) return setState({ kind: "open" });
+      if (!config.required) {
+        // A token left from a session against a world with login on means nothing
+        // here, and would make the stream ask for tickets this server does not issue.
+        tokenStore.clear();
+        return setState({ kind: "open" });
+      }
       if (!tokenStore.get()) return setState({ kind: "signedOut" });
       const principal = await auth.me().catch(() => null);
       if (principal) setState({ kind: "ready", principal });
