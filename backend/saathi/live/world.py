@@ -36,6 +36,7 @@ from ..domain.enums import (
 )
 from ..domain.models import CareStep, Disruption, MaintenanceCycle, Patient, Resource
 from ..graph.dependencies import RESOURCE_REQUIREMENTS
+from ..ports.records import RecordStore, TurnaroundObservation
 from ..synthetic.generate import GroundTruth, SyntheticCohort, generate_cohort
 from ..synthetic.scripted import (
     ANITA_ID,
@@ -46,7 +47,7 @@ from ..synthetic.scripted import (
     SHAMBHU_ID,
     build_scripted_cohort,
 )
-from .clock import SimulationClock
+from .clock import SimulationClock, WallClock
 
 #: Statuses a step can still be in when a disruption might touch it. A
 #: completed or cancelled step is done — an outage announced afterwards
@@ -105,7 +106,7 @@ class DeskCandidate:
 class LiveWorld:
     """Mutable cohort state plus the desk queue that gates changes to it."""
 
-    clock: SimulationClock
+    clock: SimulationClock | WallClock
     cohort: SyntheticCohort
     #: Mutable per patient. The `CareStep`s themselves stay frozen and are
     #: replaced wholesale, so nothing ever holds a half-updated record.
@@ -144,6 +145,12 @@ class LiveWorld:
     #: the cohort — see `synthetic/scripted.py`. Drives resource registration
     #: and maintenance-cycle setup in `_load_cohort`.
     scripted: bool = False
+    #: True when the records are a hospital's own, on the real calendar. Nothing
+    #: is simulated, nothing is reset, and ground truth does not exist.
+    real: bool = False
+    #: Where changes are written through to. None in the demo, which should not
+    #: leave files behind.
+    store: RecordStore | None = None
 
     def target_kind_for(self, patient_id: str) -> StepKind:
         return self.plan_targets.get(patient_id, StepKind.REVIEW_CONSULT)
@@ -179,6 +186,122 @@ class LiveWorld:
         if scripted:
             world._wire_scripted_demo(start)
         return world
+
+    @classmethod
+    def build_real(
+        cls, store: RecordStore, clock_source, *, tick_seconds: float = 300.0
+    ) -> LiveWorld:
+        """A world made of whatever the store holds, on the real calendar."""
+        records = store.load()
+        world = cls(
+            clock=WallClock(clock_source, tick_seconds=tick_seconds),
+            cohort=SyntheticCohort(
+                patients=records.patients, steps={}, turnaround=(), ground_truth={}
+            ),
+            real=True,
+            store=store,
+            auto_confirm_ticks=0,
+        )
+        world.steps = {pid: list(rows) for pid, rows in records.steps.items()}
+        for patient in records.patients:
+            world.steps.setdefault(patient.id, [])
+        world.index = {row.id: pid for pid, rows in world.steps.items() for row in rows}
+        world.resources = {r.id: r for r in records.resources}
+        world.plan_targets = dict(records.plan_targets)
+        # Every family is watched: with no actors there is no per-family cost to
+        # cap, and a family the hospital entered should hear from it.
+        world.watched = tuple(p.id for p in records.patients)
+        return world
+
+    # ---------------- entering records (real world) ----------------
+
+    def add_patient(self, patient: Patient, plan_target: StepKind | None = None) -> Patient:
+        if self.patient(patient.id) is not None:
+            raise ValueError(f"patient {patient.id} already exists")
+        self.cohort = replace(self.cohort, patients=(*self.cohort.patients, patient))
+        self.steps[patient.id] = []
+        if plan_target is not None:
+            self.plan_targets[patient.id] = plan_target
+        if self.real:
+            self.watched = (*self.watched, patient.id)
+        if self.store is not None:
+            self.store.save_patient(patient, plan_target)
+        return patient
+
+    def update_patient(self, patient_id: str, **changes) -> Patient:
+        patient = self.patient(patient_id)
+        if patient is None:
+            raise LookupError(patient_id)
+        updated = patient.model_copy(update=changes)
+        self._replace_patient(updated)
+        return updated
+
+    def set_plan_target(self, patient_id: str, kind: StepKind) -> None:
+        patient = self.patient(patient_id)
+        if patient is None:
+            raise LookupError(patient_id)
+        self.plan_targets[patient_id] = kind
+        if self.store is not None:
+            self.store.save_patient(patient, kind)
+
+    def add_family_member(self, patient_id: str, member) -> Patient:
+        patient = self.patient(patient_id)
+        if patient is None:
+            raise LookupError(patient_id)
+        if any(m.id == member.id for m in patient.family_members):
+            raise ValueError(f"family member {member.id} already exists")
+        return self.update_patient(
+            patient_id, family_members=(*patient.family_members, member)
+        )
+
+    def add_step(self, step: CareStep) -> CareStep:
+        if step.patient_id not in self.steps:
+            raise LookupError(step.patient_id)
+        if step.id in self.index:
+            raise ValueError(f"step {step.id} already exists")
+        self.steps[step.patient_id].append(step)
+        self.index[step.id] = step.patient_id
+        self._persist_step(step)
+        return step
+
+    def update_step(self, step_id: str, **changes) -> CareStep:
+        patient_id = self.index.get(step_id)
+        if patient_id is None:
+            raise LookupError(step_id)
+        rows = self.steps[patient_id]
+        for position, row in enumerate(rows):
+            if row.id == step_id:
+                updated = row.model_copy(update=changes)
+                rows[position] = updated
+                self._persist_step(updated)
+                return updated
+        raise LookupError(step_id)
+
+    def record_turnaround(self, queue: str, days: float, hospital_id: str = "") -> None:
+        """A released report becomes one more observation for the forecast."""
+        if self.store is not None:
+            self.store.add_turnaround(
+                TurnaroundObservation(
+                    queue=queue, days=days, observed_on=self.today, hospital_id=hospital_id
+                )
+            )
+
+    def _replace_patient(self, updated: Patient) -> None:
+        patients = self.cohort.patients
+        for position, patient in enumerate(patients):
+            if patient.id == updated.id:
+                self.cohort = replace(
+                    self.cohort,
+                    patients=patients[:position] + (updated,) + patients[position + 1 :],
+                )
+                if self.store is not None:
+                    self.store.save_patient(updated, self.plan_targets.get(updated.id))
+                return
+        raise LookupError(updated.id)
+
+    def _persist_step(self, step: CareStep) -> None:
+        if self.store is not None:
+            self.store.save_step(step)
 
     def _wire_scripted_demo(self, start: date) -> None:
         from ..synthetic.scripted import seed_anita_devi
@@ -239,6 +362,8 @@ class LiveWorld:
 
     def reset(self, start: date | None = None) -> None:
         """Rebuild from the same seed. The demo is reproducible on purpose."""
+        if self.real:
+            raise RuntimeError("real records cannot be reset")
         start = start or self.clock.start
         self.clock.reset(start)
         self.disruptions.clear()
@@ -279,15 +404,13 @@ class LiveWorld:
         reader ever sees a patient half-switched.
         """
         patients = self.cohort.patients
-        for index, patient in enumerate(patients):
+        for patient in patients:
             if patient.id != patient_id:
                 continue
             if patient.language is language:
                 return patient
             updated = patient.model_copy(update={"language": language})
-            self.cohort = replace(
-                self.cohort, patients=patients[:index] + (updated,) + patients[index + 1 :]
-            )
+            self._replace_patient(updated)
             return updated
         return None
 
@@ -396,6 +519,7 @@ class LiveWorld:
                 }
             )
             rows[index] = updated
+            self._persist_step(updated)
             return updated
         return None
 
@@ -408,6 +532,8 @@ class LiveWorld:
         unregistered resource id still works, it just has no display metadata.
         """
         self.resources[resource.id] = resource
+        if self.store is not None:
+            self.store.save_resource(resource)
 
     def raise_disruption(
         self,
@@ -488,6 +614,7 @@ class LiveWorld:
                     continue
                 new_row = row.model_copy(update={"scheduled_for": new_date})
                 rows[index] = new_row
+                self._persist_step(new_row)
                 updated.append(new_row)
         return updated
 
@@ -512,6 +639,7 @@ class LiveWorld:
     def snapshot(self) -> dict:
         return {
             **self.clock.snapshot(),
+            "world": "real" if self.real else "demo",
             "patients": len(self.cohort.patients),
             "watched": list(self.watched),
             "pending_reports": self.pending_report_count(),

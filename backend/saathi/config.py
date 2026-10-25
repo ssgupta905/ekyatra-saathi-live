@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -25,6 +26,11 @@ class Settings(BaseSettings):
     #: Run as a demo: dev-only control endpoints are mounted and a simulator may
     #: drive the clock. Never allowed when `environment` is "production".
     sim_mode: bool = False
+    #: "demo" is the simulated world: a synthetic cohort, a clock that runs fast,
+    #: actors that write to the families. "real" is a hospital's own records,
+    #: entered by people, on the real calendar, with nobody pretending to be a
+    #: family. The switch changes what the world is made of and nothing else.
+    world: Literal["demo", "real"] = "demo"
     #: The hospital's timezone. "Today" is the hospital's date, not the server's.
     hospital_timezone: str = "Asia/Kolkata"
     #: Where reference data lives. Empty means: the repo's `data/` when running
@@ -41,6 +47,14 @@ class Settings(BaseSettings):
     )
 
     # --- storage ---
+    #: Where the real world's records live. A SQLAlchemy URL: moving to Postgres
+    #: is changing this string (`postgresql+psycopg://user:pw@host/db`) and
+    #: running `make migrate`. Unused in the demo world.
+    records_url: str = "sqlite:///./saathi_records.db"
+    #: How often the real world re-plans, in real seconds. In the real world a
+    #: "day" is not simulated, so this is only how soon a changed fact (a report
+    #: released, a date rolling over) is noticed.
+    real_tick_seconds: float = 300.0
     database_url: str = "sqlite+aiosqlite:///./saathi.db"
     neo4j_uri: str | None = None
     neo4j_user: str | None = None
@@ -140,7 +154,16 @@ class Settings(BaseSettings):
                 "SAATHI_SIM_MODE is on while SAATHI_ENVIRONMENT=production: "
                 "demo controls must never be reachable in production"
             )
+        if self.sim_mode and self.world == "real":
+            raise ValueError(
+                "SAATHI_SIM_MODE is on while SAATHI_WORLD=real: the simulator's "
+                "controls must never be reachable on real records"
+            )
         return self
+
+    @property
+    def real_world(self) -> bool:
+        return self.world == "real"
 
     @property
     def data_path(self) -> Path:

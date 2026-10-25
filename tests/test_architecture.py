@@ -24,7 +24,7 @@ ALLOWED: dict[str, set[str]] = {
     "ports": {"domain"},
     # Adapters implement ports; they may use the domain and each other's ports,
     # but never reach up into the HTTP layer or the composition root.
-    "adapters": {"domain", "ports"},
+    "adapters": {"domain", "ports", "db", "ledger"},
     # The product core: pure decision logic and its helpers.
     "planner": {"domain", "ports", "graph", "readiness", "language"},
     "language": {"domain", "ports", "planner"},

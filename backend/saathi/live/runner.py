@@ -30,6 +30,7 @@ from datetime import UTC, date, datetime, timedelta
 from time import perf_counter
 
 from ..domain.enums import (
+    REPORT_STEPS,
     AlertKind,
     Channel,
     Decision,
@@ -39,11 +40,13 @@ from ..domain.enums import (
     Role,
     SourceSystem,
     StepKind,
+    StepStatus,
 )
 from ..domain.models import (
     Alert,
     ApprovalDecision,
     CaregiverMessage,
+    CareStep,
     Disruption,
     FamilyMember,
     Patient,
@@ -58,6 +61,7 @@ from ..planner import options as options_module
 from ..planner.graph import VisitPlanner
 from ..planner.process_facts import resolve_process_fact
 from ..ports.ledger import EvidenceLedger
+from ..readiness.conformal import TurnaroundSample
 from ..synthetic.generate import evaluate
 from .events import EventBus, EventKind
 from .world import DeskCandidate, LiveWorld
@@ -352,6 +356,8 @@ class LiveRunner:
         self._publish_state()
 
     async def reset(self, start: date | None = None) -> None:
+        if self.world.real:
+            raise RuntimeError("real records cannot be reset")
         async with self._lock:
             self.world.reset(start)
             self.plans.clear()
@@ -377,7 +383,8 @@ class LiveRunner:
             try:
                 if self.world.clock.running:
                     await self.tick()
-                await asyncio.sleep(max(0.25, self.world.clock.seconds_per_day))
+                pace = getattr(self.world.clock, "tick_seconds", None)
+                await asyncio.sleep(max(0.25, pace or self.world.clock.seconds_per_day))
             except asyncio.CancelledError:
                 raise
             except Exception:  # noqa: BLE001 - the world must not stop on one bad day
@@ -450,6 +457,9 @@ class LiveRunner:
         }
 
     async def _auto_confirm(self) -> None:
+        if self.world.real:
+            # A person confirms every record in a real hospital; nothing is assumed.
+            return
         async with self._lock:
             expired = self.world.age_candidates()
         for candidate in expired:
@@ -461,7 +471,49 @@ class LiveRunner:
             step = self.world.confirm(candidate_id, automatic=automatic)
         if step is None or candidate is None:
             return False
+        await self._after_release(
+            step,
+            note=candidate.note,
+            confirmed_by="auto" if automatic else "desk staff",
+            candidate_id=candidate_id,
+            automatic=automatic,
+        )
+        return True
 
+    async def release_step(
+        self, step_id: str, *, by: str = "desk staff", note: str = ""
+    ) -> CareStep:
+        """Mark a report released because a person said so.
+
+        The real world's way in: there is no simulated candidate to confirm, so
+        the person's statement is the record. Everything that follows is the same
+        as a confirmed candidate — ledger row, events, an immediate re-plan.
+        """
+        async with self._lock:
+            before = self.world.step(step_id)
+            if before is None:
+                raise LookupError(step_id)
+            if before.kind not in REPORT_STEPS:
+                raise ValueError("only a report can be released")
+            if before.status is StepStatus.RESULT_AVAILABLE:
+                return before
+            step = self.world.apply_release(step_id)
+        assert step is not None
+        await self._after_release(
+            step, note=note, confirmed_by=by, candidate_id=None, automatic=False
+        )
+        return step
+
+    async def _after_release(
+        self,
+        step: CareStep,
+        *,
+        note: str,
+        confirmed_by: str,
+        candidate_id: str | None,
+        automatic: bool,
+    ) -> None:
+        self._learn_turnaround(step)
         before = self.ledger_size()
         entry = self.ledger.record_once(
             patient_id=step.patient_id,
@@ -470,8 +522,8 @@ class LiveRunner:
             claim=f"{step.kind.value} is {step.status.value}",
             metadata={
                 "released_on": self.world.today.isoformat(),
-                "confirmed_by": "auto" if automatic else "desk staff",
-                "note": candidate.note,
+                "confirmed_by": confirmed_by,
+                "note": note,
             },
         )
         appended = self.ledger_size() - before
@@ -500,7 +552,7 @@ class LiveRunner:
             patient_id=step.patient_id,
             summary=(
                 f"{label} confirmed for {step.patient_id}"
-                + (" (auto)" if automatic else " by desk staff")
+                + (" (auto)" if automatic else f" by {confirmed_by}")
             ),
             candidate_id=candidate_id,
             automatic=automatic,
@@ -517,7 +569,25 @@ class LiveRunner:
         # point is that the family's answer changes the moment the fact does.
         await self.plan_patient(step.patient_id, allow_render=True)
         await self.update_metrics()
-        return True
+
+    def _learn_turnaround(self, step: CareStep) -> None:
+        """In the real world a release is also a measurement.
+
+        Days from the sample being taken to the report landing is exactly what
+        the forecast is calibrated on, so each release makes the next forecast
+        for that queue a little better grounded. The demo's history is
+        synthetic and is left alone.
+        """
+        if not self.world.real or not step.queue or step.completed_on is None:
+            return
+        days = (self.world.today - step.completed_on).days
+        if days < 0:
+            return
+        patient = self.world.patient(step.patient_id)
+        self.world.record_turnaround(
+            step.queue, float(days), patient.hospital_id if patient else ""
+        )
+        self.planner.predictor.fit([TurnaroundSample(queue=step.queue, days=float(days))])
 
     # ---------------- disruptions ----------------
 
@@ -1261,7 +1331,7 @@ class LiveRunner:
         while True:
             try:
                 await asyncio.sleep(self.inbound_every_seconds)
-                if not self.world.clock.running or self.actors is None:
+                if self.world.real or not self.world.clock.running or self.actors is None:
                     continue
                 if not self.world.watched:
                     continue
@@ -1380,6 +1450,10 @@ class LiveRunner:
     # ---------------- scoring ----------------
 
     async def update_metrics(self) -> None:
+        if self.world.real:
+            # The score compares plans with planted ground truth. Real records
+            # have none, and a number that looks like a result would be a lie.
+            return
         decisions: dict[str, date | None] = {}
         for patient_id, run in self.plans.items():
             plan = run.plan

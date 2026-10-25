@@ -33,6 +33,11 @@ class PatientRow(Base):
     __tablename__ = "patients"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    name: Mapped[str] = mapped_column(String(160), default="")
+    abha_number: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    #: The step kind this family is planned towards; null means the pathway's
+    #: terminal visit (a review consult).
+    plan_target_kind: Mapped[str | None] = mapped_column(String(32), nullable=True)
     home_district: Mapped[str] = mapped_column(String(128))
     home_distance_km: Mapped[float] = mapped_column(Float)
     language: Mapped[str] = mapped_column(String(8))
@@ -40,6 +45,35 @@ class PatientRow(Base):
     hospital_id: Mapped[str] = mapped_column(String(32), index=True)
 
     steps: Mapped[list[CareStepRow]] = relationship(back_populates="patient")
+    family: Mapped[list[FamilyMemberRow]] = relationship(
+        back_populates="patient", cascade="all, delete-orphan"
+    )
+
+
+class FamilyMemberRow(Base):
+    __tablename__ = "family_members"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    patient_id: Mapped[str] = mapped_column(ForeignKey("patients.id"), index=True)
+    role: Mapped[str] = mapped_column(String(32))
+    name: Mapped[str] = mapped_column(String(160))
+    phone: Mapped[str] = mapped_column(String(24))
+    preferred_channel: Mapped[str] = mapped_column(String(16))
+    language: Mapped[str] = mapped_column(String(8))
+
+    patient: Mapped[PatientRow] = relationship(back_populates="family")
+
+
+class ResourceRow(Base):
+    """A named, bookable hospital thing a desk can report unavailable."""
+
+    __tablename__ = "resources"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16))
+    display_name: Mapped[str] = mapped_column(String(160))
+    hospital_id: Mapped[str] = mapped_column(String(32), index=True)
+    department: Mapped[str] = mapped_column(String(64))
 
 
 class CareStepRow(Base):
@@ -53,6 +87,7 @@ class CareStepRow(Base):
     completed_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     result_available_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     queue: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    resource_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
 
     patient: Mapped[PatientRow] = relationship(back_populates="steps")
 
@@ -70,6 +105,10 @@ class LedgerRow(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     previous_hash: Mapped[str] = mapped_column(String(64))
     entry_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    #: The exact text that was hashed. `recorded_at` above is for querying; a
+    #: database may drop its timezone, which would change the hash on reload.
+    recorded_at_iso: Mapped[str] = mapped_column(String(40), default="")
+    metadata_json: Mapped[str] = mapped_column(Text, default="{}")
 
 
 class PlanRow(Base):

@@ -11,6 +11,7 @@ There is no code path from a FHIR payload to a message body.
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Iterable
 from datetime import date, datetime
 from typing import Any
@@ -60,10 +61,16 @@ _CODE_TO_KIND: tuple[tuple[str, StepKind], ...] = (
     ("histopath", StepKind.PATHOLOGY_REPORT),
     ("pathology", StepKind.PATHOLOGY_REPORT),
     ("biopsy", StepKind.BIOPSY),
+    ("joint clinic", StepKind.JOINT_CLINIC),
+    ("tumour board", StepKind.JOINT_CLINIC),
+    ("tumor board", StepKind.JOINT_CLINIC),
     ("ct", StepKind.RADIOLOGY_REPORT),
     ("mri", StepKind.RADIOLOGY_REPORT),
     ("pet", StepKind.RADIOLOGY_REPORT),
     ("imaging", StepKind.RADIOLOGY_REPORT),
+    ("radiology", StepKind.RADIOLOGY_REPORT),
+    ("x-ray", StepKind.RADIOLOGY_REPORT),
+    ("scan", StepKind.RADIOLOGY_REPORT),
     ("haematology", StepKind.BLOODS),
     ("cbc", StepKind.BLOODS),
     ("consultation", StepKind.CONSULT),
@@ -82,12 +89,34 @@ def _text_of(resource: dict[str, Any]) -> str:
     return " ".join(p for p in parts if p).lower()
 
 
+def _matches(fragment: str, haystack: str) -> bool:
+    """Whole-word for acronyms, word-start for stems.
+
+    A bare substring test read "doctor" as a CT scan (it ends in "ct"), which
+    would plan a family around an imaging report that does not exist.
+    """
+    pattern = rf"\b{re.escape(fragment)}\b" if len(fragment) <= 3 else rf"\b{re.escape(fragment)}"
+    return re.search(pattern, haystack) is not None
+
+
 def _classify(resource: dict[str, Any]) -> StepKind | None:
     haystack = _text_of(resource)
     for fragment, kind in _CODE_TO_KIND:
-        if fragment in haystack:
+        if _matches(fragment, haystack):
+            kind = _booked_kind(resource, kind, haystack)
             return kind
     return None
+
+
+def _booked_kind(resource: dict[str, Any], kind: StepKind, haystack: str) -> StepKind:
+    """An imaging *appointment* is the scan itself, not a report about one.
+
+    The same words on a DiagnosticReport name the report the family waits for;
+    on an Appointment they name a visit the family travels to.
+    """
+    if resource.get("resourceType") == "Appointment" and kind is StepKind.RADIOLOGY_REPORT:
+        return StepKind.PET_CT if _matches("pet", haystack) else StepKind.SCAN
+    return kind
 
 
 def _parse_date(value: Any) -> date | None:

@@ -16,6 +16,9 @@ import logging
 from dataclasses import dataclass, field
 from datetime import date
 
+from ..adapters.clock import SystemClock
+from ..adapters.ledger import SqlEvidenceLedger
+from ..adapters.records import SqlRecordStore
 from ..config import Settings, get_settings
 from ..graph.dependencies import InMemoryDependencyGraph
 from ..language.claude import ClaudeLanguageLayer
@@ -27,7 +30,7 @@ from ..planner.graph import VisitPlanner
 from ..ports.clock import Clock
 from ..ports.language import LanguageLayer
 from ..ports.ledger import EvidenceLedger
-from ..readiness.conformal import ConformalReadinessPredictor
+from ..readiness.conformal import ConformalReadinessPredictor, TurnaroundSample
 from ..synthetic.generate import SyntheticCohort
 from ..tools import build_toolbox
 
@@ -88,18 +91,35 @@ def build_actors(settings: Settings, world: LiveWorld):
 def build_container(settings: Settings | None = None, today: date | None = None) -> Container:
     settings = settings or get_settings()
 
-    world = LiveWorld.build(
-        start=today or date.today(),
-        seconds_per_day=settings.live_seconds_per_day,
-        n_watched=settings.live_watched,
-        auto_confirm_ticks=settings.live_auto_confirm_ticks,
-        scripted=settings.live_scripted,
-    )
-
     predictor = ConformalReadinessPredictor(alpha=settings.conformal_alpha)
-    predictor.fit(world.cohort.turnaround)
+    if settings.real_world:
+        # The real world is whatever the store holds, on the hospital's calendar.
+        # Its forecast is calibrated only on releases it has actually seen: until
+        # a queue has enough of them the planner says it does not know, which is
+        # the true answer.
+        store = SqlRecordStore(settings.records_url)
+        world = LiveWorld.build_real(
+            store,
+            SystemClock(settings.hospital_timezone),
+            tick_seconds=settings.real_tick_seconds,
+        )
+        predictor.fit(
+            [TurnaroundSample(queue=o.queue, days=o.days) for o in store.load().turnaround]
+        )
+    else:
+        world = LiveWorld.build(
+            start=today or date.today(),
+            seconds_per_day=settings.live_seconds_per_day,
+            n_watched=settings.live_watched,
+            auto_confirm_ticks=settings.live_auto_confirm_ticks,
+            scripted=settings.live_scripted,
+        )
+        predictor.fit(world.cohort.turnaround)
 
-    ledger = InMemoryEvidenceLedger()
+    # The audit trail outlives the process in the real world; the demo's does not.
+    ledger = (
+        SqlEvidenceLedger(settings.records_url) if settings.real_world else InMemoryEvidenceLedger()
+    )
     planner = VisitPlanner(
         dependency_graph=InMemoryDependencyGraph(),
         predictor=predictor,

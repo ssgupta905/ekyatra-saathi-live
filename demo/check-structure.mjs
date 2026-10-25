@@ -32,7 +32,12 @@ try {
     nav: page.frameLocator('iframe[title="Navigator app"]'),
   };
 
-  // [where, what, selector, optional text]
+  // The read-aloud button only exists once a message has been written, and a
+  // message needs a language layer. Without a key that is not a broken stage.
+  const health = await page.request.get(`${STAGE_URL}/api/health`).then((r) => r.json()).catch(() => ({}));
+  const hasMessages = Boolean(health.language_layer);
+
+  // [where, what, selector, optional text, needs a written message]
   const expected = [
     [page, "stage", ".story-bar button.btn.primary"],
     [page, "stage", ".story-progress"],
@@ -43,7 +48,7 @@ try {
     [page, "stage", ".st-focus button", "Navigator"],
     [frames.phone, "phone", ".fx-app"],
     [frames.phone, "phone", ".fx-scroll"],
-    [frames.phone, "phone", ".fx-speak"],
+    [frames.phone, "phone", ".fx-speak", undefined, true],
     [frames.phone, "phone", ".fx-mic"],
     [frames.phone, "phone", ".fx-send"],
     [frames.phone, "phone", '.fx-langs button[title="Bengali"]'],
@@ -56,7 +61,11 @@ try {
     [frames.nav, "navigator", ".hx-row", "P-ANITA"],
   ];
 
-  for (const [scope, app, selector, text] of expected) {
+  for (const [scope, app, selector, text, needsMessage] of expected) {
+    if (needsMessage && !hasMessages) {
+      console.log(`  skip ${app}: ${selector} (no language layer, so no message to read aloud)`);
+      continue;
+    }
     const locator = scope.locator(selector, text ? { hasText: text } : undefined).first();
     let found = true;
     try {

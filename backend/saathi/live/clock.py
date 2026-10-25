@@ -58,3 +58,45 @@ class SimulationClock:
             "seconds_per_day": self.seconds_per_day,
             "running": self.running,
         }
+
+
+class WallClock:
+    """The real calendar, shaped like `SimulationClock` so the runner needs no branch.
+
+    Nothing here can be sped up, stepped or reset: `advance` only notes that
+    another real day has been reached. `tick_seconds` is how often the runner
+    looks again, since a "day" is no longer something it paces.
+    """
+
+    real = True
+    running = True
+
+    def __init__(self, source, tick_seconds: float = 300.0) -> None:
+        self.source = source
+        self.start = source.today()
+        self.tick_seconds = tick_seconds
+        self.seconds_per_day = 86400.0
+
+    @property
+    def day(self) -> int:
+        return (self.current - self.start).days
+
+    @property
+    def current(self) -> date:
+        return self.source.today()
+
+    def advance(self, days: int = 1) -> date:
+        return self.current
+
+    def reset(self, start: date | None = None) -> None:
+        raise RuntimeError("the real calendar cannot be reset")
+
+    def snapshot(self) -> dict:
+        return {
+            "start": self.start.isoformat(),
+            "current": self.current.isoformat(),
+            "day": self.day,
+            "seconds_per_day": self.seconds_per_day,
+            "running": True,
+            "real": True,
+        }

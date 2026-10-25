@@ -41,10 +41,13 @@ export const apiUrl = (path: string): string => `${config.baseUrl}${path}`;
 
 export class ApiError extends Error {
   readonly status: number;
-  constructor(message: string, status: number) {
+  /** What the server said was wrong, when it said (the body's `detail`). */
+  readonly detail: unknown;
+  constructor(message: string, status: number, detail?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.detail = detail;
   }
 }
 
@@ -63,9 +66,11 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { detail?: unknown } | null;
     throw new ApiError(
       `${init?.method ?? "GET"} ${path} failed: ${response.status}`,
       response.status,
+      body?.detail,
     );
   }
   return (await response.json()) as T;

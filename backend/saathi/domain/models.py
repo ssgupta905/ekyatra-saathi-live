@@ -47,6 +47,11 @@ class FamilyMember(Base):
 
 class Patient(Base):
     id: str
+    #: Who the family is, for the people who work with them. Empty for the
+    #: synthetic cohort; never sent to a language model or into a message.
+    name: str = ""
+    #: The ABHA number, when the family has linked one.
+    abha_number: str | None = None
     #: Distance from home to the treating hospital. The number every metric
     #: in this project is ultimately denominated in.
     home_distance_km: float

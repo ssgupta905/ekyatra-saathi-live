@@ -101,6 +101,9 @@ class ControlRequest(BaseModel):
 @router.post("/live/control")
 async def control(state: ContainerDep, body: ControlRequest) -> dict:
     runner = state.runner
+    if state.world.real:
+        # The real calendar is not ours to pause, skip or restart.
+        raise HTTPException(409, "the clock and the simulator are not available in the real world")
     match body.action:
         case "play":
             await runner.play()

@@ -19,8 +19,21 @@ export type StepStatus =
   | "result_available"
   | "cancelled";
 
+export interface FamilyMember {
+  id: string;
+  patient_id: string;
+  role: string;
+  name: string;
+  phone: string;
+  preferred_channel: "whatsapp" | "ivr";
+  language: "hi" | "bn" | "or" | "en";
+}
+
 export interface Patient {
   id: string;
+  name?: string;
+  abha_number?: string | null;
+  family_members?: FamilyMember[];
   home_distance_km: number;
   home_district: string;
   language: "hi" | "bn" | "or" | "en";
@@ -37,6 +50,7 @@ export interface CareStep {
   completed_on: string | null;
   result_available_on: string | null;
   queue: string | null;
+  resource_id?: string | null;
 }
 
 export interface ReadinessWindow {
@@ -150,6 +164,8 @@ export const LANGUAGE_NAMES: Record<Patient["language"], string> = {
    ────────────────────────────────────────────────────────────────────────── */
 
 export interface LiveSnapshot {
+  /** "real" when these are a hospital's own records on the real calendar. */
+  world?: "demo" | "real";
   start: string;
   current: string;
   day: number;

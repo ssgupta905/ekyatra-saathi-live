@@ -1,4 +1,4 @@
-.PHONY: help install demo demo-audio demo-mov demo-video demo-video-headless demo-check fetch-reference test lint api web dev web-test web-typecheck emulator android-build android-test android-install android-run android-strings docker seed clean
+.PHONY: migrate api-real help install demo demo-audio demo-mov demo-video demo-video-headless demo-check fetch-reference test lint api web dev web-test web-typecheck emulator android-build android-test android-install android-run android-strings docker seed clean
 
 PY ?= .venv/bin/python
 # Override when something else already owns 8000:  make api PORT=8001
@@ -21,6 +21,8 @@ help:
 	@echo "make lint      ruff check + format check"
 	@echo "make api       serve the FastAPI app on :8000 (override with PORT=8001)"
 	@echo "make dev       the API and every web app together (see the ports below)"
+	@echo "make api-real  the API on real records (SAATHI_WORLD=real), starting empty"
+	@echo "make migrate   bring the records database to the current schema"
 	@echo "make web       every web app, with the API already running"
 	@echo "make web-test   frontend unit tests (api client, i18n, theme)"
 	@echo "make web-typecheck   strict TypeScript across every frontend package and app"
@@ -60,6 +62,19 @@ api:
 # connections to close" and the port stays held by a dead server.
 	PYTHONPATH=backend $(PY) -m uvicorn saathi.main:app --reload --port $(PORT) \
 		--timeout-graceful-shutdown 2
+
+# The real world: a hospital's own records on the real calendar, kept in the
+# database at SAATHI_RECORDS_URL (SQLite by default; a Postgres URL is the only
+# change needed to move). Starts empty; enter families in the desk app or import.
+api-real: migrate
+	SAATHI_WORLD=real PYTHONPATH=backend $(PY) -m uvicorn saathi.main:app --reload --port $(PORT) \
+		--timeout-graceful-shutdown 2
+
+# Bring the records database to the current schema. The API also does this on
+# start; this is for doing it on purpose, ahead of a deploy.
+migrate:
+	PYTHONPATH=backend $(PY) -c "from saathi.adapters.records.sql import migrate; \
+	from saathi.config import get_settings; migrate(get_settings().records_url); print('records database is current')"
 
 # Ports: navigator 5173, desk 5174, doctor 5175, admin 5176, family-web 5180,
 # demo-stage 5190 (the one that shows them all side by side). Node 22+.

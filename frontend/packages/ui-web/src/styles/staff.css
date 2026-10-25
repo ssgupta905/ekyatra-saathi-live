@@ -1118,6 +1118,10 @@ tr.flash > td { animation: cite-flash 1.6s var(--ease); }
   overscroll-behavior: contain;
 }
 
+/* A column of cards scrolls; it does not squeeze them. Each card hides its own
+   overflow, so a shrunk card is a clipped one. */
+.hx-work > * { flex-shrink: 0; }
+
 /* — the worklist ———————————————————————————————————————————————— */
 .hx-pane-head {
   flex: 0 0 auto;

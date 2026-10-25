@@ -61,10 +61,16 @@ class InMemoryEvidenceLedger:
                 self.head_hash,
                 metadata,
             )
+            # Persist first: if storing fails, memory must not hold an entry the
+            # database does not, or a restart would fork the chain.
+            self._persist(entry)
             self._entries.append(entry)
             self._by_id[entry.id] = entry
             self._latest[(patient_id, source_record_id)] = entry
             return entry
+
+    def _persist(self, entry: LedgerEntry) -> None:
+        """Where a durable ledger writes the entry. The reference one keeps none."""
 
     def record_once(
         self,

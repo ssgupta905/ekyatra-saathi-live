@@ -41,7 +41,7 @@ That is the configuration CI runs and the one to fall back on if the venue's wif
 - [The problem](#the-problem) · [The rule](#the-rule)
 - [How it fits together](#how-it-fits-together)
 - [**Invariants — do not break these**](#invariants--do-not-break-these)
-- [The live demo](#the-live-demo) · [The staff apps](#the-staff-apps)
+- [The live demo](#the-live-demo) · [The staff apps](#the-staff-apps) · [Real records](#real-records)
 - [Layout](#layout) · [Configuration](#configuration)
 - [Working on it](#working-on-it) · [Troubleshooting](#troubleshooting)
 - [**Known gaps — where to pick up**](#known-gaps--where-to-pick-up)
@@ -356,6 +356,60 @@ as an ordinal ramp.
 
 ---
 
+## Real records
+
+Everything above is the demo: a generated cohort, a clock that runs fast, actors that play the
+families. The same code also runs on a hospital's own records.
+
+```bash
+make api-real    # the API on SAATHI_WORLD=real: starts empty, on the real calendar, nothing simulated
+make web         # in a second terminal: the apps against it (desk is http://localhost:5174)
+```
+
+In the real world the desk app shows a different screen: register a family, add the steps of
+their journey, mark a report released, or import a file. Each change is planned on at once, so
+the family's answer moves the moment the fact does.
+
+| | Demo (`SAATHI_WORLD=demo`, the default) | Real (`SAATHI_WORLD=real`) |
+|---|---|---|
+| Records | generated, rebuilt by Reset | entered or imported, kept in the database |
+| Clock | fast, playable, steppable | the real calendar in the hospital's timezone |
+| Releases | the lab "finishes" and a candidate waits for the desk | a person marks the report released |
+| Caregiver messages | an actor writes them | none are invented |
+| Score | against planted ground truth | none; there is no ground truth, so no number is shown |
+| Audit trail | in memory | in the database, and still verifies after a restart |
+| Forecast | calibrated on synthetic history | calibrated only on reports this hospital has actually released |
+
+**The forecast starts honest.** A new queue has no history, so the planner says it cannot
+forecast and promises no date (`UNCERTAIN`), and the desk is told so on entry. Each release adds
+one measurement (sample date to release date), and the queue becomes forecastable once it has
+enough of them (10, and enough for the requested coverage).
+
+**Entering records.** `POST /api/patients`, `/patients/{id}/family`, `/patients/{id}/steps`,
+`PATCH /steps/{id}`, `POST /steps/{id}/release`, `/resources`. A report is never marked
+available by a plain edit: it goes through `release`, so it is written to the ledger.
+
+**Importing.** `POST /api/import/csv` (the template is at `GET /api/import/template.csv`) and
+`POST /api/import/fhir` (a Bundle of Patient, RelatedPerson, Appointment, DiagnosticReport).
+Both preview by default and write only with `commit=true`, and only if the whole file is clean.
+A FHIR Patient has no home distance, so give it as an extension or `default_distance_km`; it is
+an error rather than a zero. Report content (`conclusion`, `presentedForm`, `result`) is dropped
+before anything is stored.
+
+**Where it lives.** `SAATHI_RECORDS_URL` (default `sqlite:///./saathi_records.db`). Moving to
+Postgres is changing that URL (`postgresql+psycopg://…`, install `.[postgres]`) and running
+`make migrate`; the API also migrates on start. The schema is managed by Alembic
+(`backend/saathi/db/migrations`), and the stores sit behind the `RecordStore` port, so nothing
+else knows which database it is.
+
+**What the real world refuses.** The clock controls, reset, and the simulator answer 409;
+`SAATHI_SIM_MODE` together with `SAATHI_WORLD=real` fails at startup; and the entry endpoints
+answer 409 in the demo, because a reset would silently discard what was entered.
+
+**Not yet.** Nobody logs in, so anyone who can reach the API can enter records (the next step);
+`name` is stored and returned by `/api/patients` without access control until then. Plans and
+rendered messages are recomputed on start rather than stored.
+
 ## The family app (Android)
 
 A native app in Kotlin and Jetpack Compose, built with the standard Android SDK. It is the
@@ -391,10 +445,12 @@ backend/saathi/
   readiness/       split conformal predictor over per-queue turnaround history
   engagement/      PELT change-point detector for disengagement
   planner/         typed tools + the LangGraph state machine (every edge decided by code)
-  ledger/          hash-chained append-only evidence ledger
+  ledger/          hash-chained append-only evidence ledger (memory reference)
+  adapters/        clock, record-store and durable-ledger adapters behind `ports/`
+  db/              the schema and its Alembic migrations
   language/        rendering.py (the shared binding) + groq_layer.py + claude.py,
                    clinical guard, Bhashini ASR/NMT/TTS
-  ingest/          ABDM / FHIR R4 reader, hospital turnaround feed
+  ingest/          ABDM / FHIR R4 reader, hospital turnaround feed, CSV and FHIR bulk import
   channels/        WhatsApp Business API, Exotel IVR
   synthetic/       cohort generator with planted ground truth + the evaluation harness
   live/            clock, mutable world, event bus, the tick runner, the Groq actors
@@ -445,6 +501,9 @@ credentials appear.
 | `SAATHI_LIVE_INBOUND_EVERY_SECONDS` | `15` | How often the caregiver actor writes in. |
 | `SAATHI_LIVE_START_OFFSET_DAYS` | `3` | Days to rewind at boot, so reports land while someone is watching. |
 | `SAATHI_LIVE_AUTOSTART` | `false` | Start the clock on boot. |
+| `SAATHI_WORLD` | `demo` | `demo` or `real`. See [Real records](#real-records). |
+| `SAATHI_RECORDS_URL` | `sqlite:///./saathi_records.db` | Where the real world's records and ledger live. A Postgres URL moves it. |
+| `SAATHI_REAL_TICK_SECONDS` | `300` | How often the real world re-plans. |
 | `SAATHI_CONFORMAL_ALPHA` | `0.1` | 1 − α is the coverage guarantee on readiness windows. |
 
 `.env` is gitignored. **Never commit a key.** `.env.example` is the file that gets committed,
@@ -539,11 +598,12 @@ Files: `live/actors.py::WARD_NOTE_SYSTEM`, `PARSE_SYSTEM`.
 time, so nothing is inconsistent — but in reality a communicated GO is a commitment. Decide
 whether a plan should pin its date once issued.
 
-### 4. Nothing is persisted
+### 4. The demo persists nothing
 
-The world, the ledger and the plans all live in process; restarting `make api` starts over.
-`db/tables.py` and `db/session.py` are written and unused. For a pilot, the ledger is the one
-that has to survive a restart.
+In the demo world the cohort, the ledger and the plans live in process; restarting starts over,
+on purpose. The real world (`SAATHI_WORLD=real`, see [Real records](#real-records)) keeps its
+records and its ledger in the database. What it does not keep is derived: plans, rendered
+messages, inbound messages and approvals are recomputed or lost on restart.
 
 ### 5. Voice is stubbed
 

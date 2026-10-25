@@ -2,7 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { live, useLiveWorld, type DeskCandidate } from "@saathi/api-client";
 import { ActivityStrip, AgentStatus, AppShell, Chip, Notice } from "@saathi/ui-web";
 import { DeskQueue } from "./DeskQueue";
+import { AddStep } from "./AddStep";
+import { ImportRecords } from "./ImportRecords";
 import { IssueReporter } from "./IssueReporter";
+import { PendingReports } from "./PendingReports";
+import { RegisterFamily } from "./RegisterFamily";
 import { IDENTITY } from "./identity";
 
 /**
@@ -21,6 +25,11 @@ export default function App() {
   const world = useLiveWorld();
   const [queue, setQueue] = useState<DeskCandidate[]>([]);
   const [affected, setAffected] = useState<string[] | null>(null);
+  // Bumped whenever the desk enters or releases something, so the lists that
+  // read the records fetch again.
+  const [entered, setEntered] = useState(0);
+  const real = world.snapshot?.world === "real";
+  const changed = () => setEntered((n) => n + 1);
 
   const refresh = useCallback(() => {
     live.deskQueue().then(setQueue).catch(() => undefined);
@@ -54,7 +63,16 @@ export default function App() {
             </Notice>
           )}
 
-          <DeskQueue queue={queue} onConfirmed={refresh} />
+          {real ? (
+            <>
+              <PendingReports revision={entered + world.cohortRevision} onReleased={changed} />
+              <RegisterFamily onRegistered={changed} />
+              <AddStep revision={entered} onAdded={changed} />
+              <ImportRecords onImported={changed} />
+            </>
+          ) : (
+            <DeskQueue queue={queue} onConfirmed={refresh} />
+          )}
 
           <ActivityStrip events={world.events} connected={world.connected} />
         </main>
