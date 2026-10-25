@@ -45,6 +45,38 @@ MIN_AUDIO_BYTES = 1_200
 #: is a mistake worth refusing early rather than paying to transcribe.
 MAX_AUDIO_BYTES = 8 * 1024 * 1024
 
+#: Formats Whisper accepts, by file extension.
+_AUDIO_EXTENSIONS = frozenset({"flac", "mp3", "mp4", "mpeg", "mpga", "m4a", "ogg", "wav", "webm"})
+
+#: What a recorder's content type says when the file name is no help. A phone
+#: sends m4a (AAC); a browser sends webm.
+_AUDIO_BY_CONTENT_TYPE = {
+    "audio/m4a": "m4a",
+    "audio/x-m4a": "m4a",
+    "audio/mp4": "m4a",
+    "audio/aac": "m4a",
+    "audio/mpeg": "mp3",
+    "audio/wav": "wav",
+    "audio/x-wav": "wav",
+    "audio/ogg": "ogg",
+    "audio/webm": "webm",
+}
+
+
+def audio_filename(name: str | None, content_type: str | None) -> str:
+    """A file name Whisper can read the format from.
+
+    Whisper decides the format from the extension, so an upload with an odd or
+    missing name would otherwise be rejected as unreadable even though the bytes
+    are fine.
+    """
+    suffix = (name or "").rsplit(".", 1)[-1].lower() if "." in (name or "") else ""
+    if suffix in _AUDIO_EXTENSIONS:
+        return name  # type: ignore[return-value]
+    guess = _AUDIO_BY_CONTENT_TYPE.get((content_type or "").split(";")[0].strip().lower(), "webm")
+    return f"reply.{guess}"
+
+
 #: Statuses that mean this step is behind the family rather than ahead of them.
 _DONE = frozenset({StepStatus.COMPLETED, StepStatus.RESULT_AVAILABLE})
 
@@ -169,7 +201,7 @@ async def transcribe(
     client = groq.AsyncGroq(api_key=settings.groq_api_key)
     try:
         result = await client.audio.transcriptions.create(
-            file=(audio.filename or "reply.webm", payload),
+            file=(audio_filename(audio.filename, audio.content_type), payload),
             model=settings.whisper_model,
             language=hint,
             temperature=0.0,

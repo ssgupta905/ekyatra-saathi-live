@@ -1,0 +1,22 @@
+{
+    "patient_id": "P-SHAMBHU",
+    "language": "hi",
+    "thread": [
+        {
+            "id": "out-P-SHAMBHU-0",
+            "patient_id": "P-SHAMBHU",
+            "kind": "holding",
+            "body": "Aaj ki visit abhi ke liye rukh gayi hai. Kahin mat jaaiye. Naya samay 2 ghante mein bataya jaayega.",
+            "language": "hi",
+            "channel": "whatsapp",
+            "held": false,
+            "reason": null,
+            "rendered_by": null,
+            "duration_ms": null,
+            "sim_date": "2026-10-22",
+            "sent_at": "2026-10-25T05:28:55.433847+00:00",
+            "direction": "to_family"
+        }
+    ],
+    "unread": 1
+}

@@ -349,6 +349,32 @@ as an ordinal ramp.
 
 ---
 
+## The family app (Android)
+
+A native app in Kotlin and Jetpack Compose, built with the standard Android SDK. It is the
+family's side of the product: the verdict, the plan, the conversation, and a way to answer back
+by typing or speaking, in Hindi, Bengali, Odia or English. It talks to the same API as the web
+apps and reacts to the same live stream, so when the hospital's day goes wrong the phone
+changes while the family is looking at it.
+
+```bash
+make api            # the backend, on :8000
+make emulator       # boot the Android emulator (AVD=Pixel_3a_API_33_arm64-v8a by default)
+make android-run    # build, install on the running emulator, and open it
+make android-test   # the app's unit tests
+```
+
+Needs JDK 17 and the Android SDK that comes with Android Studio; Gradle fetches itself through
+the wrapper. The emulator reaches this Mac's API at `10.0.2.2:8000`; for a real phone, build with
+`-PapiBase=http://<your LAN address>:8000/api` (the debug build permits plain HTTP, release does not).
+
+The words and colours are **generated from the web sources** (`frontend/packages/i18n`,
+`frontend/packages/theme`) by `make android-strings`, and a frontend test fails if the committed
+Kotlin goes stale, so the phone and the web cannot drift apart. Until login exists, the first
+screen lets the team pick which family a phone belongs to.
+
+---
+
 ## Layout
 
 ```
@@ -372,6 +398,8 @@ frontend/          npm workspace: shared packages, and the apps built on them
   packages/theme       design tokens (tokens.json -> generated CSS and React Native values)
   packages/ui-web      staff web primitives, glyphs, formatting, the explanation model
   apps/console         the hospital console, family phone and demo stage (being split by role)
+android/           the family app: Kotlin + Jetpack Compose, a standard Gradle project
+  tools/             generates the app's words and colours from the shared web sources
 tests/             decision core, guard, ledger, scope boundary, the live world, the actors
 ```
 

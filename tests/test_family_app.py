@@ -149,3 +149,73 @@ def test_a_too_short_recording_is_refused_before_it_is_paid_for(client, patient_
         data={"patient_id": patient_id},
     )
     assert response.status_code in {422, 503}
+
+
+@pytest.mark.parametrize(
+    ("name", "content_type", "expected"),
+    [
+        ("reply.m4a", "audio/m4a", "reply.m4a"),
+        ("reply.webm", "audio/webm", "reply.webm"),
+        ("REPLY.M4A", None, "REPLY.M4A"),
+        # A phone recorder with no usable name: the content type decides.
+        (None, "audio/m4a", "reply.m4a"),
+        ("recording", "audio/mp4", "reply.m4a"),
+        ("clip.bin", "audio/aac", "reply.m4a"),
+        ("clip", "audio/webm;codecs=opus", "reply.webm"),
+        # Nothing to go on: the browser default, as before.
+        (None, None, "reply.webm"),
+    ],
+)
+def test_whisper_is_told_the_format_even_when_the_upload_has_no_useful_name(
+    name, content_type, expected
+):
+    from saathi.api.family import audio_filename
+
+    assert audio_filename(name, content_type) == expected
+
+
+def test_a_phone_can_reach_the_api_from_the_dev_ports_it_uses(client):
+    # Native apps are not bound by CORS; the browsers are: the staff apps, the
+    # demo stage and the family app's Expo web build.
+    for origin in ("http://localhost:5173", "http://localhost:5174", "http://localhost:8081"):
+        response = client.options(
+            "/api/health",
+            headers={"origin": origin, "access-control-request-method": "GET"},
+        )
+        assert response.headers.get("access-control-allow-origin") == origin, origin
+
+
+def test_a_phone_recording_reaches_whisper_as_m4a(client, patient_id, monkeypatch):
+    # The Android app uploads AAC in an m4a container. Whisper reads the format
+    # from the file name, so the name must arrive intact — checked here with a
+    # stand-in for Groq, since the suite never touches the network.
+    import types
+
+    from saathi.api import family
+
+    seen: dict = {}
+
+    class Transcriptions:
+        async def create(self, **kwargs):
+            seen.update(kwargs)
+            return types.SimpleNamespace(text="कल की तारीख़ क्या है")
+
+    class FakeGroq:
+        def __init__(self, api_key):
+            self.audio = types.SimpleNamespace(transcriptions=Transcriptions())
+
+    monkeypatch.setattr(family.groq, "AsyncGroq", FakeGroq)
+    monkeypatch.setattr(client.app.state.container.settings, "groq_api_key", "test-key")
+
+    response = client.post(
+        "/api/voice/transcribe",
+        files={"audio": ("reply.m4a", b"0" * 2000, "audio/m4a")},
+        data={"patient_id": patient_id, "language": "hi"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["text"] == "कल की तारीख़ क्या है"
+    assert body["sent"] is False  # words handed back for the family to check, nothing sent
+    assert seen["file"][0] == "reply.m4a"
+    assert seen["language"] == "hi"

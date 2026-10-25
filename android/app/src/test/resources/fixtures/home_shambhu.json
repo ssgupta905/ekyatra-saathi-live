@@ -1,0 +1,134 @@
+{
+    "patient": {
+        "id": "P-SHAMBHU",
+        "district": "Gaya",
+        "language": "hi",
+        "distance_km": 1771,
+        "hours_each_way": 40.359
+    },
+    "decision": "wait",
+    "travel_on": null,
+    "waiting_for": [
+        {
+            "kind": "review_consult",
+            "what": "Seeing the doctor again",
+            "earliest": "2026-10-23",
+            "latest": "2026-10-23",
+            "certain": true
+        },
+        {
+            "kind": "radiology_report",
+            "what": "Scan report",
+            "earliest": "2026-10-23",
+            "latest": "2026-10-27",
+            "certain": false
+        },
+        {
+            "kind": "scan",
+            "what": "Scan",
+            "earliest": "2026-10-27",
+            "latest": "2026-10-27",
+            "certain": true
+        },
+        {
+            "kind": "pet_ct",
+            "what": "PET-CT scan",
+            "earliest": "2026-10-26",
+            "latest": "2026-10-26",
+            "certain": true
+        }
+    ],
+    "message": {
+        "body": "Aaj ki visit abhi ke liye rukh gayi hai. Kahin mat jaaiye. Naya samay 2 ghante mein bataya jaayega.",
+        "language": "hi",
+        "kind": "holding",
+        "sent_at": "2026-10-25T05:28:55.433847+00:00",
+        "held": false,
+        "written_by": null
+    },
+    "steps": [
+        {
+            "id": "P-SHAMBHU-consult",
+            "kind": "consult",
+            "what": "Seeing the doctor",
+            "when": "2026-10-20",
+            "state": "done",
+            "travels": true,
+            "is_next": false
+        },
+        {
+            "id": "P-SHAMBHU-biopsy",
+            "kind": "biopsy",
+            "what": "Biopsy",
+            "when": "2026-10-20",
+            "state": "done",
+            "travels": true,
+            "is_next": false
+        },
+        {
+            "id": "P-SHAMBHU-bloods",
+            "kind": "bloods",
+            "what": "Blood tests",
+            "when": "2026-10-20",
+            "state": "done",
+            "travels": true,
+            "is_next": false
+        },
+        {
+            "id": "P-SHAMBHU-pathology_report",
+            "kind": "pathology_report",
+            "what": "Lab report",
+            "when": "2026-10-20",
+            "state": "done",
+            "travels": false,
+            "is_next": false
+        },
+        {
+            "id": "P-SHAMBHU-radiology_report",
+            "kind": "radiology_report",
+            "what": "Scan report",
+            "when": "2026-10-22",
+            "state": "waiting",
+            "travels": false,
+            "is_next": false
+        },
+        {
+            "id": "P-SHAMBHU-review",
+            "kind": "review_consult",
+            "what": "Seeing the doctor again",
+            "when": "2026-10-23",
+            "state": "ahead",
+            "travels": true,
+            "is_next": false
+        },
+        {
+            "id": "P-SHAMBHU-pet_ct",
+            "kind": "pet_ct",
+            "what": "PET-CT scan",
+            "when": "2026-10-26",
+            "state": "ahead",
+            "travels": true,
+            "is_next": false
+        },
+        {
+            "id": "P-SHAMBHU-scan",
+            "kind": "scan",
+            "what": "Scan",
+            "when": "2026-10-27",
+            "state": "ahead",
+            "travels": true,
+            "is_next": false
+        },
+        {
+            "id": "P-SHAMBHU-joint_clinic",
+            "kind": "joint_clinic",
+            "what": "Joint clinic",
+            "when": "2026-10-30",
+            "state": "ahead",
+            "travels": true,
+            "is_next": true
+        }
+    ],
+    "sim_date": "2026-10-23",
+    "updated_at": "2026-10-25T06:06:41.818503+00:00"
+}

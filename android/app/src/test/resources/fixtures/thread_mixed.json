@@ -1,0 +1,62 @@
+{
+  "patient_id": "P-SHAMBHU",
+  "language": "bn",
+  "unread": 2,
+  "thread": [
+    {
+      "id": "out-1",
+      "patient_id": "P-SHAMBHU",
+      "kind": "holding",
+      "body": "Aaj ki visit abhi ke liye rukh gayi hai.",
+      "language": "hi",
+      "channel": "whatsapp",
+      "held": false,
+      "reason": null,
+      "rendered_by": null,
+      "duration_ms": null,
+      "sim_date": "2026-10-22",
+      "sent_at": "2026-10-25T05:28:55.433847+00:00",
+      "direction": "to_family"
+    },
+    {
+      "id": "in-1",
+      "patient_id": "P-SHAMBHU",
+      "direction": "from_family",
+      "kind": "message",
+      "body": "Is my scan result bad?",
+      "gloss": null,
+      "language": "hi",
+      "channel": "whatsapp",
+      "answerable": false,
+      "reason": "clinical question",
+      "triggers": [
+        "result"
+      ],
+      "sim_date": "2026-10-23",
+      "sent_at": "2026-10-25T07:08:01+00:00"
+    },
+    {
+      "id": "lang-1",
+      "patient_id": "P-SHAMBHU",
+      "kind": "language",
+      "body": "Bengali",
+      "language": "bn",
+      "channel": "whatsapp",
+      "held": false,
+      "sent_at": "2026-10-25T07:10:00+00:00",
+      "direction": "to_family"
+    },
+    {
+      "id": "out-2",
+      "patient_id": "P-SHAMBHU",
+      "kind": "plan",
+      "body": "held by the guard",
+      "language": "bn",
+      "channel": "whatsapp",
+      "held": true,
+      "reason": "guard",
+      "sent_at": "2026-10-25T07:11:00+00:00",
+      "direction": "to_family"
+    }
+  ]
+}

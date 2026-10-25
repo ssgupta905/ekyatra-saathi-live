@@ -1,0 +1,33 @@
+{
+  "patient": {
+    "id": "P0003",
+    "district": "Darbhanga",
+    "language": "hi",
+    "distance_km": 1862,
+    "hours_each_way": 41.2
+  },
+  "decision": "go",
+  "travel_on": "2026-10-28",
+  "waiting_for": [],
+  "message": {
+    "body": "Aaiye. 28 tarikh ko aana hai.",
+    "language": "hi",
+    "kind": "plan",
+    "sent_at": "2026-10-25T05:28:55.433847+00:00",
+    "held": false,
+    "written_by": "groq"
+  },
+  "steps": [
+    {
+      "id": "P0003-review",
+      "kind": "review_consult",
+      "what": "Seeing the doctor again",
+      "when": "2026-10-28",
+      "state": "ahead",
+      "travels": true,
+      "is_next": true
+    }
+  ],
+  "sim_date": "2026-10-25",
+  "updated_at": "2026-10-25T06:06:41.818503+00:00"
+}

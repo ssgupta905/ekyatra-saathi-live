@@ -35,9 +35,14 @@ class Settings(BaseSettings):
     #: development, where Vite serves the apps and proxies /api here.
     console_dist: str = ""
 
-    #: Origins allowed to call the API cross-site. Only needed in development:
-    #: deployed, the console is served from this same origin.
-    cors_origins: str = "http://localhost:5173"
+    #: Origins allowed to call the API cross-site. Only browsers need this: a
+    #: native app is not bound by CORS. The defaults are the local dev ports of
+    #: the staff apps, the family app's web build (Expo, 8081) and the demo stage.
+    cors_origins: str = (
+        "http://localhost:5173,http://localhost:5174,http://localhost:5175,"
+        "http://localhost:5176,http://localhost:5180,http://localhost:5190,"
+        "http://localhost:8081"
+    )
 
     # --- storage ---
     database_url: str = "sqlite+aiosqlite:///./saathi.db"

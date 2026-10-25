@@ -52,7 +52,9 @@ describe("client", () => {
 
   it("turns a failure into an ApiError that carries the status", async () => {
     fetchMock.mockReturnValue(Promise.resolve(new Response("no", { status: 403 })));
-    const error = await request("/disruptions/x/approve", { method: "POST" }).catch((e) => e);
+    const error = (await request("/disruptions/x/approve", { method: "POST" }).catch(
+      (e: unknown) => e,
+    )) as ApiError;
     expect(error).toBeInstanceOf(ApiError);
     expect(error.status).toBe(403);
     expect(error.message).toBe("POST /disruptions/x/approve failed: 403");

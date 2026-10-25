@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { EVENT_LABEL, EVENT_TONE, fmtMs, type WorldEvent } from "@saathi/api-client";
 import { Card, Chip } from "../primitives";
 import { CheckCircle, Clock, Doc, Question, Shield, Stop, Wave } from "../icons";
@@ -12,7 +13,7 @@ import { CheckCircle, Clock, Doc, Question, Shield, Stop, Wave } from "../icons"
  * nothing is a scripted beat; a row appears because code ran.
  */
 
-const GLYPH: Record<string, JSX.Element> = {
+const GLYPH: Record<string, ReactElement> = {
   "clock.tick": <Clock size={12} />,
   "desk.candidate": <Doc size={12} />,
   "desk.confirmed": <CheckCircle size={12} />,

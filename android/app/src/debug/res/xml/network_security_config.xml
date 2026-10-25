@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Debug builds only (this file lives in src/debug). A developer's API runs
+         on their own machine over plain HTTP: the emulator's 10.0.2.2, or a LAN
+         address from a real phone. Release builds do not include this file and
+         get the platform default, which forbids cleartext traffic entirely. -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

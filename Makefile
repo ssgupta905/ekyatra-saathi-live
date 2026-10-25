@@ -1,8 +1,17 @@
-.PHONY: help install demo demo-audio demo-mov demo-video demo-video-headless fetch-reference test lint api console web-test web-typecheck docker seed clean
+.PHONY: help install demo demo-audio demo-mov demo-video demo-video-headless fetch-reference test lint api console web-test web-typecheck emulator android-build android-test android-install android-run android-strings docker seed clean
 
 PY ?= .venv/bin/python
 # Override when something else already owns 8000:  make api PORT=8001
 PORT ?= 8000
+
+# The Android app is a standard Gradle project (android/). It needs JDK 17 and
+# the Android SDK that ships with Android Studio; the emulator is whichever AVD
+# is installed.
+AVD ?= Pixel_3a_API_33_arm64-v8a
+ANDROID_SDK ?= $(HOME)/Library/Android/sdk
+ADB = $(ANDROID_SDK)/platform-tools/adb
+GRADLE = cd android && JAVA_HOME=$$(/usr/libexec/java_home -v 17) ./gradlew
+APK = android/app/build/outputs/apk/debug/app-debug.apk
 
 help:
 	@echo "make install   create .venv and install the backend (editable, with dev extras)"
@@ -17,6 +26,10 @@ help:
 	@echo "make demo-video  drive the console in a visible browser and record it"
 	@echo "make demo-video-headless   the same run with no window"
 	@echo "make demo-mov    convert the newest recording to .mov in ~/Documents"
+	@echo "make emulator   boot the Android emulator (AVD=$(AVD))"
+	@echo "make android-run   build the family app, install it on the running emulator and open it"
+	@echo "make android-test  the family app's unit tests"
+	@echo "make android-strings   regenerate the app's words and colours from the shared web sources"
 	@echo "make docker    bring up postgres + neo4j for pilot-mode work"
 	@echo "make seed      load the Neo4j dependency graph schema"
 
@@ -55,6 +68,28 @@ web-test:
 web-typecheck:
 	cd frontend && npm run typecheck
 
+# Boots in the foreground of its own window; leave it running and use the
+# android-* targets from another terminal.
+emulator:
+	$(ANDROID_SDK)/emulator/emulator -avd $(AVD) -no-snapshot-load
+
+android-build:
+	$(GRADLE) :app:assembleDebug
+
+android-test:
+	$(GRADLE) :app:testDebugUnitTest
+
+android-install: android-build
+	$(ADB) install -r $(APK)
+
+# The emulator reaches this Mac's API at 10.0.2.2:8000, so `make api` must be running.
+android-run: android-install
+	$(ADB) shell am start -n org.ekyatra.saathi/.MainActivity
+
+# Node 22+: the generator reads the TypeScript i18n source directly.
+android-strings:
+	PATH=/opt/homebrew/opt/node@22/bin:$$PATH node android/tools/generate.mjs
+
 # Convert the newest recording to a QuickTime .mov in ~/Documents.
 # Playwright only writes WebM/VP8, which nothing on a stock Mac decodes —
 # QuickTime, Preview and avconvert all refuse it, and renaming the file to
@@ -92,5 +127,5 @@ seed:
 		< backend/saathi/graph/schema.cypher
 
 clean:
-	rm -rf .venv frontend/node_modules frontend/apps/*/dist .pytest_cache .ruff_cache saathi.db
+	rm -rf android/.gradle android/build android/app/build .venv frontend/node_modules frontend/apps/*/dist .pytest_cache .ruff_cache saathi.db
 	find . -name __pycache__ -type d -prune -exec rm -rf {} +
