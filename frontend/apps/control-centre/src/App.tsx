@@ -12,6 +12,7 @@ import { Configuration } from "./sections/Configuration";
 import { Desk } from "./sections/Desk";
 import { Families } from "./sections/Families";
 import { Operator } from "./sections/Operator";
+import { Registries } from "./sections/Registries";
 import { Reports } from "./sections/Reports";
 import { StorySection } from "./sections/StorySection";
 
@@ -46,6 +47,7 @@ export default function App() {
       {section === "cohort" && <Cohort onOpen={(id) => openFamily(id)} />}
       {section === "story" && <StorySection />}
       {section === "operator" && <Operator />}
+      {section === "registries" && <Registries tab={route.id} onTab={(t) => go({ section: "registries", id: t })} />}
       {section === "config" && <Configuration />}
       {section === "audit" && <Audit />}
     </Shell>

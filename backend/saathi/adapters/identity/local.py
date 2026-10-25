@@ -119,6 +119,43 @@ class LocalIdentity:
             row.password_hash = self._hasher.hash(password)
             row.active = True
 
+    def list_users(self) -> list[dict]:
+        """Every staff account, without its password hash."""
+        with self._sessions() as db:
+            return [
+                {"id": r.id, "username": r.username, "name": r.name, "role": r.role,
+                 "active": r.active}  # fmt: skip
+                for r in db.scalars(select(UserRow).order_by(UserRow.username))
+            ]
+
+    def update_user(
+        self,
+        username: str,
+        *,
+        name: str | None = None,
+        role: Role | None = None,
+        active: bool | None = None,
+        password: str | None = None,
+    ) -> dict:
+        if role is not None and role not in STAFF_ROLES:
+            raise ValueError("accounts with passwords are for staff; families use a phone code")
+        if password is not None and len(password) < 8:
+            raise ValueError("a password needs at least 8 characters")
+        with self._sessions.begin() as db:
+            row = db.scalar(select(UserRow).where(UserRow.username == username.lower()))
+            if row is None:
+                raise LookupError(username)
+            if name is not None:
+                row.name = name
+            if role is not None:
+                row.role = role.value
+            if active is not None:
+                row.active = active
+            if password is not None:
+                row.password_hash = self._hasher.hash(password)
+            return {"id": row.id, "username": row.username, "name": row.name,
+                    "role": row.role, "active": row.active}  # fmt: skip
+
     def has_users(self) -> bool:
         with self._sessions() as db:
             return db.scalar(select(UserRow.id).limit(1)) is not None

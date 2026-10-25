@@ -77,6 +77,53 @@ class UserRow(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class HospitalRow(Base):
+    __tablename__ = "hospitals"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    name: Mapped[str] = mapped_column(String(160))
+    place: Mapped[str] = mapped_column(String(80))
+    timezone: Mapped[str] = mapped_column(String(64), default="Asia/Kolkata")
+    departments_json: Mapped[str] = mapped_column(Text, default="[]")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class CentreRow(Base):
+    __tablename__ = "centres"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    hospital_id: Mapped[str] = mapped_column(String(32), index=True)
+    name: Mapped[str] = mapped_column(String(160))
+    place: Mapped[str] = mapped_column(String(80))
+    kind: Mapped[str] = mapped_column(String(16), default="day_care")
+    handles_json: Mapped[str] = mapped_column(Text, default="[]")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class ClinicianRow(Base):
+    __tablename__ = "clinicians"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(160))
+    specialty: Mapped[str] = mapped_column(String(120), default="")
+    hospital_id: Mapped[str] = mapped_column(String(32), index=True)
+    department: Mapped[str] = mapped_column(String(80), default="")
+    username: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class HospitalPolicyRow(Base):
+    """Every saved version of a hospital's rules. Versions are kept, never overwritten."""
+
+    __tablename__ = "hospital_policies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    hospital_id: Mapped[str] = mapped_column(String(32), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    policy_json: Mapped[str] = mapped_column(Text)
+    saved_by: Mapped[str] = mapped_column(String(160))
+
+
 class ResourceRow(Base):
     """A named, bookable hospital thing a desk can report unavailable."""
 

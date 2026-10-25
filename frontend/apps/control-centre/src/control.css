@@ -142,3 +142,6 @@
 .linkish:hover { text-decoration: underline; }
 .cc-reports td { vertical-align: top; }
 .cc-flush { overflow-x: auto; }
+
+.cc-form { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.cc-form .cc-check { flex-direction: row; align-items: center; gap: 8px; }

@@ -31,6 +31,7 @@ from ..ports.clock import Clock
 from ..ports.identity import IdentityProvider
 from ..ports.language import LanguageLayer
 from ..ports.ledger import EvidenceLedger
+from ..ports.registry import RegistryStore
 from ..readiness.conformal import ConformalReadinessPredictor, TurnaroundSample
 from ..synthetic.generate import SyntheticCohort
 from ..tools import build_toolbox
@@ -50,6 +51,8 @@ class Container:
     alerts: list = field(default_factory=list)
     #: None when login is off (the demo). Every access rule treats that as "open".
     identity: IdentityProvider | None = None
+    #: Hospitals, centres, clinicians and each hospital's rules.
+    registry: RegistryStore | None = None
 
     @property
     def cohort(self) -> SyntheticCohort:
@@ -119,6 +122,24 @@ def build_identity(settings: Settings, world: LiveWorld) -> IdentityProvider | N
     return LocalIdentity(
         settings.records_url, secret=settings.auth_secret, phones=_WorldPhones(world)
     )
+
+
+def build_registry(settings: Settings) -> RegistryStore:
+    """The network's reference data: in the database for real, in memory for the demo."""
+    from .seed import seed_registry
+
+    if settings.real_world:
+        from ..adapters.records.sql import migrate
+        from ..adapters.registry import SqlRegistryStore
+
+        migrate(settings.records_url)
+        store: RegistryStore = SqlRegistryStore(settings.records_url)
+    else:
+        from ..adapters.registry import MemoryRegistryStore
+
+        store = MemoryRegistryStore()
+    seed_registry(store, settings, demo=not settings.real_world)
+    return store
 
 
 def build_actors(settings: Settings, world: LiveWorld):
@@ -201,4 +222,5 @@ def build_container(settings: Settings | None = None, today: date | None = None)
         runner=runner,
         alerts=alerts,
         identity=build_identity(settings, world),
+        registry=build_registry(settings),
     )

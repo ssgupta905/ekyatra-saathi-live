@@ -27,6 +27,7 @@ export const SECTIONS: Section[] = [
   { id: "cohort", label: "Cohort", hint: "Who needs a person, and what the whole cohort has been spared", roles: ["navigator", "doctor", "admin"] },
   { id: "story", label: "Story view", hint: "The brief's two stories, beat by beat, with what each cost", roles: STAFF, demoOnly: true },
   { id: "operator", label: "Operator", hint: "The simulated clock and the family's words", roles: ["navigator", "admin"], demoOnly: true },
+  { id: "registries", label: "Registries", hint: "Hospitals, treatment centres, doctors, resources and staff accounts", roles: STAFF },
   { id: "config", label: "Configuration", hint: "Readiness rules, languages, channels, integrations", roles: ["admin"] },
   { id: "audit", label: "Audit log", hint: "Every fact the system has asserted, hash-chained", roles: ["admin"] },
 ];
