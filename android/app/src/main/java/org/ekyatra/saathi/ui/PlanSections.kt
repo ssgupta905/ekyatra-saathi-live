@@ -53,10 +53,10 @@ private fun SectionTitle(text: String) {
  * only when the window came from a booking rather than the predictor.
  */
 @Composable
-fun Why(waits: List<FamilyWait>, lang: Lang, s: Strings) {
+fun Why(waits: List<FamilyWait>, lang: Lang, s: Strings, inCard: Boolean = false) {
     if (waits.isEmpty()) return
-    Column(Modifier.fillMaxWidth().padding(16.dp, 20.dp, 16.dp, 4.dp)) {
-        SectionTitle(s.why)
+    Column(Modifier.fillMaxWidth().padding(if (inCard) 0.dp else 16.dp, if (inCard) 0.dp else 20.dp, if (inCard) 0.dp else 16.dp, 4.dp)) {
+        if (!inCard) SectionTitle(s.why)
         Column(Modifier.padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             for (wait in waits) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -94,10 +94,10 @@ fun Why(waits: List<FamilyWait>, lang: Lang, s: Strings) {
  * exists to stop.
  */
 @Composable
-fun PlanStrip(steps: List<FamilyStep>, lang: Lang, s: Strings) {
+fun PlanStrip(steps: List<FamilyStep>, lang: Lang, s: Strings, inCard: Boolean = false) {
     if (steps.isEmpty()) return
-    Column(Modifier.fillMaxWidth().padding(16.dp, 20.dp, 16.dp, 4.dp)) {
-        SectionTitle(s.plan)
+    Column(Modifier.fillMaxWidth().padding(if (inCard) 0.dp else 16.dp, if (inCard) 4.dp else 20.dp, if (inCard) 0.dp else 16.dp, 4.dp)) {
+        if (!inCard) SectionTitle(s.plan)
         Column(Modifier.padding(bottom = 16.dp)) {
             steps.forEachIndexed { index, step ->
                 StepRow(step, lang, s, last = index == steps.lastIndex)

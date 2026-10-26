@@ -64,6 +64,18 @@ def test_a_booked_date_is_told_apart_from_a_forecast(client, patient_id):
             assert wait["earliest"] == wait["latest"]
 
 
+def test_a_family_cleared_to_travel_is_told_what_to_bring_and_where_to_go(client):
+    ids = [p["id"] for p in client.get("/api/patients").json()]
+    homes = [client.get(f"/api/patients/{pid}/home").json() for pid in ids]
+    going = [h for h in homes if h["decision"] == "go"]
+    waiting = [h for h in homes if h["decision"] != "go"]
+
+    assert going, "the demo cohort has families cleared to travel"
+    assert all(h["what_to_bring"] and h["where_to_go_first"] for h in going)
+    # Nobody packs a bag for a trip they have not been told to take.
+    assert all(h["what_to_bring"] == [] and h["where_to_go_first"] is None for h in waiting)
+
+
 def test_home_404s_for_a_patient_that_does_not_exist(client):
     assert client.get("/api/patients/NOBODY/home").status_code == 404
 

@@ -39,6 +39,11 @@ data class Strings(
     val hoursEachWay: String,
     val working: String,
     val updated: String,
+    val todayTab: String,
+    val bring: String,
+    val firstStop: String,
+    val tapForWhy: String,
+    val packed: String,
 )
 
 enum class Lang(val code: String, val label: String, val endonym: String) {
@@ -92,6 +97,11 @@ object Translations {
             hoursEachWay = "घंटे एक तरफ़",
             working = "साथी देख रहा है…",
             updated = "अपडेट",
+            todayTab = "आज",
+            bring = "साथ क्या लाएँ",
+            firstStop = "सबसे पहले यहाँ जाएँ",
+            tapForWhy = "क्यों? देखने के लिए छुएँ",
+            packed = "रख लिया",
         ),
         Lang.BN to Strings(
             come = "আসুন",
@@ -130,6 +140,11 @@ object Translations {
             hoursEachWay = "ঘণ্টা একদিকে",
             working = "সাথী দেখছে…",
             updated = "আপডেট",
+            todayTab = "আজ",
+            bring = "সঙ্গে কী আনবেন",
+            firstStop = "প্রথমে এখানে যান",
+            tapForWhy = "কেন? দেখতে ছুঁয়ে দিন",
+            packed = "নেওয়া হয়েছে",
         ),
         Lang.OR to Strings(
             come = "ଆସନ୍ତୁ",
@@ -168,6 +183,11 @@ object Translations {
             hoursEachWay = "ଘଣ୍ଟା ଗୋଟିଏ ଦିଗକୁ",
             working = "ସାଥୀ ଦେଖୁଛି…",
             updated = "ଅପଡେଟ୍",
+            todayTab = "ଆଜି",
+            bring = "ସାଙ୍ଗରେ କଣ ଆଣିବେ",
+            firstStop = "ପ୍ରଥମେ ଏଠାକୁ ଯାଆନ୍ତୁ",
+            tapForWhy = "କାହିଁକି? ଦେଖିବାକୁ ଛୁଅନ୍ତୁ",
+            packed = "ନିଆଗଲା",
         ),
         Lang.EN to Strings(
             come = "Come",
@@ -206,6 +226,11 @@ object Translations {
             hoursEachWay = "hours each way",
             working = "Saathi is checking…",
             updated = "Updated",
+            todayTab = "Today",
+            bring = "What to bring",
+            firstStop = "Go first to",
+            tapForWhy = "Why? Tap to see",
+            packed = "packed",
         ),
     )
 

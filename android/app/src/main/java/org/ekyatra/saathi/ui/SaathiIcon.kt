@@ -43,6 +43,13 @@ enum class Glyph(val paths: List<String>) {
     Speaker(listOf("M5 8h2.4L10.6 5v10L7.4 12H5z", "M13.2 7.6a3.4 3.4 0 0 1 0 4.8")),
     Wave(listOf("M3 10h2.4l1.6-4.6L9.4 15l2-7.4L13 11.4l1-1.4H17")),
     Back(listOf("M12 5.5l-5 4.5 5 4.5")),
+    Home(listOf("M3.5 9.2 10 3.8l6.5 5.4V16a.8.8 0 0 1-.8.8H12.4v-4.6H7.6v4.6H4.3a.8.8 0 0 1-.8-.8z")),
+    Route(listOf(circle(5f, 4.8f, 1.8f), circle(15f, 15.2f, 1.8f), "M5 6.6v3.2a2 2 0 0 0 2 2h6a2 2 0 0 1 2 2v-.2")),
+    Chat(listOf("M3.6 5.2a1.4 1.4 0 0 1 1.4-1.4h10a1.4 1.4 0 0 1 1.4 1.4v7.2a1.4 1.4 0 0 1-1.4 1.4H8.2L4.8 16.6v-2.8a1.4 1.4 0 0 1-1.2-1.4z")),
+    Globe(listOf(circle(10f, 10f, 7f), "M3 10h14", "M10 3c2 2 2.8 4.4 2.8 7S12 15 10 17c-2-2-2.8-4.4-2.8-7S8 5 10 3z")),
+    ChevronDown(listOf("M5.6 7.8 10 12.2l4.4-4.4")),
+    Check(listOf("M5.2 10.4 8.4 13.6 14.8 6.8")),
+    Bag(listOf("M4.4 7h11.2l-.8 9.2a1 1 0 0 1-1 .9H6.2a1 1 0 0 1-1-.9z", "M7.4 7V5.8a2.6 2.6 0 0 1 5.2 0V7")),
 }
 
 private fun Glyph.toVector(): ImageVector {

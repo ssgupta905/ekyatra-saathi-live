@@ -26,7 +26,7 @@ import org.ekyatra.saathi.data.events
 import org.ekyatra.saathi.i18n.Lang
 import java.io.File
 
-enum class Tab { PLAN, MESSAGES }
+enum class Tab { TODAY, PLAN, MESSAGES }
 
 data class FamilyUiState(
     val home: FamilyHome? = null,
@@ -34,7 +34,7 @@ data class FamilyUiState(
     val error: String? = null,
     val switching: Boolean = false,
     val live: LiveState = LiveState(),
-    val tab: Tab = Tab.PLAN,
+    val tab: Tab = Tab.TODAY,
 )
 
 /**

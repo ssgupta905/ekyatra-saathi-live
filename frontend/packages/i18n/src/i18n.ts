@@ -79,6 +79,13 @@ export interface Strings {
   hoursEachWay: string;
   working: string;
   updated: string;
+  /** The phone's first tab. */
+  todayTab: string;
+  bring: string;
+  firstStop: string;
+  tapForWhy: string;
+  /** A ticked item on the what-to-bring list. */
+  packed: string;
 }
 
 /**
@@ -128,6 +135,11 @@ export const STRINGS: Record<Lang, Strings> = {
     hoursEachWay: "घंटे एक तरफ़",
     working: "साथी देख रहा है…",
     updated: "अपडेट",
+    todayTab: "आज",
+    bring: "साथ क्या लाएँ",
+    firstStop: "सबसे पहले यहाँ जाएँ",
+    tapForWhy: "क्यों? देखने के लिए छुएँ",
+    packed: "रख लिया",
   },
   bn: {
     come: "আসুন",
@@ -170,6 +182,11 @@ export const STRINGS: Record<Lang, Strings> = {
     hoursEachWay: "ঘণ্টা একদিকে",
     working: "সাথী দেখছে…",
     updated: "আপডেট",
+    todayTab: "আজ",
+    bring: "সঙ্গে কী আনবেন",
+    firstStop: "প্রথমে এখানে যান",
+    tapForWhy: "কেন? দেখতে ছুঁয়ে দিন",
+    packed: "নেওয়া হয়েছে",
   },
   or: {
     come: "ଆସନ୍ତୁ",
@@ -212,6 +229,11 @@ export const STRINGS: Record<Lang, Strings> = {
     hoursEachWay: "ଘଣ୍ଟା ଗୋଟିଏ ଦିଗକୁ",
     working: "ସାଥୀ ଦେଖୁଛି…",
     updated: "ଅପଡେଟ୍",
+    todayTab: "ଆଜି",
+    bring: "ସାଙ୍ଗରେ କଣ ଆଣିବେ",
+    firstStop: "ପ୍ରଥମେ ଏଠାକୁ ଯାଆନ୍ତୁ",
+    tapForWhy: "କାହିଁକି? ଦେଖିବାକୁ ଛୁଅନ୍ତୁ",
+    packed: "ନିଆଗଲା",
   },
   en: {
     come: "Come",
@@ -254,6 +276,11 @@ export const STRINGS: Record<Lang, Strings> = {
     hoursEachWay: "hours each way",
     working: "Saathi is checking…",
     updated: "Updated",
+    todayTab: "Today",
+    bring: "What to bring",
+    firstStop: "Go first to",
+    tapForWhy: "Why? Tap to see",
+    packed: "packed",
   },
 };
 

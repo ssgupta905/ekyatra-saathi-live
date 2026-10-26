@@ -346,6 +346,14 @@ left-hand sections are the ones that role uses, and the server decides what it m
 
 Sections link: `#/families/P-ANITA/why` opens Anita's reasoning directly; `#/registries/centres` opens the centres.
 
+**How it is laid out.** Each role lands on **Today**: a few numbers that each lead somewhere,
+and a short "needs you" list. The navigation rail shows only that role's work, grouped as the
+work happens. A family opens in layers: the answer and the shape of the journey first; then why,
+reports, every step, what to bring, what the family was told and said, the pathway and the
+evidence, each with a one-line summary and loaded only when opened. The pre-call brief and live
+activity open in drawers beside the page, actions confirm with a toast, and **⌘K** jumps to any
+family or screen.
+
 **Hospital rules are in force once saved.** A hospital that has saved no rules is planned exactly as before. Once an administrator saves a version of its `HospitalPolicy` (in `domain/policy.py`), the planner reads it, and every family is re-planned at once:
 
 - **What to bring** adds the documents that hospital asks for at each step.
@@ -471,6 +479,13 @@ make dev-users   # seema (navigator), imran (desk), amrita (doctor), neha (admin
 server log. The sign-in screens are English only.
 
 ## The family app (Android)
+
+Three tabs, one thumb. **Today** answers "do we travel" with one large card (the word, the date,
+the sentence, and a button to hear it); why, the next visit, the first desk to reach and a
+tickable list of what to bring sit below it, folded until asked. **Plan** is the journey as a
+timeline. **Messages** is the conversation, and the only place with a box to write in. The
+language is a menu in the top bar; the app has its own icon; colours and words come from the same
+tokens and translations as the web.
 
 A native app in Kotlin and Jetpack Compose, built with the standard Android SDK. It is the
 family's side of the product: the verdict, the plan, the conversation, and a way to answer back

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -64,10 +65,19 @@ fun PickerScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().background(Tokens.surface).safeDrawingPadding()) {
-        Column(Modifier.padding(20.dp, 24.dp, 20.dp, 12.dp)) {
-            Text("Saathi", fontSize = 30.sp, fontWeight = FontWeight.SemiBold, color = Tokens.ink)
-            Text(if (signedIn) "Your family" else "Choose a family", fontSize = 16.sp, color = Tokens.ink3)
+    Column(Modifier.fillMaxSize().background(Tokens.plane).safeDrawingPadding()) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Tokens.nav, Tokens.blue700)))
+                .padding(20.dp, 28.dp, 20.dp, 22.dp),
+        ) {
+            Box(
+                Modifier.size(40.dp).background(Tokens.blue500, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center,
+            ) { Text("S", color = androidx.compose.ui.graphics.Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp) }
+            Text("Saathi", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.padding(top = 12.dp))
+            Text(if (signedIn) "Your family" else "Choose a family", fontSize = 16.sp, color = Tokens.navInk)
         }
 
         Box(Modifier.weight(1f)) {
@@ -116,10 +126,12 @@ private fun FamilyRow(patient: PatientSummary, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
+            .padding(16.dp, 5.dp)
+            .background(Tokens.surface, RoundedCornerShape(Tokens.radiusLg))
             .heightIn(min = 64.dp)
             .clickable(onClick = onClick)
             .testTag("family-${patient.id}")
-            .padding(20.dp, 10.dp),
+            .padding(16.dp, 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {

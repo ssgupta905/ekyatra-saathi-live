@@ -122,7 +122,7 @@ fun Verdict(home: FamilyHome?, lang: Lang, s: Strings, speaker: Speaker) {
 
 /** Read it aloud. Same prominence as the text, because for a caregiver who cannot read this script it *is* the text. */
 @Composable
-private fun ReadAloud(text: String, lang: Lang, s: Strings, speaker: Speaker) {
+internal fun ReadAloud(text: String, lang: Lang, s: Strings, speaker: Speaker) {
     var speaking by remember { mutableStateOf(false) }
     var noVoice by remember(lang) { mutableStateOf(false) }
 

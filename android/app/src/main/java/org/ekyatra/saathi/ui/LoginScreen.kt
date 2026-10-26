@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
@@ -62,10 +63,18 @@ fun LoginScreen(api: SaathiApi, onSignedIn: () -> Unit) {
     }
 
     Column(
-        Modifier.fillMaxSize().background(Tokens.surface).safeDrawingPadding().padding(24.dp),
+        Modifier
+            .fillMaxSize()
+            .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Tokens.blue100, Tokens.surface)))
+            .safeDrawingPadding()
+            .padding(24.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("Saathi", fontSize = 30.sp, fontWeight = FontWeight.SemiBold, color = Tokens.ink)
+        androidx.compose.foundation.layout.Box(
+            Modifier.padding(bottom = 18.dp).size(52.dp).background(Tokens.blue500, RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.Center,
+        ) { Text("S", color = androidx.compose.ui.graphics.Color.White, fontWeight = FontWeight.Bold, fontSize = 28.sp) }
+        Text("Saathi", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Tokens.ink)
         Text(
             if (asked) "Enter the code we sent" else "Your phone number",
             fontSize = 16.sp,

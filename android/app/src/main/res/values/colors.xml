@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- From the shared tokens: blue-500 and nav. -->
+    <color name="saathi_brand">#2563EB</color>
+    <color name="saathi_nav">#0F172A</color>
+</resources>

@@ -331,6 +331,10 @@ async def home(state: ContainerDep, patient_id: str) -> dict:
             else None
         ),
         "steps": steps,
+        #: For a family cleared to travel: what to carry and the first desk to
+        #: reach. Logistics only, the same list the navigator's checklist shows.
+        "what_to_bring": list(plan.what_to_bring) if plan else [],
+        "where_to_go_first": plan.where_to_go_first if plan else None,
         "sim_date": state.world.today.isoformat(),
         "updated_at": run.computed_at.isoformat() if run else None,
     }

@@ -79,6 +79,9 @@ data class FamilyHome(
     @SerialName("waiting_for") val waitingFor: List<FamilyWait> = emptyList(),
     val message: FamilyMessage? = null,
     val steps: List<FamilyStep> = emptyList(),
+    /** Only for a family cleared to travel: what to carry, and the first desk. */
+    @SerialName("what_to_bring") val whatToBring: List<String> = emptyList(),
+    @SerialName("where_to_go_first") val whereToGoFirst: String? = null,
     @SerialName("sim_date") val simDate: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null,
 )
