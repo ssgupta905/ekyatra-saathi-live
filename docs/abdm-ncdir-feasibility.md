@@ -139,12 +139,46 @@ not part of this brief):
   asking NCDIR whether one exists before assuming the manual/common-core-form path is the only
   option.
 
-## 7. Immediate next actions
+## 7. Phase 0 follow-through (2026-10-22)
 
-| Action | Owner |
-|---|---|
-| Register for ABDM Sandbox access (product + org details) | Engineering |
-| Confirm current sandbox URL and HIU registration steps against official ABDM docs | Engineering |
-| Draft outreach note to ICMR-NCDIR (who to contact, what Saathi is, what a validation study would look like) | Outreach / team lead |
-| Shortlist 1–2 candidate partner hospitals (ABDM + NCRP HBCR overlap) | Outreach / team lead |
-| Scope the consent-layer wiring (§4) as a discrete engineering ticket | Engineering |
+Drafted and researched so far:
+
+- **ABDM Sandbox eligibility, re-checked:** individuals *can* apply (an ABDM developer-forum
+  user confirms signing up under the "Individual" category), not just registered
+  organizations — approval isn't automatic though, and vague applications have been rejected
+  with a request to "re-apply with more specific intention." Worth writing a specific, concrete
+  intent statement in the application rather than a generic one. Still unverified against
+  official docs — re-check at `sandbox.abdm.gov.in` directly before applying.
+- **Candidate partner hospital — Tata Memorial Hospital (Mumbai).** Already the uncredited
+  inspiration behind this codebase's synthetic `hospital_id="TMH-MUM"` and the README's cited
+  patient-travel statistics. Web research confirms it independently: TMH is NCRP's **largest
+  single HBCR contributor** (81,260 of 667,666 total cases across 58 HBCRs in the 2012–2016
+  NCRP report — the single biggest registry in the network), so it is already deeply engaged
+  with NCDIR. Its ABDM/ABHA integration status (Health Facility Registry listing) was **not**
+  confirmed by web search — check the official ABDM Health Facility Registry directory, or ask
+  the hospital's digital-health/IT team directly, before assuming either way.
+- **No public combined ABDM+NCRP hospital list exists** to search against — ABDM facility
+  status lives in the Health Facility Registry (HFR) on the ABDM portal; the NCRP hospital
+  roster lives in NCDIR's own annual reports (279 cancer-treating hospitals + 44 regional/
+  tertiary centres per the 2026 annual report) and the ICMR open-data portal. Cross-referencing
+  the two is a manual lookup, not a searchable join — Tata Memorial is a strong enough lead on
+  its own that this may not be necessary before a first approach.
+- **Outreach note to NCDIR drafted:** [`docs/outreach/ncdir-outreach-note.md`](outreach/ncdir-outreach-note.md) —
+  written as a cold, pre-partnership inquiry under Ankshuk Ray's name as an independent/
+  hackathon project. Flagged internally as possibly better routed through a specific hospital's
+  own registry/research office once one is engaged, rather than sent cold to NCDIR itself —
+  see the note's own "notes for whoever sends this" section.
+- **Consent-layer wiring scoped as a standalone ticket:** [`docs/tickets/consent-layer-wiring.md`](tickets/consent-layer-wiring.md) —
+  concrete file-level changes, explicitly out-of-scope items, and a verification checklist, kept
+  separate from this brief so it can move into an actual tracker without carrying the rest of
+  the brief's context with it.
+
+## 8. Immediate next actions
+
+| Action | Owner | Status |
+|---|---|---|
+| Submit ABDM Sandbox application (individual category, specific intent statement) | You (account creation isn't something I'll do on your behalf) | Not started — drafting the application's written content is doable on request |
+| Confirm current sandbox URL/HIU steps directly against `sandbox.abdm.gov.in` | Either | Partially done via web search; needs a direct check of the live site |
+| Review and send (or redirect) the NCDIR outreach note | You | Drafted, not sent |
+| Decide whether to approach Tata Memorial Hospital directly instead of/before NCDIR | You | Open question — see §7 |
+| Move the consent-layer ticket into an actual tracker and start the work | Engineering | Scoped, not started |

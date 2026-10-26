@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "WebSearch",
+      "WebFetch(domain:data.icmr.org.in)",
+      "WebFetch(domain:nhrdr.icmr.org.in)"
+    ]
+  }
+}
