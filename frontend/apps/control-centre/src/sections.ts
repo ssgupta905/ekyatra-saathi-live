@@ -1,47 +1,68 @@
 import type { Role } from "@saathi/api-client";
 
 /**
- * Every screen of the control centre, and who it is for.
+ * Every screen of the control centre, which role's work it is, and where it sits.
  *
- * The list decides what the left-hand navigation offers each role; it is a
- * convenience, not the boundary. The server checks the role on every action that
- * matters, whatever this list says.
+ * The navigation shows a role only its own work, in the order that work happens:
+ * a navigator's day starts at Today and goes to a family; a desk's starts with
+ * what went wrong. It is a convenience, not the boundary: the server checks the
+ * role on every action that matters, whatever this list says.
  */
+export type Icon =
+  | "home" | "users" | "approve" | "file" | "graph" | "alert" | "inbox" | "userplus"
+  | "chart" | "building" | "sliders" | "ledger" | "film" | "dial";
+
 export interface Section {
   id: string;
   label: string;
   hint: string;
+  icon: Icon;
   roles: Role[];
+  group: "work" | "records" | "hospital" | "demo";
   /** Only meaningful in the simulated world (the clock, the scripted stories). */
   demoOnly?: boolean;
+  /** Only meaningful on real records (entering them; the demo's are generated). */
+  realOnly?: boolean;
 }
 
 const STAFF: Role[] = ["navigator", "desk", "doctor", "admin"];
 
+export const GROUPS: Record<Section["group"], string> = {
+  work: "Work",
+  records: "Records",
+  hospital: "Hospital",
+  demo: "Demo",
+};
+
 export const SECTIONS: Section[] = [
-  { id: "families", label: "Families", hint: "One family at a time: the answer, why, and everything behind it", roles: STAFF },
-  { id: "boards", label: "Plan boards", hint: "Every family's pathway at once: what is waiting on what", roles: STAFF },
-  { id: "reports", label: "Reports", hint: "Every report against the window it should land in, and how each lab queue's forecast is doing", roles: STAFF },
-  { id: "approvals", label: "Disruptions & approvals", hint: "Outages in force and the re-plans waiting on a person", roles: ["navigator", "doctor", "admin"] },
-  { id: "desk", label: "Desk", hint: "Report what went wrong; confirm and release reports; enter records", roles: ["desk", "admin"] },
-  { id: "cohort", label: "Cohort", hint: "Who needs a person, and what the whole cohort has been spared", roles: ["navigator", "doctor", "admin"] },
-  { id: "story", label: "Story view", hint: "The brief's two stories, beat by beat, with what each cost", roles: STAFF, demoOnly: true },
-  { id: "operator", label: "Operator", hint: "The simulated clock and the family's words", roles: ["navigator", "admin"], demoOnly: true },
-  { id: "registries", label: "Registries", hint: "Hospitals, treatment centres, doctors, resources and staff accounts", roles: STAFF },
-  { id: "config", label: "Configuration", hint: "Readiness rules, languages, channels, integrations", roles: ["admin"] },
-  { id: "audit", label: "Audit log", hint: "Every fact the system has asserted, hash-chained", roles: ["admin"] },
+  { id: "today", label: "Today", hint: "What needs you now", icon: "home", roles: STAFF, group: "work" },
+  { id: "families", label: "Families", hint: "One family at a time: the answer, then the detail you ask for", icon: "users", roles: STAFF, group: "work" },
+  { id: "approvals", label: "Approvals", hint: "Re-plans waiting on a person, and the outages behind them", icon: "approve", roles: ["navigator", "doctor", "admin"], group: "work" },
+  { id: "issues", label: "Report an issue", hint: "Say what went wrong, the way you would write it in the log", icon: "alert", roles: ["desk", "admin"], group: "work" },
+  { id: "releases", label: "Releases", hint: "Reports to confirm or mark released", icon: "inbox", roles: ["desk", "admin"], group: "work" },
+  { id: "reports", label: "Reports", hint: "Every report against the window it should land in", icon: "file", roles: STAFF, group: "records" },
+  { id: "boards", label: "Plan boards", hint: "Every family's pathway at once", icon: "graph", roles: ["navigator", "doctor", "admin"], group: "records" },
+  { id: "records", label: "Enter records", hint: "Register a family, add steps, import a file", icon: "userplus", roles: ["desk", "navigator", "admin"], group: "records", realOnly: true },
+  { id: "cohort", label: "Cohort", hint: "Who needs a person, and what the cohort has been spared", icon: "chart", roles: ["navigator", "doctor", "admin"], group: "records" },
+  { id: "registries", label: "Registries", hint: "Hospitals, centres, doctors, resources, staff accounts", icon: "building", roles: STAFF, group: "hospital" },
+  { id: "config", label: "Configuration", hint: "Each hospital's rules and what is switched on", icon: "sliders", roles: ["admin"], group: "hospital" },
+  { id: "audit", label: "Audit log", hint: "Every fact asserted, hash-chained", icon: "ledger", roles: ["admin"], group: "hospital" },
+  { id: "story", label: "Story view", hint: "The brief's two stories, beat by beat", icon: "film", roles: STAFF, group: "demo", demoOnly: true },
+  { id: "operator", label: "Operator", hint: "The simulated clock and the family's words", icon: "dial", roles: ["navigator", "admin"], group: "demo", demoOnly: true },
 ];
 
-/** Where each role lands first: the screen their day starts on. */
+/** Where each role's day starts. */
 export const HOME: Record<Role, string> = {
-  navigator: "families",
-  desk: "desk",
-  doctor: "approvals",
-  admin: "config",
-  caregiver: "families",
-  patient: "families",
+  navigator: "today",
+  desk: "today",
+  doctor: "today",
+  admin: "today",
+  caregiver: "today",
+  patient: "today",
 };
 
 export function sectionsFor(role: Role, demo: boolean): Section[] {
-  return SECTIONS.filter((s) => s.roles.includes(role) && (demo || !s.demoOnly));
+  return SECTIONS.filter(
+    (s) => s.roles.includes(role) && (demo ? !s.realOnly : !s.demoOnly),
+  );
 }

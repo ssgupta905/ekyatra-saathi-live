@@ -105,7 +105,7 @@ export default function App() {
             <span className="st-sub">reports and confirms</span>
           </header>
           <div className="st-desk-shell">
-            <iframe title="Desk app" src={`${apps.control}/?persona=imran&section=desk`} />
+            <iframe title="Desk app" src={`${apps.control}/?persona=imran&section=issues`} />
           </div>
         </section>
 

@@ -112,7 +112,7 @@ describe("the demo stage", () => {
 
   it("frames the control centre as the desk and as the navigator", () => {
     const source = read("demo-stage", "src/App.tsx");
-    expect(source).toContain("?persona=imran&section=desk");
+    expect(source).toContain("?persona=imran&section=issues");
     expect(source).toContain("?persona=seema&section=families");
   });
 

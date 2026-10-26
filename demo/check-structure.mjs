@@ -54,11 +54,11 @@ try {
     [frames.phone, "phone", '.fx-langs button[title="Bengali"]'],
     [frames.desk, "desk", ".iss-text"],
     [frames.desk, "desk", ".iss-entry button"],
-    [frames.nav, "navigator", ".rail"],
-    [frames.nav, "navigator", ".split-aside"],
-    [frames.nav, "navigator", ".segmented-control button", "Pathway"],
-    [frames.nav, "navigator", ".segmented-control button", "Why"],
-    [frames.nav, "navigator", ".rail .row", "P-ANITA"],
+    [frames.nav, "navigator", ".fam-list"],
+    [frames.nav, "navigator", ".fam-layers"],
+    [frames.nav, "navigator", '[data-layer="pathway"] .ui-layer-head'],
+    [frames.nav, "navigator", '[data-layer="why"] .ui-layer-head'],
+    [frames.nav, "navigator", ".fam-row", "P-ANITA"],
   ];
 
   for (const [scope, app, selector, text, needsMessage] of expected) {
@@ -81,7 +81,7 @@ try {
   const absent = [
     [frames.nav, "navigator", ".iss-text", "has no issue reporter (that is the desk's)"],
     [frames.nav, "navigator", ".story-bar", "has no story bar (that is the stage's)"],
-    [frames.desk, "desk", ".rail", "has no call list (that is the navigator's)"],
+    [frames.desk, "desk", ".fam-list", "has no family list (that is the navigator's)"],
     [frames.desk, "desk", ".story-bar", "has no story bar"],
   ];
   for (const [scope, app, selector, what] of absent) {

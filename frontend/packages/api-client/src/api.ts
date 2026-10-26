@@ -504,7 +504,11 @@ export interface PlanBoard {
 
 export const boards = {
   one: (patientId: string) => request<PlanBoard>(`/patients/${patientId}/board`),
-  all: () => request<{ boards: PlanBoard[]; sim_date: string }>("/boards"),
+  /** Watched families by default; `{ everyone: true }` for the whole cohort. */
+  all: (opts: { everyone?: boolean } = {}) =>
+    request<{ boards: PlanBoard[]; sim_date: string }>(
+      opts.everyone ? "/boards?watched=false&limit=500" : "/boards",
+    ),
 };
 
 /* ──────────────────────────────────────────────────────────────────────────

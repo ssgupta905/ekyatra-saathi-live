@@ -397,7 +397,7 @@ async function main() {
 
     await phone.locator(".fx-app").waitFor({ timeout: 25000 });
     await desk.locator(".iss-text").waitFor({ timeout: 25000 });
-    await nav.locator(".rail").waitFor({ timeout: 25000 });
+    await nav.locator(".fam-list").waitFor({ timeout: 25000 });
     await page.locator(".story-bar").waitFor({ timeout: 25000 });
     await page.waitForTimeout(1600);
     await demo.dropTitle();
@@ -594,12 +594,12 @@ async function main() {
         "argues with the answer, it is one click.",
       4400,
     );
-    await demo.click(nav.locator(".segmented-control button", { hasText: "Why" }), {
+    await demo.click(nav.locator('[data-layer="why"] .ui-layer-head'), {
       label: "why",
     });
     await page.waitForTimeout(2800);
     await demo.say("Every claim behind the decision, and the source each one came from.", 3200);
-    await demo.scroll(nav.locator(".split-aside"), 420);
+    await demo.scroll(nav.locator(".fam-layers"), 420);
     await demo.say(
       "Underneath it, the evidence ledger: append-only and hash-chained, so a " +
         "claim cannot be changed after a family acted on it.",
@@ -610,7 +610,7 @@ async function main() {
     // switching the view under it leaves the narration describing a pane that
     // is no longer on screen.
     await demo.clear();
-    await demo.click(nav.locator(".segmented-control button", { hasText: "Pathway" }));
+    await demo.click(nav.locator('[data-layer="pathway"] .ui-layer-head'));
     await page.waitForTimeout(1400);
 
     /* ---------- Act 5: story two ---------- */
@@ -625,7 +625,7 @@ async function main() {
     // navigator's own, and a story bar reaching into it would be the console
     // causing something rather than reflecting it. So click her, the way a
     // navigator would, or the whole act narrates Anita over Shambhu's board.
-    await demo.click(nav.locator(".rail .row", { hasText: "P-ANITA" }), {
+    await demo.click(nav.locator(".fam-row", { hasText: "P-ANITA" }), {
       label: "Anita's board",
     });
     await page.waitForTimeout(1600);

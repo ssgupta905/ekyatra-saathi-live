@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { auth, runtimeConfig, tokenStore } from "@saathi/api-client";
 import { AuthGate, useSession } from "@saathi/auth";
 import { Shield } from "@saathi/ui-web";
+import { Logo } from "./ui/icons";
 import { ROLE_GROUPS, ROLE_TITLES, ROSTER, STAFF_ROLES, rememberPersona, storedPersona, type Persona } from "./persona";
 
 /**
@@ -99,14 +100,21 @@ function PersonaPicker({ onChoose }: { onChoose: (p: Persona) => void }) {
   const familyApp = runtimeConfig().apps?.family ?? "http://localhost:5180";
   return (
     <div className="cc-picker">
-      <header>
-        <h1>
-          Saathi <span>Control Centre</span>
-        </h1>
-        <p>Sign in as one of the people in the brief. Each sees the screens their role uses.</p>
+      <aside className="cc-picker-brand">
+        <Logo size={40} />
+        <h1>Saathi Control Centre</h1>
+        <p>
+          Readiness-driven visit planning for families travelling for cancer care. Each person
+          sees the work their role does; the server decides what each role may do.
+        </p>
         <p className="cc-scope">
           <Shield size={13} /> Logistics only · no results, no diagnosis, no advice
         </p>
+      </aside>
+      <div className="cc-picker-main">
+      <header>
+        <h2>Who are you today?</h2>
+        <p>Demo world: pick a person from the brief. No password is needed here.</p>
       </header>
 
       {ROLE_GROUPS.map((group) => (
@@ -130,8 +138,11 @@ function PersonaPicker({ onChoose }: { onChoose: (p: Persona) => void }) {
                 </a>
               ) : (
                 <button key={p.id} type="button" className="cc-card" onClick={() => onChoose(p)}>
-                  <strong>{p.name}</strong>
-                  <span>{p.title}</span>
+                  <span className="cc-avatar">{p.name.replace(/^Dr\.?\s+/i, "").split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
+                  <span className="cc-card-text">
+                    <strong>{p.name}</strong>
+                    <span>{p.title}</span>
+                  </span>
                 </button>
               ),
             )}
@@ -140,9 +151,9 @@ function PersonaPicker({ onChoose }: { onChoose: (p: Persona) => void }) {
       ))}
 
       <p className="cc-foot">
-        Demo world: no passwords. On real records the same page asks for a username and password,
-        and the server decides what each role may do either way.
+        On real records this page asks for a username and password instead.
       </p>
+      </div>
     </div>
   );
 }

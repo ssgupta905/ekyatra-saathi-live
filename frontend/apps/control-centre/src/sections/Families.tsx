@@ -2,145 +2,170 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   api,
   boards,
+  disruptions,
   live,
   reports,
-  type ReportRow,
+  LANGUAGE_NAMES,
   type Alert,
   type CareStep,
   type InboundMessage,
   type LedgerView,
   type Patient,
+  type PendingOption,
   type PlanBoard as Board,
   type PlanResponse,
+  type ReportRow,
 } from "@saathi/api-client";
 import {
-  ActivityStrip,
   CiteContext,
   DecisionTrace,
   EvidenceLedger,
   InboundCard,
-  Notice,
   PlanBoard,
   type Citation,
 } from "@saathi/ui-web";
 import { CallBrief } from "../components/CallBrief";
+import { DecisionHero } from "../components/DecisionHero";
+import { FamilyList } from "../components/FamilyList";
+import { JourneyStepper } from "../components/JourneyStepper";
+import { JourneyStrip } from "../components/JourneyStrip";
+import { MessagePipeline } from "../components/MessagePipeline";
 import { RecordEditor } from "../components/RecordEditor";
 import { ReportTable } from "../components/ReportTable";
-import { CallList } from "../components/CallList";
-import { DecisionHero } from "../components/DecisionHero";
-import { JourneyStepper } from "../components/JourneyStepper";
-import { MessagePipeline } from "../components/MessagePipeline";
-import { SegmentedControl } from "../components/SegmentedControl";
 import { VisitChecklist } from "../components/VisitChecklist";
 import { usePersona } from "../session";
+import { Drawer, EmptyState, Layer, Pill, SkeletonRows, useOpenLayers } from "../ui/kit";
+import * as I from "../ui/icons";
 import { useWorld } from "../world";
 
-const TABS = [
-  { value: "why" as const, label: "Why" },
-  { value: "pathway" as const, label: "Pathway" },
-  { value: "timeline" as const, label: "Timeline" },
-  { value: "reports" as const, label: "Reports" },
-  { value: "checklist" as const, label: "Checklist" },
-  { value: "message" as const, label: "Message" },
-  { value: "family" as const, label: "Family" },
-  { value: "ledger" as const, label: "Ledger" },
-  { value: "record" as const, label: "Record" },
-];
-type Tab = (typeof TABS)[number]["value"];
-
 /**
- * One family at a time, with everything behind the answer.
+ * One family, in layers.
  *
- * The call list down the left (alerts first, then the furthest away; no score),
- * the answer and the brief to read before dialling, and the detail you choose:
- * why, the branching pathway, the timeline, what to bring, the message and the
- * four gates it passed, what the family wrote, and the ledger every claim cites.
- * The original console's navigator view, wide again.
+ * First the answer and the shape of the journey, which is what a person needs
+ * in the first second. Then, only when asked, why; the reports; what to bring;
+ * what the family was told and what they said; the pathway; the evidence. Each
+ * layer says in one line whether it is worth opening, and loads only when open.
  */
 export function Families({
   patientId,
-  tab,
+  layer,
   onOpen,
 }: {
   patientId: string | null;
-  tab: string | null;
-  onOpen: (patientId: string, tab?: string) => void;
+  layer: string | null;
+  onOpen: (patientId: string, layer?: string) => void;
 }) {
   const world = useWorld();
   const { persona } = usePersona();
-  const [reportRows, setReportRows] = useState<ReportRow[]>([]);
-  const [edits, setEdits] = useState(0);
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patients, setPatients] = useState<Patient[] | null>(null);
+  const [cohort, setCohort] = useState<Board[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [steps, setSteps] = useState<CareStep[]>([]);
-  const [plan, setPlan] = useState<PlanResponse | null>(null);
-  const [board, setBoard] = useState<Board | null>(null);
-  const [ledger, setLedger] = useState<LedgerView | null>(null);
-  const [inbound, setInbound] = useState<InboundMessage[]>([]);
-  const [cited, setCited] = useState<Citation | null>(null);
+  const [pending, setPending] = useState<PendingOption[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [changedAt, setChangedAt] = useState(0);
-  const lastDecision = useRef<string | null>(null);
-
-  const { cohortRevision } = world;
-  const real = world.snapshot?.world === "real";
-  // The record is edited by the people who enter records, and only on real ones:
-  // a reset rebuilds the demo cohort, and edits there would vanish.
-  const tabs = TABS.filter(
-    (t) => t.value !== "record" || (real && ["desk", "navigator", "admin"].includes(persona.role)),
-  );
-  const detail: Tab = (tabs.find((t) => t.value === tab)?.value ?? "why") as Tab;
 
   useEffect(() => {
     api.patients().then(setPatients).catch((e: Error) => setError(e.message));
+    boards.all({ everyone: true }).then((r) => setCohort(r.boards)).catch(() => undefined);
     api.alerts().then(setAlerts).catch(() => undefined);
-  }, [cohortRevision]);
+    disruptions.pending().then(setPending).catch(() => undefined);
+  }, [world.cohortRevision]);
 
   const selected = useMemo(
-    () => patients.find((p) => p.id === patientId) ?? patients[0] ?? null,
+    () => patients?.find((p) => p.id === patientId) ?? patients?.[0] ?? null,
     [patients, patientId],
   );
-  const revision = world.revisionFor(selected?.id ?? null);
+
+  return (
+    <div className="fam">
+      <FamilyList
+        patients={patients ?? []}
+        boards={cohort}
+        alerts={alerts}
+        pending={pending}
+        selectedId={selected?.id ?? null}
+        today={world.snapshot?.current ?? null}
+        onSelect={(id) => onOpen(id)}
+      />
+      <div className="fam-main">
+        {error && <div className="notice warn">{error}</div>}
+        {patients === null ? (
+          <SkeletonRows rows={6} />
+        ) : !selected ? (
+          <EmptyState title="No families on record yet" icon={<I.Users />}>
+            {world.snapshot?.world === "real" ? "Register one from Enter records." : ""}
+          </EmptyState>
+        ) : (
+          <FamilyWorkspace
+            key={selected.id}
+            patient={selected}
+            focus={layer}
+            canEdit={world.snapshot?.world === "real" && ["desk", "navigator", "admin"].includes(persona.role)}
+            alerted={alerts.some((a) => a.patient_id === selected.id)}
+            deciding={pending.some((p) => p.patient_id === selected.id)}
+            onLayer={(l) => onOpen(selected.id, l)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FamilyWorkspace({
+  patient,
+  focus,
+  canEdit,
+  alerted,
+  deciding,
+  onLayer,
+}: {
+  patient: Patient;
+  focus: string | null;
+  canEdit: boolean;
+  alerted: boolean;
+  deciding: boolean;
+  onLayer: (layer: string) => void;
+}) {
+  const world = useWorld();
+  const revision = world.revisionFor(patient.id);
+  const [steps, setSteps] = useState<CareStep[]>([]);
+  const [plan, setPlan] = useState<PlanResponse | null>(null);
+  const [reportRows, setReportRows] = useState<ReportRow[]>([]);
+  const [edits, setEdits] = useState(0);
+  const [brief, setBrief] = useState(false);
+  const [cited, setCited] = useState<Citation | null>(null);
+  const [changedAt, setChangedAt] = useState(0);
+  const last = useRef<string | null>(null);
+  const [open, toggle, ensure] = useOpenLayers("family", []);
 
   useEffect(() => {
-    if (!selected) return;
+    if (focus) ensure(focus);
+  }, [focus, ensure]);
+
+  useEffect(() => {
     let cancelled = false;
-    const id = selected.id;
-    Promise.all([
-      api.steps(id),
-      api.plan(id),
-      live.inbound(id),
-      api.ledger(id),
-      boards.one(id),
-      reports.list({ patient_id: id }),
-    ])
-      .then(([stepRows, planResponse, messages, ledgerView, boardView, reportList]) => {
+    Promise.all([api.steps(patient.id), api.plan(patient.id), reports.list({ patient_id: patient.id })])
+      .then(([s, p, r]) => {
         if (cancelled) return;
-        setReportRows(reportList.reports);
-        setSteps(stepRows);
-        setPlan(planResponse);
-        setInbound(messages);
-        setLedger(ledgerView);
-        setBoard(boardView);
-        setError(null);
-        const key = `${id}:${planResponse.plan?.decision ?? null}`;
-        if (lastDecision.current?.startsWith(`${id}:`) && lastDecision.current !== key) {
-          setChangedAt(Date.now());
-        }
-        lastDecision.current = key;
+        setSteps(s);
+        setPlan(p);
+        setReportRows(r.reports);
+        const key = p.plan?.decision ?? null;
+        if (last.current !== null && last.current !== key) setChangedAt(Date.now());
+        last.current = key;
       })
-      .catch((e: Error) => !cancelled && setError(e.message));
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [selected, revision, cohortRevision, edits]);
+  }, [patient.id, revision, world.cohortRevision, edits]);
 
   const focusCitation = useCallback(
     (ledgerId: string) => {
-      if (selected) onOpen(selected.id, "ledger");
+      ensure("evidence");
       setCited((prev) => ({ id: ledgerId, n: (prev?.n ?? 0) + 1 }));
+      window.setTimeout(() => document.querySelector('[data-layer="evidence"]')?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
     },
-    [selected, onOpen],
+    [ensure],
   );
 
   const targetKind = useMemo(() => {
@@ -148,72 +173,125 @@ export function Families({
     return id ? (steps.find((s) => s.id === id)?.kind ?? null) : null;
   }, [plan, steps]);
 
+  const decision = plan?.plan?.decision ?? null;
+  const urgentReports = reportRows.filter((r) => r.state === "overdue" || r.state === "due").length;
+  const pendingReports = reportRows.filter((r) => r.status === "pending_result").length;
+  const blockers = plan?.plan?.blocked_by.length ?? 0;
+  const bring = plan?.plan?.what_to_bring.length ?? 0;
+  const held = plan?.routed_to_care_team;
+  const onToggle = (id: string) => {
+    toggle(id);
+    if (!open.has(id)) onLayer(id);
+  };
+
   return (
     <CiteContext.Provider value={focusCitation}>
-      <div className="cc-families">
-        <CallList
-          patients={patients}
-          alerts={alerts}
-          watched={world.snapshot?.watched ?? []}
-          selectedId={selected?.id ?? null}
-          onSelect={(p) => onOpen(p.id)}
-        />
-
-        <div className="cc-family">
-          {error && <Notice tone="warn">{error}</Notice>}
-          {!selected ? (
-            !error && (
-              <Notice tone="calm">
-                No families on record yet.
-                {world.snapshot?.world === "real" && " Register one from the Desk."}
-              </Notice>
-            )
-          ) : (
-            <div className="split">
-              <div className="split-main">
-                <DecisionHero
-                  response={plan}
-                  patient={selected}
-                  targetKind={targetKind}
-                  justChanged={Date.now() - changedAt < 2000}
-                />
-                <CallBrief patientId={selected.id} revision={revision} />
-                <ActivityStrip
-                  events={world.events}
-                  connected={world.connected}
-                  onSelect={(id) => onOpen(id)}
-                />
-              </div>
-              <div className="split-aside">
-                <SegmentedControl
-                  options={tabs}
-                  value={detail}
-                  onChange={(next) => onOpen(selected.id, next)}
-                  aria-label="Detail"
-                />
-                <div key={detail} className="panel-fade">
-                  {detail === "why" && <DecisionTrace response={plan} steps={steps} patient={selected} />}
-                  {detail === "pathway" &&
-                    (board ? <PlanBoard board={board} /> : <Notice tone="calm">Loading the pathway…</Notice>)}
-                  {detail === "timeline" && <JourneyStepper steps={steps} response={plan} />}
-                  {detail === "checklist" && <VisitChecklist response={plan} />}
-                  {detail === "message" && <MessagePipeline response={plan} patient={selected} />}
-                  {detail === "family" && <InboundCard messages={inbound} language={selected.language} />}
-                  {detail === "ledger" && <EvidenceLedger ledger={ledger} focused={cited} />}
-                  {detail === "reports" && (
-                    <div className="card cc-flush">
-                      <ReportTable rows={reportRows} showFamily={false} />
-                    </div>
-                  )}
-                  {detail === "record" && (
-                    <RecordEditor patient={selected} steps={steps} onChanged={() => setEdits((n) => n + 1)} />
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+      <header className="fam-head">
+        <div className="fam-id">
+          <span className="fam-avatar">{(patient.name || patient.id).replace(/^P-?/, "").slice(0, 2).toUpperCase()}</span>
+          <div>
+            <h1>{patient.name || patient.id}</h1>
+            <p>
+              {patient.name && <span className="mono">{patient.id} · </span>}
+              {patient.home_district} · {Math.round(patient.home_distance_km)} km from {patient.hospital_id} · hears {LANGUAGE_NAMES[patient.language]}
+            </p>
+          </div>
         </div>
+        <div className="fam-head-flags">
+          {deciding && <Pill tone="wait">Needs a decision</Pill>}
+          {alerted && <Pill tone="critical">Needs a call</Pill>}
+          <button type="button" className="btn" onClick={() => setBrief(true)}>
+            <I.FileText size={15} /> Before you call
+          </button>
+        </div>
+      </header>
+
+      <div className="fam-summary">
+        <DecisionHero response={plan} patient={patient} targetKind={targetKind} justChanged={Date.now() - changedAt < 2500} />
+        <section className="ui-panel fam-journey">
+          <header>
+            <div>
+              <h2>The journey</h2>
+              <p>Done, waiting, and the visit it all leads to</p>
+            </div>
+          </header>
+          <div className="ui-panel-body">
+            <JourneyStrip steps={steps} response={plan} />
+          </div>
+        </section>
       </div>
+
+      <div className="fam-layers">
+        <Layer id="why" title="Why this answer" icon={<I.Graph size={16} />} open={open.has("why")} onToggle={onToggle}
+          summary={decision ? `${blockers ? `${blockers} thing${blockers > 1 ? "s" : ""} in the way` : "nothing in the way"} · every claim cited` : "…"}>
+          {() => <DecisionTrace response={plan} steps={steps} patient={patient} />}
+        </Layer>
+        <Layer id="reports" title="Reports" icon={<I.FileText size={16} />} open={open.has("reports")} onToggle={onToggle}
+          tone={urgentReports ? "wait" : "neutral"}
+          summary={reportRows.length ? `${pendingReports} pending${urgentReports ? ` · ${urgentReports} due or overdue` : ""} · ${reportRows.length - pendingReports} released` : "none"}>
+          {() => <div className="cc-flush"><ReportTable rows={reportRows} showFamily={false} /></div>}
+        </Layer>
+        <Layer id="timeline" title="Every step" icon={<I.Ledger size={16} />} open={open.has("timeline")} onToggle={onToggle}
+          summary={`${steps.length} on record`}>
+          {() => <JourneyStepper steps={steps} response={plan} />}
+        </Layer>
+        <Layer id="checklist" title="What to bring, where to go" icon={<I.Inbox size={16} />} open={open.has("checklist")} onToggle={onToggle}
+          summary={decision === "go" ? `${bring} items · first stop ${plan?.plan?.where_to_go_first ?? "—"}` : "only once they are cleared to travel"}>
+          {() => <VisitChecklist response={plan} />}
+        </Layer>
+        <Layer id="message" title="What the family was told" icon={<I.Approve size={16} />} open={open.has("message")} onToggle={onToggle}
+          tone={held ? "wait" : "neutral"}
+          summary={held ? "held by the guard for a person" : plan?.message_body ? "sent, after four checks" : "no message written yet"}>
+          {() => <MessagePipeline response={plan} patient={patient} />}
+        </Layer>
+        <Layer id="family" title="What the family said" icon={<I.Users size={16} />} open={open.has("family")} onToggle={onToggle}
+          tone={alerted ? "critical" : "neutral"} summary={alerted ? "a question needs a person" : "their messages, as the guard read them"}>
+          {() => <InboundLayer patient={patient} revision={revision} />}
+        </Layer>
+        <Layer id="pathway" title="Pathway diagram" icon={<I.Graph size={16} />} open={open.has("pathway")} onToggle={onToggle}
+          summary="what waits on what">
+          {() => <BoardLayer patientId={patient.id} revision={revision} />}
+        </Layer>
+        <Layer id="evidence" title="Evidence" icon={<I.Ledger size={16} />} open={open.has("evidence")} onToggle={onToggle}
+          summary="the hash-chained record behind every claim">
+          {() => <LedgerLayer patientId={patient.id} revision={revision} cited={cited} />}
+        </Layer>
+        {canEdit && (
+          <Layer id="record" title="Edit the record" icon={<I.UserPlus size={16} />} open={open.has("record")} onToggle={onToggle}
+            summary="the family's details and steps">
+            {() => <RecordEditor patient={patient} steps={steps} onChanged={() => setEdits((n) => n + 1)} />}
+          </Layer>
+        )}
+      </div>
+
+      <Drawer open={brief} title="Before you call" onClose={() => setBrief(false)} width={480}>
+        <CallBrief patientId={patient.id} revision={revision} />
+      </Drawer>
     </CiteContext.Provider>
   );
+}
+
+function InboundLayer({ patient, revision }: { patient: Patient; revision: number }) {
+  const [rows, setRows] = useState<InboundMessage[] | null>(null);
+  useEffect(() => {
+    live.inbound(patient.id).then(setRows).catch(() => setRows([]));
+  }, [patient.id, revision]);
+  if (!rows) return <SkeletonRows />;
+  return <InboundCard messages={rows} language={patient.language} />;
+}
+
+function BoardLayer({ patientId, revision }: { patientId: string; revision: number }) {
+  const [board, setBoard] = useState<Board | null>(null);
+  useEffect(() => {
+    boards.one(patientId).then(setBoard).catch(() => setBoard(null));
+  }, [patientId, revision]);
+  return board ? <PlanBoard board={board} /> : <SkeletonRows rows={4} />;
+}
+
+function LedgerLayer({ patientId, revision, cited }: { patientId: string; revision: number; cited: Citation | null }) {
+  const [ledger, setLedger] = useState<LedgerView | null>(null);
+  useEffect(() => {
+    api.ledger(patientId).then(setLedger).catch(() => setLedger(null));
+  }, [patientId, revision]);
+  return ledger ? <EvidenceLedger ledger={ledger} focused={cited} /> : <SkeletonRows />;
 }
