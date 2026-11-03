@@ -33,6 +33,14 @@ class StepKind(StrEnum):
     MAINTENANCE_DOSE = "maintenance_dose"
     #: The echo + review bundled before every fourth maintenance dose.
     ECHO_REVIEW = "echo_review"
+    #: One session of a repeating dialysis schedule. Which steps follow it, and
+    #: how often, is the dialysis `Pathway`'s business, not this enum's.
+    DIALYSIS_SESSION = "dialysis_session"
+    NEPHROLOGY_REVIEW = "nephrology_review"
+    #: The first visit after a hospital stay, and the dressing/wound visit that
+    #: some discharges include. Both are logistics, not clinical categories.
+    DISCHARGE_REVIEW = "discharge_review"
+    WOUND_CHECK = "wound_check"
 
 
 #: Steps that produce a result the family never travels for, but that later
@@ -54,6 +62,10 @@ TRAVEL_STEPS = frozenset(
         StepKind.TREATMENT,
         StepKind.MAINTENANCE_DOSE,
         StepKind.ECHO_REVIEW,
+        StepKind.DIALYSIS_SESSION,
+        StepKind.NEPHROLOGY_REVIEW,
+        StepKind.DISCHARGE_REVIEW,
+        StepKind.WOUND_CHECK,
     }
 )
 
@@ -73,12 +85,36 @@ class StepStatus(StrEnum):
 
 
 class Decision(StrEnum):
-    """The only three things Saathi is allowed to conclude about a visit."""
+    """The only four things Saathi is allowed to conclude about a visit."""
 
     GO = "go"
     WAIT = "wait"
     #: Prerequisites are unknowable from available data. No date is promised.
     UNCERTAIN = "uncertain"
+    #: Something outside the care steps (a slot, a ride, an approval) has failed
+    #: and an alternative exists. No date is promised: the plan is being changed,
+    #: and staff approve the change before a family is told a new one.
+    REPLAN = "replan"
+
+
+class ReadinessKind(StrEnum):
+    """A party's contribution to a journey being ready, beyond the care steps."""
+
+    SLOT = "slot"
+    MEDICINE = "medicine"
+    INSURANCE = "insurance"
+    TRANSPORT = "transport"
+    STAY = "stay"
+
+
+class ReadinessStatus(StrEnum):
+    READY = "ready"
+    PENDING = "pending"
+    #: Failed or refused. Whether it is a WAIT or a REPLAN depends on whether an
+    #: alternative exists.
+    BLOCKED = "blocked"
+    #: Nobody has said. Never read as ready, never read as blocked.
+    UNKNOWN = "unknown"
 
 
 class Language(StrEnum):
@@ -104,6 +140,8 @@ class SourceSystem(StrEnum):
     NAVIGATOR = "navigator"
     #: Produced by Saathi's own deterministic models (conformal, PELT, graph).
     DERIVED = "derived"
+    #: A third party reporting its own status: a ride, a stay, a pharmacy, an insurer.
+    PARTNER = "partner"
 
 
 class AlertKind(StrEnum):

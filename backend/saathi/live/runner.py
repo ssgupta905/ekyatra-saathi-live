@@ -717,7 +717,7 @@ class LiveRunner:
         round_trip_hours: float | None = None,
     ) -> tuple[PlanOption, ...]:
         direct = options_module.enumerate_candidates(
-            patient, steps, disruption, target_kind, self.planner.graph,
+            patient, steps, disruption, target_kind, self.planner.graph_for(patient),
             self.planner.predictor, self.world.today, cycle=cycle,
             # The hospital's saved rules, when it has saved any; None keeps the
             # built-in behaviour.
@@ -727,7 +727,7 @@ class LiveRunner:
         if direct:
             return direct
         return options_module.opportunistic_bundle_candidates(
-            patient, steps, disruption, target_kind, self.planner.graph,
+            patient, steps, disruption, target_kind, self.planner.graph_for(patient),
             self.planner.predictor, self.world.today, cycle=cycle,
         )
 
@@ -1120,9 +1120,11 @@ class LiveRunner:
         steps: list,
         compose: bool,
         disruptions: tuple = (),
+        readiness_items: tuple = (),
     ) -> dict:
-        # `disruptions` is passed in rather than read off the world: this runs
-        # on a worker thread and must not race the lock that owns it.
+        # `disruptions` and `readiness_items` are passed in rather than read off
+        # the world: this runs on a worker thread and must not race the lock
+        # that owns it.
         return self.planner.plan_visit(
             patient=patient,
             steps=steps,
@@ -1130,10 +1132,20 @@ class LiveRunner:
             today=self.world.today,
             compose=compose,
             disruptions=disruptions,
+            readiness_items=readiness_items,
         )
 
-    def _plan_batch_sync(self, work: list[tuple[Patient, list]], disruptions: tuple) -> list[dict]:
-        return [self._plan_sync(patient, steps, False, disruptions) for patient, steps in work]
+    def _plan_batch_sync(
+        self,
+        work: list[tuple[Patient, list]],
+        disruptions: tuple,
+        items: dict[str, tuple] | None = None,
+    ) -> list[dict]:
+        items = items or {}
+        return [
+            self._plan_sync(patient, steps, False, disruptions, items.get(patient.id, ()))
+            for patient, steps in work
+        ]
 
     def journey_hours(self, patient) -> float | None:
         """Round-trip travel time for this family, fetched and cached.
@@ -1161,7 +1173,8 @@ class LiveRunner:
             f"Re-planning {len(work)} families",
             detail="walking the care-step graph for each one",
         ):
-            results = await asyncio.to_thread(self._plan_batch_sync, work, disruptions)
+            items = {p.id: self.world.readiness_for(p.id) for p, _ in work}
+            results = await asyncio.to_thread(self._plan_batch_sync, work, disruptions, items)
         batch_ms = (perf_counter() - started) * 1000
 
         changed: list[PlanRun] = []
@@ -1219,7 +1232,10 @@ class LiveRunner:
         steps = self.world.steps_for(patient_id)
         disruptions = tuple(self.world.open_disruptions())
         before = self.ledger_size()
-        result = await asyncio.to_thread(self._plan_sync, patient, steps, False, disruptions)
+        items = self.world.readiness_for(patient_id)
+        result = await asyncio.to_thread(
+            self._plan_sync, patient, steps, False, disruptions, items
+        )
         run = self._store(patient_id, result)
         self._bump("plan_runs")
 

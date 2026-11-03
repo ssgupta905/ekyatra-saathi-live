@@ -70,12 +70,17 @@ export const DECISION_RULES: Record<Decision, string> = {
     "UNCERTAIN is returned when a prerequisite's readiness cannot be bounded " +
     "from the records on hand. No date is promised and a navigator is asked to " +
     "call, because a guessed date costs the family a journey.",
+  replan:
+    "REPLAN is returned when a party outside the care steps — a ride, a stay, a " +
+    "slot, a pharmacy — cannot go ahead and another way exists. No date is " +
+    "promised; staff approve the new plan before the family is told.",
 };
 
 export const DECISION_PLAIN: Record<Decision, string> = {
   go: "Travel. Everything this visit depends on is ready.",
   wait: "Do not travel yet. Something this visit depends on is still outstanding.",
   uncertain: "Do not travel on this. Saathi cannot tell when this visit becomes possible.",
+  replan: "Do not travel yet. Part of the plan has fallen through and the care team is changing it.",
 };
 
 const windowBasis = (w: ReadinessWindow): Basis => ({

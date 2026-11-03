@@ -53,7 +53,7 @@ export function PlanBoardList({ revision }: { revision: number }) {
           {rows.map((row) => {
             const blocked = row.waiting_on.length;
             const tone =
-              row.decision === "go" ? "go" : row.decision === "wait" ? "wait" : "uncertain";
+              row.decision === "go" ? "go" : row.decision === "wait" || row.decision === "replan" ? "wait" : "uncertain";
             return (
               <button
                 type="button"

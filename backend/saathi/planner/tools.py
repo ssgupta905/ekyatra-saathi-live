@@ -16,6 +16,7 @@ from ..domain.enums import (
     REPORT_STEPS,
     TRAVEL_STEPS,
     Decision,
+    ReadinessStatus,
     SourceSystem,
     StepKind,
     StepStatus,
@@ -25,8 +26,10 @@ from ..domain.models import (
     CareStep,
     Disruption,
     MaintenanceCycle,
+    ReadinessItem,
     ReadinessWindow,
 )
+from ..domain.pathway import ONCOLOGY, Pathway
 from ..domain.policy import ENTITLEMENTS
 from ..graph.dependencies import DependencyGraph
 from ..ports.ledger import EvidenceLedger
@@ -156,6 +159,39 @@ def decide(
     return Decision.GO
 
 
+def relevant_items(
+    items: Iterable[ReadinessItem], step_ids: Iterable[str]
+) -> tuple[ReadinessItem, ...]:
+    """The items that gate this visit: its own, and those gating "the next visit"."""
+    wanted = set(step_ids)
+    return tuple(i for i in items if i.step_id is None or i.step_id in wanted)
+
+
+def decide_with_items(base: Decision, items: Sequence[ReadinessItem]) -> Decision:
+    """Fold the other parties' answers into the care-step decision.
+
+    Severity runs UNCERTAIN > WAIT > REPLAN > GO, and a party can only make the
+    answer more cautious, never less: a ride that is ready does not clear a
+    report that is not.
+
+    - A party nobody has heard from -> UNCERTAIN. Silence is not readiness.
+    - Pending -> WAIT.
+    - Blocked with another way available -> REPLAN; blocked with none -> WAIT.
+    """
+    if base in (Decision.UNCERTAIN, Decision.WAIT):
+        return base
+    if any(i.status is ReadinessStatus.UNKNOWN for i in items):
+        return Decision.UNCERTAIN
+    blocked = [i for i in items if i.status is ReadinessStatus.BLOCKED]
+    if any(not i.alternative_available for i in blocked):
+        return Decision.WAIT
+    if any(i.status is ReadinessStatus.PENDING for i in items):
+        return Decision.WAIT
+    if blocked:
+        return Decision.REPLAN
+    return base
+
+
 def earliest_safe_travel_date(
     blockers: Sequence[BlockedPrerequisite],
     today: date,
@@ -225,21 +261,16 @@ BASE_DOCUMENTS: tuple[str, ...] = (
     "previous appointment slips",
 )
 
-STEP_DOCUMENTS: dict[StepKind, tuple[str, ...]] = {
-    StepKind.SCAN: ("scan request form", "previous scan films if you have them"),
-    StepKind.BLOODS: ("blood test request form", "come without eating if told to"),
-    StepKind.BIOPSY: ("biopsy consent form", "someone to travel back with you"),
-    StepKind.REVIEW_CONSULT: ("all report slips collected so far",),
-    StepKind.TREATMENT: ("admission letter", "payment or scheme documents"),
-    StepKind.MAINTENANCE_DOSE: ("treatment card", "payment or scheme documents"),
-    StepKind.ECHO_REVIEW: ("treatment card",),
-}
+#: Oncology's per-step documents, under their old name. Other pathways carry
+#: their own on `Pathway.documents`.
+STEP_DOCUMENTS = ONCOLOGY.documents
 
 
 def documents_to_bring(
     target: CareStep,
     bundled_kinds: Iterable[StepKind],
     requirements: Mapping[str, Sequence[str]] | None = None,
+    pathway: Pathway = ONCOLOGY,
 ) -> tuple[str, ...]:
     """What to carry: the common list, each step's own, then what this hospital asks for.
 
@@ -249,7 +280,7 @@ def documents_to_bring(
     kinds = (target.kind, *bundled_kinds)
     items = list(BASE_DOCUMENTS)
     for kind in kinds:
-        for doc in STEP_DOCUMENTS.get(kind, ()):
+        for doc in pathway.documents.get(kind, ()):
             if doc not in items:
                 items.append(doc)
     for kind in kinds:
@@ -264,24 +295,19 @@ def documents_to_bring(
 
 #: Which desk to reach first. Ordering matters: the first queue of the day is
 #: the one that determines whether the family gets home the same night.
-FIRST_STOP: dict[StepKind, str] = {
-    StepKind.CONSULT: "OPD registration counter",
-    StepKind.BIOPSY: "OPD registration counter",
-    StepKind.BLOODS: "sample collection counter",
-    StepKind.SCAN: "radiology reception",
-    StepKind.REVIEW_CONSULT: "OPD registration counter",
-    StepKind.TREATMENT: "admission desk",
-    StepKind.MAINTENANCE_DOSE: "day-care centre",
-    StepKind.ECHO_REVIEW: "cardiology reception",
-}
+FIRST_STOP = ONCOLOGY.first_stop
 
 
-def where_to_go_first(target: CareStep, bundled_kinds: Sequence[StepKind]) -> str | None:
+def where_to_go_first(
+    target: CareStep,
+    bundled_kinds: Sequence[StepKind],
+    pathway: Pathway = ONCOLOGY,
+) -> str | None:
     # Bloods first when bundled: the sample counter closes earliest and the
     # rest of the day can proceed while it runs.
-    if StepKind.BLOODS in bundled_kinds:
-        return FIRST_STOP[StepKind.BLOODS]
-    return FIRST_STOP.get(target.kind)
+    if StepKind.BLOODS in bundled_kinds and StepKind.BLOODS in pathway.first_stop:
+        return pathway.first_stop[StepKind.BLOODS]
+    return pathway.first_stop.get(target.kind)
 
 
 def record_status_evidence(
@@ -317,16 +343,16 @@ def record_status_evidence(
 
 #: Maintenance is a recurring step: the 1-indexed dose numbers that need an
 #: echo + review bundled first, per the advising doctor's sketch.
-ECHO_GATED_DOSES = frozenset({5, 9, 13, 17})
+ECHO_GATED_DOSES = ONCOLOGY.recurrence.gated_indices if ONCOLOGY.recurrence else frozenset()
 
 
-def requires_echo_bundle(dose_index: int) -> bool:
+def requires_echo_bundle(dose_index: int, pathway: Pathway = ONCOLOGY) -> bool:
     """Whether this dose number needs an echo + review bundled before it.
 
     A plain lookup, not a clinical judgement — the doctor set the gated
     doses; this function only remembers which ones they were.
     """
-    return dose_index in ECHO_GATED_DOSES
+    return pathway.requires_companion(dose_index)
 
 
 def due_dose(cycle: MaintenanceCycle, today: date) -> int | None:

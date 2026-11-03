@@ -14,6 +14,7 @@ from ..domain.models import (
     Disruption,
     EvidenceRef,
     Patient,
+    ReadinessItem,
     VisitPlan,
 )
 
@@ -37,10 +38,15 @@ class PlannerState(TypedDict, total=False):
     #: Disruptions in force for this run. A booking on a disrupted resource is
     #: not a date the hospital can honour, so it stops counting as one.
     disruptions: tuple[Disruption, ...]
+    #: What the other parties (ride, stay, pharmacy, insurer, a booked slot) have
+    #: said. Empty means nobody has been asked, and the plan is exactly the
+    #: care-step plan it was before parties existed.
+    readiness_items: tuple[ReadinessItem, ...]
 
     # --- derived ---
     target: CareStep | None
     blockers: tuple[BlockedPrerequisite, ...]
+    items: tuple[ReadinessItem, ...]
     missing_kinds: frozenset[StepKind]
     decision: Decision
     travel_on: date | None

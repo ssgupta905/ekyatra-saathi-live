@@ -73,7 +73,7 @@ data class FamilyStep(
 @Serializable
 data class FamilyHome(
     val patient: HomePatient,
-    /** "go", "wait" or "uncertain"; null before there is a plan. */
+    /** "go", "wait", "uncertain" or "replan"; null before there is a plan. */
     val decision: String? = null,
     @SerialName("travel_on") val travelOn: String? = null,
     @SerialName("waiting_for") val waitingFor: List<FamilyWait> = emptyList(),

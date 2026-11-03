@@ -17,6 +17,8 @@ from .enums import (
     DisruptionKind,
     FamilyMemberRole,
     Language,
+    ReadinessKind,
+    ReadinessStatus,
     ResourceKind,
     Role,
     SourceSystem,
@@ -59,6 +61,9 @@ class Patient(Base):
     language: Language
     caregiver_phone: str
     hospital_id: str
+    #: Which care pathway this family is on; see `domain.pathway`. The planner
+    #: reads its dependency graph, documents and first stops from here.
+    pathway_id: str = "oncology"
     family_members: tuple[FamilyMember, ...] = ()
 
 
@@ -118,6 +123,30 @@ class EvidenceRef(Base):
     source_record_id: str
 
 
+class ReadinessItem(Base):
+    """One party's answer to "is your part of this journey ready?".
+
+    Logistics only, like everything here: a status, a date and a short note
+    ("cab confirmed", "stock arrives Thursday"). There is no field for what a
+    medicine is or what a report found.
+    """
+
+    id: str
+    patient_id: str
+    #: The step this item gates. None means it gates the patient's next visit.
+    step_id: str | None = None
+    kind: ReadinessKind
+    #: Who owns it, in words a navigator would say: "Uber", "day-care pharmacy".
+    party: str
+    status: ReadinessStatus
+    ready_by: date | None = None
+    detail: str = ""
+    #: True when another way exists (another slot, another cab). The difference
+    #: between WAIT and REPLAN.
+    alternative_available: bool = False
+    source: SourceSystem = SourceSystem.NAVIGATOR
+
+
 class VisitPlan(Base):
     """The planner's deterministic output. Claude never produces one of these."""
 
@@ -133,6 +162,9 @@ class VisitPlan(Base):
     where_to_go_first: str | None = None
     evidence: tuple[EvidenceRef, ...] = ()
     rationale: str = ""
+    #: What the other parties said, when anyone did. Empty for a plan that only
+    #: ever looked at care steps.
+    readiness_items: tuple[ReadinessItem, ...] = ()
 
 
 class Resource(Base):

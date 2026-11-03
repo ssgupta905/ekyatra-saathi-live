@@ -54,7 +54,7 @@ private data class Band(val background: Color, val word: Color)
 
 private fun band(decision: String?): Band = when (decision) {
     "go" -> Band(Tokens.goTint, Tokens.go)
-    "wait" -> Band(Tokens.waitTint, Tokens.wait)
+    "wait", "replan" -> Band(Tokens.waitTint, Tokens.wait)
     "uncertain" -> Band(Tokens.uncertainTint, Tokens.uncertain)
     else -> Band(Tokens.sunken, Tokens.ink4)
 }

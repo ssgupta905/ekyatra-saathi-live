@@ -137,6 +137,11 @@ def plan_brief(plan: VisitPlan, ledger: EvidenceLedger) -> str:
             lines.append(
                 f"WAITING ON: {blocked.kind.value} (status: {blocked.status.value})"
             )
+    elif plan.decision is Decision.REPLAN:
+        lines.append(
+            "TRAVEL ON: not yet — the care team is changing the plan and will "
+            "confirm a new one. Do not state or imply any date."
+        )
     else:
         lines.append(
             "TRAVEL ON: unknown — say plainly that there is no date yet and "

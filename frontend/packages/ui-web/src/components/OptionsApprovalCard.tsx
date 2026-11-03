@@ -71,7 +71,7 @@ export function OptionsApprovalCard({
           <div key={index} className="option-card">
             <Badge
               tone={
-                option.decision === "go" ? "go" : option.decision === "wait" ? "wait" : "uncertain"
+                option.decision === "go" ? "go" : option.decision === "wait" || option.decision === "replan" ? "wait" : "uncertain"
               }
             >
               {option.decision.toUpperCase()}

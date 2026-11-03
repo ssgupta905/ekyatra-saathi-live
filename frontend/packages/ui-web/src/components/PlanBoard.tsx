@@ -78,7 +78,7 @@ export function PlanBoard({ board, compact }: { board: Board; compact?: boolean 
       aside={
         decision ? (
           <Badge
-            tone={decision === "go" ? "go" : decision === "wait" ? "wait" : "uncertain"}
+            tone={decision === "go" ? "go" : decision === "wait" || decision === "replan" ? "wait" : "uncertain"}
             icon={<DecisionGlyph decision={decision} size={13} />}
           >
             {decision === "go" && board.travel_on

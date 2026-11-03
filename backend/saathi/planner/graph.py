@@ -21,7 +21,8 @@ from time import perf_counter
 from langgraph.graph import END, START, StateGraph
 
 from ..domain.enums import Channel, Decision, StepKind
-from ..domain.models import CareStep, Disruption, Patient, VisitPlan
+from ..domain.models import CareStep, Disruption, Patient, ReadinessItem, VisitPlan
+from ..domain.pathway import DEFAULT_PATHWAY_ID, get_pathway
 from ..domain.policy import HospitalPolicy
 from ..graph.dependencies import DependencyGraph, InMemoryDependencyGraph
 from ..ledger.evidence import InMemoryEvidenceLedger
@@ -45,7 +46,10 @@ class VisitPlanner:
         language_layer: LanguageLayer | None = None,
         rules_for: Callable[[str], HospitalPolicy | None] | None = None,
     ) -> None:
+        #: The oncology graph, and the one a test injects. Other pathways get
+        #: their own, built on first use and kept: see `graph_for`.
         self.graph = dependency_graph or InMemoryDependencyGraph()
+        self._pathway_graphs: dict[str, DependencyGraph] = {}
         self.predictor = predictor or ConformalReadinessPredictor()
         self.ledger = ledger or InMemoryEvidenceLedger()
         #: Optional so the planner can be exercised without API credentials —
@@ -56,6 +60,16 @@ class VisitPlanner:
         #: existed. Set by the composition root once the registry is built.
         self.rules_for: Callable[[str], HospitalPolicy | None] = rules_for or (lambda _: None)
         self._compiled = self._build().compile()
+
+    def graph_for(self, patient: Patient) -> DependencyGraph:
+        """The dependency graph of the patient's own pathway."""
+        if patient.pathway_id == DEFAULT_PATHWAY_ID:
+            return self.graph
+        if patient.pathway_id not in self._pathway_graphs:
+            self._pathway_graphs[patient.pathway_id] = InMemoryDependencyGraph.from_pathway(
+                get_pathway(patient.pathway_id)
+            )
+        return self._pathway_graphs[patient.pathway_id]
 
     def _requirements(self, state: PlannerState) -> dict[str, list[str]] | None:
         rules = self.rules_for(state["patient"].hospital_id)
@@ -71,8 +85,10 @@ class VisitPlanner:
         target = state.get("target")
         if target is None:
             return {"blockers": (), "missing_kinds": frozenset()}
-        unmet = tools.unmet_prerequisites(target, state["steps"], self.graph)
-        missing = tools.missing_prerequisite_kinds(target, state["steps"], self.graph)
+        unmet = tools.unmet_prerequisites(target, state["steps"], self.graph_for(state["patient"]))
+        missing = tools.missing_prerequisite_kinds(
+            target, state["steps"], self.graph_for(state["patient"])
+        )
         return {
             "blockers": tools.describe_blockers(
                 unmet, self.predictor, state.get("disruptions", ())
@@ -82,9 +98,13 @@ class VisitPlanner:
 
     def _readiness(self, state: PlannerState) -> PlannerState:
         # Blockers already carry their conformal windows from `describe_blockers`.
-        # This node exists as the place to add cross-queue contention modelling
-        # in the pilot without reshaping the graph.
-        return {}
+        # The other parties' answers are picked out here: the ones that gate this
+        # visit, or the next one.
+        target = state.get("target")
+        if target is None:
+            return {"items": ()}
+        gated = {target.id, *(b.step_id for b in state.get("blockers", ()))}
+        return {"items": tools.relevant_items(state.get("readiness_items", ()), gated)}
 
     def _decide(self, state: PlannerState) -> PlannerState:
         if state.get("target") is None:
@@ -92,8 +112,9 @@ class VisitPlanner:
                 "decision": Decision.UNCERTAIN,
                 "escalation": f"no {state['target_kind'].value} step on record",
             }
-        decision = tools.decide(
-            state["blockers"], state["missing_kinds"], state["today"]
+        decision = tools.decide_with_items(
+            tools.decide(state["blockers"], state["missing_kinds"], state["today"]),
+            state.get("items", ()),
         )
         travel_on = None
         if decision is Decision.GO:
@@ -105,7 +126,9 @@ class VisitPlanner:
         if target is None or state["decision"] is not Decision.GO:
             return {"bundled_step_ids": ()}
         return {
-            "bundled_step_ids": tools.bundle_steps(target, state["steps"], self.graph)
+            "bundled_step_ids": tools.bundle_steps(
+                target, state["steps"], self.graph_for(state["patient"])
+            )
         }
 
     def _evidence(self, state: PlannerState) -> PlannerState:
@@ -117,6 +140,24 @@ class VisitPlanner:
         refs = tools.record_status_evidence(
             self.ledger, state["patient"].id, state["steps"], relevant
         )
+
+        items = state.get("items", ())
+        # Every party's answer is a fact the plan relies on, so it is ledgered
+        # like any other: nothing reaches a family without a source.
+        item_refs = tuple(
+            self.ledger.record_once(
+                patient_id=state["patient"].id,
+                source=item.source,
+                source_record_id=item.id,
+                claim=f"{item.kind.value} ({item.party}) is {item.status.value}",
+                metadata={
+                    "ready_by": item.ready_by.isoformat() if item.ready_by else None,
+                    "alternative_available": item.alternative_available,
+                },
+            ).ref()
+            for item in items
+        )
+        refs = (*refs, *item_refs)
 
         target_id = target.id if target else ""
         bundled_kinds = [
@@ -130,17 +171,25 @@ class VisitPlanner:
             bundled_step_ids=state.get("bundled_step_ids", ()),
             blocked_by=state.get("blockers", ()),
             what_to_bring=(
-                tools.documents_to_bring(target, bundled_kinds, self._requirements(state))
+                tools.documents_to_bring(
+                    target,
+                    bundled_kinds,
+                    self._requirements(state),
+                    get_pathway(state["patient"].pathway_id),
+                )
                 if target and state["decision"] is Decision.GO
                 else ()
             ),
             where_to_go_first=(
-                tools.where_to_go_first(target, bundled_kinds)
+                tools.where_to_go_first(
+                    target, bundled_kinds, get_pathway(state["patient"].pathway_id)
+                )
                 if target and state["decision"] is Decision.GO
                 else None
             ),
             evidence=refs,
             rationale=_rationale(state),
+            readiness_items=items,
         )
         return {"evidence": refs, "plan": plan}
 
@@ -215,6 +264,7 @@ class VisitPlanner:
         today: date | None = None,
         compose: bool = True,
         disruptions: Sequence[Disruption] = (),
+        readiness_items: Sequence[ReadinessItem] = (),
     ) -> PlannerState:
         initial: PlannerState = {
             "patient": patient,
@@ -223,6 +273,7 @@ class VisitPlanner:
             "today": today or date.today(),
             "compose": compose,
             "disruptions": tuple(disruptions),
+            "readiness_items": tuple(readiness_items),
         }
         started = perf_counter()
         result = self._compiled.invoke(initial)
@@ -240,7 +291,26 @@ def _rationale(state: PlannerState) -> str:
         return "all prerequisites satisfied; single-step visit"
     if decision is Decision.WAIT:
         names = ", ".join(b.kind.value for b in state.get("blockers", ()))
-        return f"waiting on: {names}"
+        parties = ", ".join(
+            f"{i.party} ({i.kind.value})"
+            for i in state.get("items", ())
+            if i.status.value in ("pending", "blocked")
+        )
+        return "waiting on: " + ", ".join(x for x in (names, parties) if x)
+    if decision is Decision.REPLAN:
+        parties = ", ".join(
+            f"{i.party} ({i.kind.value})"
+            for i in state.get("items", ())
+            if i.status.value == "blocked"
+        )
+        return f"{parties} cannot go ahead and another way exists; staff to approve a new plan"
+    if any(i.status.value == "unknown" for i in state.get("items", ())):
+        parties = ", ".join(
+            f"{i.party} ({i.kind.value})"
+            for i in state["items"]
+            if i.status.value == "unknown"
+        )
+        return f"no answer yet from: {parties}; no date promised"
     if state.get("missing_kinds"):
         names = ", ".join(k.value for k in sorted(state["missing_kinds"], key=lambda k: k.value))
         return f"no record for prerequisite(s): {names}; no date promised"

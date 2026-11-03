@@ -34,8 +34,15 @@ from ..domain.enums import (
     StepKind,
     StepStatus,
 )
-from ..domain.models import CareStep, Disruption, MaintenanceCycle, Patient, Resource
-from ..graph.dependencies import RESOURCE_REQUIREMENTS
+from ..domain.models import (
+    CareStep,
+    Disruption,
+    MaintenanceCycle,
+    Patient,
+    ReadinessItem,
+    Resource,
+)
+from ..domain.pathway import get_pathway
 from ..ports.records import RecordStore, TurnaroundObservation
 from ..synthetic.generate import GroundTruth, SyntheticCohort, generate_cohort
 from ..synthetic.scripted import (
@@ -120,6 +127,9 @@ class LiveWorld:
     disruptions: dict[str, Disruption] = field(default_factory=dict)
     #: Patients on a repeating maintenance schedule, by patient id.
     maintenance_cycles: dict[str, MaintenanceCycle] = field(default_factory=dict)
+    #: What the other parties have said about each patient's journey, by patient
+    #: id then item id. Held in memory until orchestration state is persisted.
+    readiness_items: dict[str, dict[str, ReadinessItem]] = field(default_factory=dict)
     #: patient id -> disruption id, set while a patient has ranked options
     #: waiting on a human and cleared once approved. What a process-only
     #: inbound answer reads to say "the doctor decides" vs "still working it out".
@@ -153,7 +163,12 @@ class LiveWorld:
     store: RecordStore | None = None
 
     def target_kind_for(self, patient_id: str) -> StepKind:
-        return self.plan_targets.get(patient_id, StepKind.REVIEW_CONSULT)
+        if patient_id in self.plan_targets:
+            return self.plan_targets[patient_id]
+        patient = self.patient(patient_id)
+        # The pathway's own terminal visit: a review consult for oncology, a
+        # session for dialysis.
+        return get_pathway(patient.pathway_id if patient else None).default_target
 
     @classmethod
     def build(
@@ -369,6 +384,7 @@ class LiveWorld:
         self.disruptions.clear()
         self.resources.clear()
         self.maintenance_cycles.clear()
+        self.readiness_items.clear()
         self.plan_targets.clear()
         self.pending_approval.clear()
         if self.scripted:
@@ -413,6 +429,19 @@ class LiveWorld:
             self._replace_patient(updated)
             return updated
         return None
+
+    def readiness_for(self, patient_id: str) -> tuple[ReadinessItem, ...]:
+        """A snapshot: planning runs on a worker thread and must not see a tear."""
+        return tuple(self.readiness_items.get(patient_id, {}).values())
+
+    def set_readiness_item(self, item: ReadinessItem) -> ReadinessItem:
+        if self.patient(item.patient_id) is None:
+            raise LookupError(item.patient_id)
+        self.readiness_items.setdefault(item.patient_id, {})[item.id] = item
+        return item
+
+    def remove_readiness_item(self, patient_id: str, item_id: str) -> bool:
+        return self.readiness_items.get(patient_id, {}).pop(item_id, None) is not None
 
     def steps_for(self, patient_id: str) -> list[CareStep]:
         """A copy: planning runs on a worker thread and must not see a tear."""
@@ -582,7 +611,7 @@ class LiveWorld:
             for row in rows:
                 if row.status not in _DISRUPTIBLE:
                     continue
-                if not self._step_uses_resource(row, disruption, resource):
+                if not self._step_uses_resource(row, disruption, resource, patient_id):
                     continue
                 if not self._step_in_window(row, disruption):
                     continue
@@ -591,13 +620,19 @@ class LiveWorld:
         return affected
 
     def _step_uses_resource(
-        self, step: CareStep, disruption: Disruption, resource: Resource | None
+        self,
+        step: CareStep,
+        disruption: Disruption,
+        resource: Resource | None,
+        patient_id: str,
     ) -> bool:
         if step.resource_id == disruption.resource_id:
             return True
         if resource is None:
             return False
-        required_kind = RESOURCE_REQUIREMENTS.get(step.kind)
+        patient = self.patient(patient_id)
+        pathway = get_pathway(patient.pathway_id if patient else None)
+        required_kind = pathway.resource_requirements.get(step.kind)
         return (
             required_kind is not None
             and required_kind is resource.kind

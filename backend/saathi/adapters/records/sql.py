@@ -103,6 +103,7 @@ class SqlRecordStore:
             row.language = patient.language.value
             row.caregiver_phone = patient.caregiver_phone
             row.hospital_id = patient.hospital_id
+            row.pathway_id = patient.pathway_id
             if plan_target is not None:
                 row.plan_target_kind = plan_target.value
 
@@ -170,6 +171,7 @@ def _patient(row: PatientRow) -> Patient:
         language=Language(row.language),
         caregiver_phone=row.caregiver_phone,
         hospital_id=row.hospital_id,
+        pathway_id=row.pathway_id or "oncology",
         family_members=tuple(
             FamilyMember(
                 id=m.id,

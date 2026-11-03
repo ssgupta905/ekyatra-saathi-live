@@ -9,7 +9,7 @@
 
 import { ApiError, apiUrl, authHeaders, request } from "./client";
 
-export type Decision = "go" | "wait" | "uncertain";
+export type Decision = "go" | "wait" | "uncertain" | "replan";
 
 export type StepStatus =
   | "not_scheduled"

@@ -28,6 +28,7 @@ from ..domain.enums import (
     StepStatus,
 )
 from ..domain.models import CareStep, FamilyMember, Patient, Resource
+from ..domain.pathway import DEFAULT_PATHWAY_ID, PATHWAYS
 from ..ingest.records_import import (
     ImportBatch,
     csv_template,
@@ -71,7 +72,10 @@ class PatientIn(BaseModel):
     language: Language
     caregiver_phone: str = Field(min_length=5)
     hospital_id: str = Field(min_length=1)
-    #: The visit this family is planned towards. Omitted means the review consult.
+    #: The care pathway this family is on (see `GET /pathways`).
+    pathway_id: str = DEFAULT_PATHWAY_ID
+    #: The visit this family is planned towards. Omitted means the pathway's own
+    #: terminal visit (the review consult, for oncology).
     plan_target: StepKind | None = None
     family_members: list[FamilyMemberIn] = []
 
@@ -84,6 +88,7 @@ class PatientPatch(BaseModel):
     language: Language | None = None
     caregiver_phone: str | None = None
     hospital_id: str | None = None
+    pathway_id: str | None = None
     plan_target: StepKind | None = None
 
 
@@ -99,9 +104,29 @@ def _member(patient_id: str, body: FamilyMemberIn) -> FamilyMember:
     )
 
 
+def _known_pathway(pathway_id: str) -> None:
+    if pathway_id not in PATHWAYS:
+        raise HTTPException(422, f"unknown pathway {pathway_id!r}; see GET /pathways")
+
+
+@router.get("/pathways")
+async def list_pathways() -> list[dict]:
+    """The care pathways a family can be put on, and the steps each is made of."""
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "default_target": p.default_target.value,
+            "steps": sorted(k.value for k in p.kinds),
+        }
+        for p in PATHWAYS.values()
+    ]
+
+
 @router.post("/patients", status_code=201, dependencies=[DeskWork])
 async def register_patient(state: ContainerDep, body: PatientIn) -> dict:
     _real_only(state)
+    _known_pathway(body.pathway_id)
     patient_id = body.id or f"P-{uuid.uuid4().hex[:8].upper()}"
     patient = Patient(
         id=patient_id,
@@ -112,6 +137,7 @@ async def register_patient(state: ContainerDep, body: PatientIn) -> dict:
         language=body.language,
         caregiver_phone=body.caregiver_phone,
         hospital_id=body.hospital_id,
+        pathway_id=body.pathway_id,
         family_members=tuple(_member(patient_id, m) for m in body.family_members),
     )
     try:
@@ -125,6 +151,8 @@ async def register_patient(state: ContainerDep, body: PatientIn) -> dict:
 @router.patch("/patients/{patient_id}", dependencies=[DeskWork])
 async def edit_patient(state: ContainerDep, patient_id: str, body: PatientPatch) -> dict:
     _real_only(state)
+    if body.pathway_id is not None:
+        _known_pathway(body.pathway_id)
     changes = body.model_dump(exclude_unset=True, exclude={"plan_target"})
     try:
         patient = state.world.update_patient(patient_id, **changes) if changes else (

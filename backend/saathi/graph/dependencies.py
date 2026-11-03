@@ -16,56 +16,13 @@ from collections.abc import Iterable
 from typing import Protocol
 
 from ..domain.enums import ResourceKind, StepKind
+from ..domain.pathway import ONCOLOGY, Pathway
 
-#: Default clinical-logistics DAG for a solid-tumour pathway. Edges are
-#: logistical ordering, not clinical advice: they say which step's *output*
-#: must exist before another step is worth a journey.
-DEFAULT_EDGES: tuple[tuple[StepKind, StepKind], ...] = (
-    (StepKind.CONSULT, StepKind.BIOPSY),
-    (StepKind.CONSULT, StepKind.BLOODS),
-    (StepKind.CONSULT, StepKind.SCAN),
-    (StepKind.BIOPSY, StepKind.PATHOLOGY_REPORT),
-    (StepKind.SCAN, StepKind.RADIOLOGY_REPORT),
-    #: The doctor's sketch: the PET-CT follows the MRI and its report, and the
-    #: joint clinic cannot sit before the PET-CT it exists to discuss.
-    (StepKind.RADIOLOGY_REPORT, StepKind.PET_CT),
-    (StepKind.PET_CT, StepKind.JOINT_CLINIC),
-    (StepKind.REVIEW_CONSULT, StepKind.JOINT_CLINIC),
-    (StepKind.PATHOLOGY_REPORT, StepKind.REVIEW_CONSULT),
-    (StepKind.RADIOLOGY_REPORT, StepKind.REVIEW_CONSULT),
-    (StepKind.BLOODS, StepKind.REVIEW_CONSULT),
-    #: Back on the spine via the review consult, not the joint clinic: the
-    #: joint clinic is a leaf. Putting it between the review and treatment
-    #: would make every patient in the cohort — none of whom have one on
-    #: record — fail `missing_prerequisite_kinds` and go UNCERTAIN.
-    (StepKind.REVIEW_CONSULT, StepKind.TREATMENT),
-    #: Maintenance is a single repeating `StepKind`; the 21-day recurrence and
-    #: the per-dose echo gate are computed by `planner.tools`, not by edges.
-    (StepKind.TREATMENT, StepKind.MAINTENANCE_DOSE),
-)
-
-#: Steps that can share a trip when both are due. Ordered pairs are symmetric.
-CO_LOCATABLE: tuple[frozenset[StepKind], ...] = (
-    frozenset({StepKind.CONSULT, StepKind.BIOPSY}),
-    frozenset({StepKind.CONSULT, StepKind.BLOODS}),
-    frozenset({StepKind.BIOPSY, StepKind.BLOODS}),
-    frozenset({StepKind.SCAN, StepKind.REVIEW_CONSULT}),
-    #: The pair the brief's option B turns on: the MRI at 8 am and the PET-CT
-    #: at 2 pm the same afternoon, one visit instead of two.
-    frozenset({StepKind.SCAN, StepKind.PET_CT}),
-    frozenset({StepKind.REVIEW_CONSULT, StepKind.JOINT_CLINIC}),
-    frozenset({StepKind.BLOODS, StepKind.REVIEW_CONSULT}),
-    frozenset({StepKind.MAINTENANCE_DOSE, StepKind.ECHO_REVIEW}),
-)
-
-#: Which kind of bookable resource a step needs, for matching a disruption
-#: (resource down for a window) to the patients it affects. Steps with no
-#: entry here don't book against a trackable resource.
-RESOURCE_REQUIREMENTS: dict[StepKind, ResourceKind] = {
-    StepKind.SCAN: ResourceKind.MACHINE,
-    StepKind.ECHO_REVIEW: ResourceKind.STAFF,
-    StepKind.MAINTENANCE_DOSE: ResourceKind.SUPPLY,
-}
+#: The oncology pathway's tables, kept under their old names so existing
+#: callers and tests see exactly what they saw before pathways were data.
+DEFAULT_EDGES: tuple[tuple[StepKind, StepKind], ...] = ONCOLOGY.edges
+CO_LOCATABLE: tuple[frozenset[StepKind], ...] = ONCOLOGY.co_locatable
+RESOURCE_REQUIREMENTS: dict[StepKind, ResourceKind] = dict(ONCOLOGY.resource_requirements)
 
 
 class CycleError(ValueError):
@@ -98,6 +55,10 @@ class InMemoryDependencyGraph:
             self._children[parent].add(child)
         self._co_locatable = tuple(co_locatable)
         self._assert_acyclic()
+
+    @classmethod
+    def from_pathway(cls, pathway: Pathway) -> InMemoryDependencyGraph:
+        return cls(edges=pathway.edges, co_locatable=pathway.co_locatable)
 
     def _assert_acyclic(self) -> None:
         # Kahn's algorithm; if any node is left with unmet parents there is a cycle.

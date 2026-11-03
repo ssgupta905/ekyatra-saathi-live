@@ -23,7 +23,8 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from ..domain.enums import REPORT_STEPS, Decision, StepKind, StepStatus
-from ..graph.dependencies import DEFAULT_EDGES, DependencyGraph
+from ..domain.pathway import get_pathway
+from ..graph.dependencies import DependencyGraph
 from .access import AnyStaff
 from .deps import ContainerDep
 
@@ -50,7 +51,7 @@ STEP_LABELS: dict[StepKind, str] = {
 }
 
 
-def _depths(graph: DependencyGraph) -> dict[str, int]:
+def _depths(graph: DependencyGraph, edges) -> dict[str, int]:
     """How far down the pathway each kind sits.
 
     The longest path to a node, not the shortest: a review consult waits for
@@ -71,7 +72,7 @@ def _depths(graph: DependencyGraph) -> dict[str, int]:
         depth[kind] = value
         return value
 
-    for parent, child in DEFAULT_EDGES:
+    for parent, child in edges:
         resolve(parent, frozenset())
         resolve(child, frozenset())
     return {kind.value: value for kind, value in depth.items()}
@@ -116,13 +117,14 @@ def build_board(state, patient_id: str) -> dict:
     steps = state.world.steps_for(patient_id)
     run = state.runner.plans.get(patient_id)
     plan = run.plan if run else None
-    graph = state.planner.graph
+    pathway = get_pathway(patient.pathway_id)
+    graph = state.planner.graph_for(patient)
 
     target_id = plan.target_step_id if plan else None
     blocked_ids = {b.step_id for b in plan.blocked_by} if plan else set()
     present = {s.kind.value for s in steps}
 
-    depths = _depths(graph)
+    depths = _depths(graph, pathway.edges)
     nodes = [_node(step, graph, depths, target_id, blocked_ids) for step in steps]
     nodes.sort(key=lambda n: (n["column"], n["label"]))
 
@@ -131,7 +133,7 @@ def build_board(state, patient_id: str) -> dict:
     # imply a wait that does not exist.
     edges = [
         {"from": parent.value, "to": child.value}
-        for parent, child in DEFAULT_EDGES
+        for parent, child in pathway.edges
         if parent.value in present and child.value in present
     ]
 
@@ -189,10 +191,15 @@ async def boards(state: ContainerDep, watched: bool = True, limit: int = 12) -> 
     ids = list(state.world.watched) if watched else [p.id for p in state.world.patients()]
 
     built = [build_board(state, pid) for pid in ids[:limit]]
-    rank = {Decision.UNCERTAIN.value: 0, Decision.WAIT.value: 1, Decision.GO.value: 2}
+    rank = {
+        Decision.UNCERTAIN.value: 0,
+        Decision.REPLAN.value: 1,
+        Decision.WAIT.value: 2,
+        Decision.GO.value: 3,
+    }
     built.sort(
         key=lambda b: (
-            rank.get(b["decision"], 3),
+            rank.get(b["decision"], 4),
             -len(b["waiting_on"]),
             -b["patient"]["distance_km"],
         )

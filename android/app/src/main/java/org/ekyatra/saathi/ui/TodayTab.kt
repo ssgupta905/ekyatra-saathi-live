@@ -125,7 +125,7 @@ private data class Mood(val top: Color, val ink: Color, val glyph: Glyph)
 
 private fun mood(decision: String?): Mood = when (decision) {
     "go" -> Mood(Tokens.goTint, Tokens.go, Glyph.CheckCircle)
-    "wait" -> Mood(Tokens.waitTint, Tokens.wait, Glyph.Clock)
+    "wait", "replan" -> Mood(Tokens.waitTint, Tokens.wait, Glyph.Clock)
     "uncertain" -> Mood(Tokens.uncertainTint, Tokens.uncertain, Glyph.Clock)
     else -> Mood(Tokens.sunken, Tokens.ink4, Glyph.Spark)
 }

@@ -10,6 +10,7 @@ from .api.auth import router as auth_router
 from .api.board import router as board_router
 from .api.family import router as family_router
 from .api.live import router as live_router
+from .api.readiness import router as readiness_router
 from .api.records import router as records_router
 from .api.registry import router as registry_router
 from .api.reports import router as reports_router
@@ -38,6 +39,7 @@ def create_app() -> FastAPI:
     app.include_router(live_router, prefix="/api")
     app.include_router(board_router, prefix="/api")
     app.include_router(records_router, prefix="/api")
+    app.include_router(readiness_router, prefix="/api")
     app.include_router(registry_router, prefix="/api")
     app.include_router(reports_router, prefix="/api")
     app.include_router(family_router, prefix="/api")

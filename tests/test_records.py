@@ -174,6 +174,23 @@ def test_registering_a_family_makes_them_visible_and_planned(api):
     assert "P-TEST" in api.get("/api/boards").text
 
 
+def test_a_family_can_be_put_on_another_pathway(api):
+    assert {p["id"] for p in api.get("/api/pathways").json()} >= {"oncology", "dialysis"}
+
+    registered = _register(api, pathway_id="dialysis")
+
+    assert registered["pathway_id"] == "dialysis"
+    board = api.get("/api/patients/P-TEST/board").json()
+    assert board["patient"]["id"] == "P-TEST"
+
+
+def test_an_unknown_pathway_is_refused_with_a_way_forward(api):
+    response = api.post("/api/patients", json={**PATIENT, "pathway_id": "nope"})
+
+    assert response.status_code == 422
+    assert "/pathways" in response.json()["detail"]
+
+
 def test_a_duplicate_patient_is_refused(api):
     _register(api)
     assert api.post("/api/patients", json=PATIENT).status_code == 409

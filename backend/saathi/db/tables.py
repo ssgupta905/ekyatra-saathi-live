@@ -43,6 +43,9 @@ class PatientRow(Base):
     language: Mapped[str] = mapped_column(String(8))
     caregiver_phone: Mapped[str] = mapped_column(String(24))
     hospital_id: Mapped[str] = mapped_column(String(32), index=True)
+    pathway_id: Mapped[str] = mapped_column(
+        String(32), default="oncology", server_default="oncology"
+    )
 
     steps: Mapped[list[CareStepRow]] = relationship(back_populates="patient")
     family: Mapped[list[FamilyMemberRow]] = relationship(
