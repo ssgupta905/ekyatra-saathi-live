@@ -21,6 +21,7 @@ from ..adapters.ledger import SqlEvidenceLedger
 from ..adapters.records import SqlRecordStore
 from ..config import Settings, get_settings
 from ..consent.registry import ConsentRegistry
+from ..domain.enums import Role
 from ..domain.policy import HospitalPolicy
 from ..graph.dependencies import InMemoryDependencyGraph
 from ..language.claude import ClaudeLanguageLayer
@@ -125,9 +126,27 @@ def build_identity(settings: Settings, world: LiveWorld) -> IdentityProvider | N
     migrate(settings.records_url)
     if settings.auth_secret.startswith("dev-only"):
         logger.warning("signing tokens with the built-in dev secret; set SAATHI_AUTH_SECRET")
-    return LocalIdentity(
+    identity = LocalIdentity(
         settings.records_url, secret=settings.auth_secret, phones=_WorldPhones(world)
     )
+    _ensure_first_admin(identity, settings)
+    return identity
+
+
+def _ensure_first_admin(identity, settings: Settings) -> None:
+    """Create the administrator named in configuration, once.
+
+    A host with no shell cannot run `saathi.cli.users`. Existing accounts are
+    left alone, so a password changed in the console survives a restart.
+    """
+    if not (settings.admin_username and settings.admin_password):
+        return
+    if any(u["username"] == settings.admin_username.lower() for u in identity.list_users()):
+        return
+    identity.add_user(
+        settings.admin_username, settings.admin_username, Role.ADMIN, settings.admin_password
+    )
+    logger.info("created the first administrator %r from configuration", settings.admin_username)
 
 
 class HospitalRules:
@@ -205,6 +224,10 @@ def build_container(settings: Settings | None = None, today: date | None = None)
         # a queue has enough of them the planner says it does not know, which is
         # the true answer.
         store = SqlRecordStore(settings.records_url)
+        if settings.seed_demo:
+            from .demo_records import seed_demo_records
+
+            seed_demo_records(store, SystemClock(settings.hospital_timezone).today(), settings)
         world = LiveWorld.build_real(
             store,
             SystemClock(settings.hospital_timezone),

@@ -15,7 +15,8 @@ WORKDIR /app
 # not a full dependency resolve.
 COPY pyproject.toml README.md ./
 COPY backend/ backend/
-RUN pip install --no-cache-dir .
+# The postgres extra: the records database is Postgres (Supabase) when deployed.
+RUN pip install --no-cache-dir ".[postgres]"
 # The committed reference cache. Without it every fact the tools need would be
 # a live fetch on a cold start, and the first page load would hang on Nominatim.
 COPY data/ data/

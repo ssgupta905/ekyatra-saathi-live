@@ -11,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -60,6 +60,18 @@ class Settings(BaseSettings):
     #: is changing this string (`postgresql+psycopg://user:pw@host/db`) and
     #: running `make migrate`. Unused in the demo world.
     records_url: str = "sqlite:///./saathi_records.db"
+    #: The first administrator, created at startup when no account of that name
+    #: exists. For a host with no shell (a free Render instance has none): set
+    #: both as secrets. Never overwrites an account, so a password changed since
+    #: is not reset by a restart.
+    admin_username: str | None = None
+    admin_password: str | None = None
+    #: Load a small synthetic cohort into an *empty* real database, so a fresh
+    #: deployment has families to look at. Never touches a database that already
+    #: holds a family. `seed_demo_phone` makes the first family answer to that
+    #: number, so someone can sign in as a caregiver.
+    seed_demo: bool = False
+    seed_demo_phone: str | None = None
     #: How often the real world re-plans, in real seconds. In the real world a
     #: "day" is not simulated, so this is only how soon a changed fact (a report
     #: released, a date rolling over) is noticed.
@@ -169,6 +181,20 @@ class Settings(BaseSettings):
                 "controls must never be reachable on real records"
             )
         return self
+
+    @field_validator("records_url")
+    @classmethod
+    def _postgres_url_as_pasted(cls, url: str) -> str:
+        """Accept the connection string as a host shows it.
+
+        Supabase, Render and Heroku all hand out `postgres://` or `postgresql://`,
+        which SQLAlchemy reads as the older psycopg2 driver. This project ships
+        psycopg 3, so name it.
+        """
+        for prefix in ("postgres://", "postgresql://"):
+            if url.startswith(prefix):
+                return "postgresql+psycopg://" + url[len(prefix) :]
+        return url
 
     @model_validator(mode="after")
     def _auth_is_sound(self) -> Settings:
