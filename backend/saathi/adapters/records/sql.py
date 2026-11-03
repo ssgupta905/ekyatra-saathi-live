@@ -18,16 +18,21 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 from ...db.tables import (
+    AccessAttemptRow,
     ApprovalRow,
     CareStepRow,
+    ConsentGrantRow,
+    ConsentRequestRow,
     DisruptionRow,
     FamilyMemberRow,
     OptionSetRow,
     PatientRow,
     ReadinessItemRow,
+    RecordPointerRow,
     ResourceRow,
     TurnaroundRow,
 )
+from ...domain.consent import AccessAttempt, ConsentGrant, ConsentRequest, RecordPointer
 from ...domain.enums import (
     Channel,
     FamilyMemberRole,
@@ -122,6 +127,22 @@ class SqlRecordStore:
                 ApprovalDecision.model_validate_json(r.payload_json)
                 for r in db.scalars(select(ApprovalRow).order_by(ApprovalRow.approved_at))
             )
+            consent_requests = tuple(
+                ConsentRequest.model_validate_json(r.payload_json)
+                for r in db.scalars(select(ConsentRequestRow).order_by(ConsentRequestRow.id))
+            )
+            consent_grants = tuple(
+                ConsentGrant.model_validate_json(r.payload_json)
+                for r in db.scalars(select(ConsentGrantRow).order_by(ConsentGrantRow.id))
+            )
+            pointers = tuple(
+                RecordPointer.model_validate_json(r.payload_json)
+                for r in db.scalars(select(RecordPointerRow).order_by(RecordPointerRow.id))
+            )
+            attempts = tuple(
+                AccessAttempt.model_validate_json(r.payload_json)
+                for r in db.scalars(select(AccessAttemptRow).order_by(AccessAttemptRow.at))
+            )
         return StoredRecords(
             patients=tuple(patients),
             steps={pid: tuple(rows) for pid, rows in steps.items()},
@@ -132,6 +153,10 @@ class SqlRecordStore:
             readiness_items=readiness,
             option_sets=option_sets,
             approvals=approvals,
+            consent_requests=consent_requests,
+            consent_grants=consent_grants,
+            record_pointers=pointers,
+            access_attempts=attempts,
         )
 
     # ---------------- writing ----------------
@@ -259,6 +284,37 @@ class SqlRecordStore:
                     payload_json=approval.model_dump_json(),
                 )
             )
+
+    def save_consent_request(self, request: ConsentRequest) -> None:
+        self._upsert(ConsentRequestRow, request.id, request.abha_number, request)
+
+    def save_consent_grant(self, grant: ConsentGrant) -> None:
+        self._upsert(ConsentGrantRow, grant.id, grant.abha_number, grant)
+
+    def save_record_pointer(self, pointer: RecordPointer) -> None:
+        self._upsert(RecordPointerRow, pointer.id, pointer.abha_number, pointer)
+
+    def add_access_attempt(self, attempt: AccessAttempt) -> None:
+        with self._sessions.begin() as db:
+            if db.get(AccessAttemptRow, attempt.id) is not None:
+                return  # append-only: an attempt already on file is never rewritten
+            db.add(
+                AccessAttemptRow(
+                    id=attempt.id,
+                    abha_number=attempt.abha_number,
+                    at=attempt.at,
+                    payload_json=attempt.model_dump_json(),
+                )
+            )
+
+    def _upsert(self, table, key: str, abha_number: str, model) -> None:
+        with self._sessions.begin() as db:
+            row = db.get(table, key)
+            if row is None:
+                row = table(id=key)
+                db.add(row)
+            row.abha_number = abha_number
+            row.payload_json = model.model_dump_json()
 
 
 def _aware(moment: datetime) -> datetime:

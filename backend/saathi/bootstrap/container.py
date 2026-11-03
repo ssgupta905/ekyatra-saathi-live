@@ -20,6 +20,7 @@ from ..adapters.clock import SystemClock
 from ..adapters.ledger import SqlEvidenceLedger
 from ..adapters.records import SqlRecordStore
 from ..config import Settings, get_settings
+from ..consent.registry import ConsentRegistry
 from ..domain.policy import HospitalPolicy
 from ..graph.dependencies import InMemoryDependencyGraph
 from ..language.claude import ClaudeLanguageLayer
@@ -56,6 +57,8 @@ class Container:
     registry: RegistryStore | None = None
     #: The planner's view of each hospital's saved rules; cleared when they change.
     rules: HospitalRules | None = None
+    #: Who has agreed to share what. Kept across restarts in the real world.
+    consent: ConsentRegistry | None = None
 
     @property
     def cohort(self) -> SyntheticCohort:
@@ -249,6 +252,12 @@ def build_container(settings: Settings | None = None, today: date | None = None)
     # work and nobody can see that they did.
     toolbox.on_result = runner.on_tool_result
 
+    consent = (
+        ConsentRegistry.restored(ledger, world.store)
+        if world.store is not None
+        else ConsentRegistry(ledger=ledger)
+    )
+
     registry = build_registry(settings)
     rules = HospitalRules(registry)
     planner.rules_for = rules
@@ -265,4 +274,5 @@ def build_container(settings: Settings | None = None, today: date | None = None)
         identity=build_identity(settings, world),
         registry=registry,
         rules=rules,
+        consent=consent,
     )

@@ -1,5 +1,11 @@
 # Ticket: wire ConsentRegistry into the running app
 
+> **Status: done except item 4.** Items 1, 2, 3 and 5 are in (`Patient.abha_number` and
+> `settings.abdm_enabled` already existed; the registry is built in `Container`; routes are in
+> `api/consent.py`, keyed by patient rather than ABHA number so caregiver access is checked on the
+> path). Consent state now persists in the real world (migration `0007`). Item 4, gating
+> `ABDMClient` reads through `resolve()`, waits on the ABDM OAuth ticket.
+
 Scoped engineering ticket, not yet filed as a GitHub issue — copy into the tracker of choice
 when ready. Written to stand on its own (an engineer picking this up needs no other context).
 

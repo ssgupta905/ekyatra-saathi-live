@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .api.admin import router as admin_router
 from .api.auth import router as auth_router
 from .api.board import router as board_router
+from .api.consent import router as consent_router
 from .api.family import router as family_router
 from .api.live import router as live_router
 from .api.readiness import router as readiness_router
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(board_router, prefix="/api")
     app.include_router(records_router, prefix="/api")
     app.include_router(readiness_router, prefix="/api")
+    app.include_router(consent_router, prefix="/api")
     app.include_router(registry_router, prefix="/api")
     app.include_router(reports_router, prefix="/api")
     app.include_router(family_router, prefix="/api")

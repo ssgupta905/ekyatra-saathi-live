@@ -272,3 +272,40 @@ class ApprovalRow(Base):
     disruption_id: Mapped[str] = mapped_column(String(36), index=True)
     approved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     payload_json: Mapped[str] = mapped_column(Text)
+
+
+class ConsentRequestRow(Base):
+    __tablename__ = "consent_requests"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    abha_number: Mapped[str] = mapped_column(String(32), index=True)
+    payload_json: Mapped[str] = mapped_column(Text)
+
+
+class ConsentGrantRow(Base):
+    __tablename__ = "consent_grants"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    abha_number: Mapped[str] = mapped_column(String(32), index=True)
+    payload_json: Mapped[str] = mapped_column(Text)
+
+
+class RecordPointerRow(Base):
+    """That a record exists and where. There is no column that could hold what it says."""
+
+    __tablename__ = "record_pointers"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    abha_number: Mapped[str] = mapped_column(String(32), index=True)
+    payload_json: Mapped[str] = mapped_column(Text)
+
+
+class AccessAttemptRow(Base):
+    """Every attempt to open a record, allowed or refused. Append-only."""
+
+    __tablename__ = "access_attempts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    abha_number: Mapped[str] = mapped_column(String(32), index=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    payload_json: Mapped[str] = mapped_column(Text)

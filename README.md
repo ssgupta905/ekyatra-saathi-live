@@ -439,6 +439,24 @@ answer 409 in the demo, because a reset would silently discard what was entered.
 a human, and the approvals already given. **Not stored.** Plans are recomputed from the records
 on start (a stored copy could only drift from them); rendered and inbound messages are lost.
 
+## Consent
+
+Saathi holds a consented index, never the records. A `RecordPointer` says that a document
+exists and where; it has no field that could hold what the document found. Saathi is the
+*requester* and never the consent manager: it asks, the family answers in their own language,
+and the source holds the record.
+
+Routes live under `/api/patients/{patient_id}/consent` so a caregiver can act only for their own
+family: `POST /requests` (staff) asks, `POST /requests/{id}/grant` records the answer with who
+gave it and in what standing (self, nominee or guardian, always stated, never inferred),
+`POST /grants/{id}/revoke` withdraws it, and `POST /records/{id}/resolve` is the door. Every
+resolution is checked against live consent and logged, refusals included (`withdrawn`, `expired`,
+`outside what was agreed`, `never asked`). Withdrawal stops future access and undoes nothing a
+centre already lawfully received. Navigators see a record's category, not the test name. In the
+real world consent survives a restart, and every event is a row in the hash-chained ledger.
+
+The ABDM client is not yet routed through this gate: that lands with the ABDM OAuth work.
+
 ## Who may do what
 
 In the real world every app asks who is looking before it shows anything. In the demo it does
@@ -745,7 +763,7 @@ Saathi is a logistics system. This boundary is enforced in code, not just docume
 ## Status
 
 Prototype. Synthetic patients with planted ground truth; the decision core, the guard, the
-ledger and the live world are real and tested — 441 tests, no network. The pilot adds live
+ledger and the live world are real and tested — 453 tests, no network. The pilot adds live
 ABDM data, one hospital's status feed, and persistence.
 
 Before any real-patient pilot: the partner hospital's ethics and data-protection review, and

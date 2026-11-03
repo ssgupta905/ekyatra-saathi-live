@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from ...domain.consent import AccessAttempt, ConsentGrant, ConsentRequest, RecordPointer
 from ...domain.enums import StepKind
 from ...domain.models import (
     ApprovalDecision,
@@ -25,6 +26,10 @@ class MemoryRecordStore:
         self._readiness: dict[tuple[str, str], ReadinessItem] = {}
         self._option_sets: dict[str, StoredOptionSet] = {}
         self._approvals: dict[str, ApprovalDecision] = {}
+        self._consent_requests: dict[str, ConsentRequest] = {}
+        self._consent_grants: dict[str, ConsentGrant] = {}
+        self._pointers: dict[str, RecordPointer] = {}
+        self._attempts: dict[str, AccessAttempt] = {}
 
     def load(self) -> StoredRecords:
         return StoredRecords(
@@ -37,6 +42,10 @@ class MemoryRecordStore:
             readiness_items=tuple(self._readiness.values()),
             option_sets=tuple(self._option_sets.values()),
             approvals=tuple(self._approvals.values()),
+            consent_requests=tuple(self._consent_requests.values()),
+            consent_grants=tuple(self._consent_grants.values()),
+            record_pointers=tuple(self._pointers.values()),
+            access_attempts=tuple(self._attempts.values()),
         )
 
     def save_patient(self, patient: Patient, plan_target: StepKind | None = None) -> None:
@@ -72,3 +81,15 @@ class MemoryRecordStore:
     def add_approval(self, approval: ApprovalDecision) -> None:
         # Append-only: an approval already on file is never rewritten.
         self._approvals.setdefault(approval.id, approval)
+
+    def save_consent_request(self, request: ConsentRequest) -> None:
+        self._consent_requests[request.id] = request
+
+    def save_consent_grant(self, grant: ConsentGrant) -> None:
+        self._consent_grants[grant.id] = grant
+
+    def save_record_pointer(self, pointer: RecordPointer) -> None:
+        self._pointers[pointer.id] = pointer
+
+    def add_access_attempt(self, attempt: AccessAttempt) -> None:
+        self._attempts.setdefault(attempt.id, attempt)

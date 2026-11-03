@@ -15,6 +15,12 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Protocol
 
+from ..domain.consent import (
+    AccessAttempt,
+    ConsentGrant,
+    ConsentRequest,
+    RecordPointer,
+)
 from ..domain.enums import StepKind
 from ..domain.models import (
     ApprovalDecision,
@@ -61,6 +67,11 @@ class StoredRecords:
     readiness_items: tuple[ReadinessItem, ...] = ()
     option_sets: tuple[StoredOptionSet, ...] = ()
     approvals: tuple[ApprovalDecision, ...] = ()
+    #: Consent: what was asked, what was answered, what is indexed, who tried.
+    consent_requests: tuple[ConsentRequest, ...] = ()
+    consent_grants: tuple[ConsentGrant, ...] = ()
+    record_pointers: tuple[RecordPointer, ...] = ()
+    access_attempts: tuple[AccessAttempt, ...] = ()
 
 
 class RecordStore(Protocol):
@@ -96,4 +107,16 @@ class RecordStore(Protocol):
 
     def add_approval(self, approval: ApprovalDecision) -> None:
         """Append-only: an approval is never edited or removed."""
+        ...
+
+    def save_consent_request(self, request: ConsentRequest) -> None: ...
+
+    def save_consent_grant(self, grant: ConsentGrant) -> None:
+        """Insert or replace: a withdrawal rewrites the grant with `revoked_at` set."""
+        ...
+
+    def save_record_pointer(self, pointer: RecordPointer) -> None: ...
+
+    def add_access_attempt(self, attempt: AccessAttempt) -> None:
+        """Append-only, refusals included."""
         ...

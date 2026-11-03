@@ -40,6 +40,7 @@ from ..domain.consent import (
 )
 from ..domain.enums import Channel, Language, SourceSystem
 from ..ports.ledger import EvidenceLedger
+from ..ports.records import RecordStore
 
 logger = logging.getLogger(__name__)
 
@@ -57,12 +58,29 @@ class ConsentRegistry:
     grants: dict[str, ConsentGrant] = field(default_factory=dict)
     pointers: dict[str, RecordPointer] = field(default_factory=dict)
     attempts: list[AccessAttempt] = field(default_factory=list)
+    #: Where consent survives a restart. None in the demo, which starts over.
+    store: RecordStore | None = None
+
+    @classmethod
+    def restored(cls, ledger: EvidenceLedger, store: RecordStore) -> ConsentRegistry:
+        """A registry holding whatever `store` kept. The ledger already has its rows."""
+        records = store.load()
+        return cls(
+            ledger=ledger,
+            requests={r.id: r for r in records.consent_requests},
+            grants={g.id: g for g in records.consent_grants},
+            pointers={p.id: p for p in records.record_pointers},
+            attempts=list(records.access_attempts),
+            store=store,
+        )
 
     # ---------------- the index ----------------
 
     def add_pointer(self, pointer: RecordPointer) -> RecordPointer:
         """Index that a record exists. Never its contents."""
         self.pointers[pointer.id] = pointer
+        if self.store is not None:
+            self.store.save_record_pointer(pointer)
         self.ledger.record_once(
             patient_id=pointer.abha_number,
             source=pointer.source_system,
@@ -119,6 +137,8 @@ class ConsentRegistry:
             notice_language=notice_language,
         )
         self.requests[request.id] = request
+        if self.store is not None:
+            self.store.save_consent_request(request)
         return request
 
     def pending(self, abha_number: str) -> list[ConsentRequest]:
@@ -169,6 +189,8 @@ class ConsentRegistry:
             notice_language=request.notice_language,
         )
         self.grants[grant.id] = grant
+        if self.store is not None:
+            self.store.save_consent_grant(grant)
         self.ledger.record(
             patient_id=grant.abha_number,
             source=SourceSystem.CAREGIVER_REPLY,
@@ -198,6 +220,8 @@ class ConsentRegistry:
             update={"revoked_at": datetime.now(UTC), "revocation_reason": reason}
         )
         self.grants[grant_id] = revoked
+        if self.store is not None:
+            self.store.save_consent_grant(revoked)
         self.ledger.record(
             patient_id=revoked.abha_number,
             source=SourceSystem.CAREGIVER_REPLY,
@@ -286,6 +310,8 @@ class ConsentRegistry:
             grant_id=grant.id if grant else None,
         )
         self.attempts.append(attempt)
+        if self.store is not None:
+            self.store.add_access_attempt(attempt)
         # Refused attempts are recorded as deliberately as granted ones. A log
         # that only remembers what it allowed cannot answer whether somebody has
         # been trying the door.
