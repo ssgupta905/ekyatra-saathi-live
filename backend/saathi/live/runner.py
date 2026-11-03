@@ -61,6 +61,7 @@ from ..planner import options as options_module
 from ..planner.graph import VisitPlanner
 from ..planner.process_facts import resolve_process_fact
 from ..ports.ledger import EvidenceLedger
+from ..ports.records import StoredOptionSet
 from ..readiness.conformal import TurnaroundSample
 from ..synthetic.generate import evaluate
 from .events import EventBus, EventKind
@@ -248,7 +249,23 @@ class LiveRunner:
 
     # ---------------- lifecycle ----------------
 
+    def restore(self) -> None:
+        """Take back what a restart interrupted: options waiting on a human, and
+        the approvals already given. Once; a second call finds nothing to take."""
+        for stored in self.world.restored_option_sets:
+            self.options[stored.patient_id] = OptionSet(
+                patient_id=stored.patient_id,
+                disruption_id=stored.disruption_id,
+                options=stored.options,
+                created_at=stored.created_at,
+            )
+            self.world.pending_approval[stored.patient_id] = stored.disruption_id
+        self.approvals.extend(self.world.restored_approvals)
+        self.world.restored_option_sets = ()
+        self.world.restored_approvals = ()
+
     async def start(self) -> None:
+        self.restore()
         if self._task is None or self._task.done():
             self._task = asyncio.create_task(self._loop(), name="saathi-live")
         if self._inbound_task is None or self._inbound_task.done():
@@ -774,13 +791,23 @@ class LiveRunner:
             return
 
         async with self._lock:
-            self.options[patient_id] = OptionSet(
+            option_set = OptionSet(
                 patient_id=patient_id,
                 disruption_id=disruption.id,
                 options=candidates,
                 created_at=datetime.now(UTC),
             )
+            self.options[patient_id] = option_set
             self.world.pending_approval[patient_id] = disruption.id
+            if self.world.store is not None:
+                self.world.store.save_option_set(
+                    StoredOptionSet(
+                        patient_id=patient_id,
+                        disruption_id=disruption.id,
+                        options=candidates,
+                        created_at=option_set.created_at,
+                    )
+                )
         self.bus.publish(
             EventKind.OPTIONS_READY,
             self.world.today.isoformat(),
@@ -840,6 +867,8 @@ class LiveRunner:
         async with self._lock:
             del self.options[patient_id]
             self.world.pending_approval.pop(patient_id, None)
+            if self.world.store is not None:
+                self.world.store.delete_option_set(patient_id)
         if disruption is not None:
             await self._apply_resolution(patient_id, disruption, option)
 
@@ -854,6 +883,8 @@ class LiveRunner:
             evidence=option.evidence,
         )
         self.approvals.append(approval)
+        if self.world.store is not None:
+            self.world.store.add_approval(approval)
         self.ledger.record_once(
             patient_id=patient_id,
             source=SourceSystem.NAVIGATOR,

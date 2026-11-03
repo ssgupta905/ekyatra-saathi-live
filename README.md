@@ -435,8 +435,9 @@ else knows which database it is.
 `SAATHI_SIM_MODE` together with `SAATHI_WORLD=real` fails at startup; and the entry endpoints
 answer 409 in the demo, because a reset would silently discard what was entered.
 
-**Not stored.** Plans, rendered messages, inbound messages and approvals are recomputed on
-start rather than stored.
+**Kept across a restart.** Reported outages, each party's readiness answer, options waiting on
+a human, and the approvals already given. **Not stored.** Plans are recomputed from the records
+on start (a stored copy could only drift from them); rendered and inbound messages are lost.
 
 ## Who may do what
 
@@ -680,8 +681,9 @@ whether a plan should pin its date once issued.
 
 In the demo world the cohort, the ledger and the plans live in process; restarting starts over,
 on purpose. The real world (`SAATHI_WORLD=real`, see [Real records](#real-records)) keeps its
-records and its ledger in the database. What it does not keep is derived: plans, rendered
-messages, inbound messages and approvals are recomputed or lost on restart.
+records, its ledger, reported outages, readiness answers, pending options and approvals in the
+database. What it does not keep is derived or transient: plans are recomputed on start, and
+rendered and inbound messages are lost on restart.
 
 ### 5. Voice is stubbed
 
@@ -743,7 +745,7 @@ Saathi is a logistics system. This boundary is enforced in code, not just docume
 ## Status
 
 Prototype. Synthetic patients with planted ground truth; the decision core, the guard, the
-ledger and the live world are real and tested — 143 tests, no network. The pilot adds live
+ledger and the live world are real and tested — 441 tests, no network. The pilot adds live
 ABDM data, one hospital's status feed, and persistence.
 
 Before any real-patient pilot: the partner hospital's ethics and data-protection review, and

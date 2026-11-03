@@ -3,8 +3,15 @@
 from __future__ import annotations
 
 from ...domain.enums import StepKind
-from ...domain.models import CareStep, Patient, Resource
-from ...ports.records import StoredRecords, TurnaroundObservation
+from ...domain.models import (
+    ApprovalDecision,
+    CareStep,
+    Disruption,
+    Patient,
+    ReadinessItem,
+    Resource,
+)
+from ...ports.records import StoredOptionSet, StoredRecords, TurnaroundObservation
 
 
 class MemoryRecordStore:
@@ -14,6 +21,10 @@ class MemoryRecordStore:
         self._resources: dict[str, Resource] = {}
         self._targets: dict[str, StepKind] = {}
         self._turnaround: list[TurnaroundObservation] = []
+        self._disruptions: dict[str, Disruption] = {}
+        self._readiness: dict[tuple[str, str], ReadinessItem] = {}
+        self._option_sets: dict[str, StoredOptionSet] = {}
+        self._approvals: dict[str, ApprovalDecision] = {}
 
     def load(self) -> StoredRecords:
         return StoredRecords(
@@ -22,6 +33,10 @@ class MemoryRecordStore:
             resources=tuple(self._resources.values()),
             plan_targets=dict(self._targets),
             turnaround=tuple(self._turnaround),
+            disruptions=tuple(self._disruptions.values()),
+            readiness_items=tuple(self._readiness.values()),
+            option_sets=tuple(self._option_sets.values()),
+            approvals=tuple(self._approvals.values()),
         )
 
     def save_patient(self, patient: Patient, plan_target: StepKind | None = None) -> None:
@@ -38,3 +53,22 @@ class MemoryRecordStore:
 
     def add_turnaround(self, observation: TurnaroundObservation) -> None:
         self._turnaround.append(observation)
+
+    def save_disruption(self, disruption: Disruption) -> None:
+        self._disruptions[disruption.id] = disruption
+
+    def save_readiness_item(self, item: ReadinessItem) -> None:
+        self._readiness[(item.patient_id, item.id)] = item
+
+    def delete_readiness_item(self, patient_id: str, item_id: str) -> None:
+        self._readiness.pop((patient_id, item_id), None)
+
+    def save_option_set(self, option_set: StoredOptionSet) -> None:
+        self._option_sets[option_set.patient_id] = option_set
+
+    def delete_option_set(self, patient_id: str) -> None:
+        self._option_sets.pop(patient_id, None)
+
+    def add_approval(self, approval: ApprovalDecision) -> None:
+        # Append-only: an approval already on file is never rewritten.
+        self._approvals.setdefault(approval.id, approval)

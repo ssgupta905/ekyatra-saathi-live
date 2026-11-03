@@ -227,3 +227,48 @@ class AlertRow(Base):
     acknowledged_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+
+
+class DisruptionRow(Base):
+    """A reported outage. The body is the domain model as JSON, so a field added
+    to `Disruption` needs no migration; the columns are only what is queried."""
+
+    __tablename__ = "disruptions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    resource_id: Mapped[str] = mapped_column(String(64), index=True)
+    unavailable_to: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    payload_json: Mapped[str] = mapped_column(Text)
+
+
+class ReadinessItemRow(Base):
+    """One party's answer about one family's journey (a ride, a slot, an insurer)."""
+
+    __tablename__ = "readiness_items"
+
+    patient_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    item_id: Mapped[str] = mapped_column(String(96), primary_key=True)
+    payload_json: Mapped[str] = mapped_column(Text)
+
+
+class OptionSetRow(Base):
+    """Ranked options awaiting a human. One per patient, removed once approved."""
+
+    __tablename__ = "option_sets"
+
+    patient_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    disruption_id: Mapped[str] = mapped_column(String(36), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    payload_json: Mapped[str] = mapped_column(Text)
+
+
+class ApprovalRow(Base):
+    """Who approved which option, with a copy of the option. Append-only."""
+
+    __tablename__ = "approvals"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    patient_id: Mapped[str] = mapped_column(String(32), index=True)
+    disruption_id: Mapped[str] = mapped_column(String(36), index=True)
+    approved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    payload_json: Mapped[str] = mapped_column(Text)

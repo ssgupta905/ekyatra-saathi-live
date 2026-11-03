@@ -35,6 +35,7 @@ from ..domain.enums import (
     StepStatus,
 )
 from ..domain.models import (
+    ApprovalDecision,
     CareStep,
     Disruption,
     MaintenanceCycle,
@@ -43,7 +44,7 @@ from ..domain.models import (
     Resource,
 )
 from ..domain.pathway import get_pathway
-from ..ports.records import RecordStore, TurnaroundObservation
+from ..ports.records import RecordStore, StoredOptionSet, TurnaroundObservation
 from ..synthetic.generate import GroundTruth, SyntheticCohort, generate_cohort
 from ..synthetic.scripted import (
     ANITA_ID,
@@ -161,6 +162,10 @@ class LiveWorld:
     #: Where changes are written through to. None in the demo, which should not
     #: leave files behind.
     store: RecordStore | None = None
+    #: Option sets and approvals read back at startup. The runner owns them, so
+    #: it takes these once, at start, and the world forgets them.
+    restored_option_sets: tuple[StoredOptionSet, ...] = ()
+    restored_approvals: tuple[ApprovalDecision, ...] = ()
 
     def target_kind_for(self, patient_id: str) -> StepKind:
         if patient_id in self.plan_targets:
@@ -223,6 +228,11 @@ class LiveWorld:
         world.index = {row.id: pid for pid, rows in world.steps.items() for row in rows}
         world.resources = {r.id: r for r in records.resources}
         world.plan_targets = dict(records.plan_targets)
+        world.disruptions = {d.id: d for d in records.disruptions}
+        for item in records.readiness_items:
+            world.readiness_items.setdefault(item.patient_id, {})[item.id] = item
+        world.restored_option_sets = records.option_sets
+        world.restored_approvals = records.approvals
         # Every family is watched: with no actors there is no per-family cost to
         # cap, and a family the hospital entered should hear from it.
         world.watched = tuple(p.id for p in records.patients)
@@ -438,10 +448,15 @@ class LiveWorld:
         if self.patient(item.patient_id) is None:
             raise LookupError(item.patient_id)
         self.readiness_items.setdefault(item.patient_id, {})[item.id] = item
+        if self.store is not None:
+            self.store.save_readiness_item(item)
         return item
 
     def remove_readiness_item(self, patient_id: str, item_id: str) -> bool:
-        return self.readiness_items.get(patient_id, {}).pop(item_id, None) is not None
+        removed = self.readiness_items.get(patient_id, {}).pop(item_id, None) is not None
+        if removed and self.store is not None:
+            self.store.delete_readiness_item(patient_id, item_id)
+        return removed
 
     def steps_for(self, patient_id: str) -> list[CareStep]:
         """A copy: planning runs on a worker thread and must not see a tear."""
@@ -588,6 +603,8 @@ class LiveWorld:
             note=note,
         )
         self.disruptions[disruption.id] = disruption
+        if self.store is not None:
+            self.store.save_disruption(disruption)
         return disruption
 
     def open_disruptions(self) -> list[Disruption]:

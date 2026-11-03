@@ -8,6 +8,8 @@ change; `migrate()` brings the schema to the current revision on either.
 
 from __future__ import annotations
 
+import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 from alembic import command
@@ -16,9 +18,13 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 from ...db.tables import (
+    ApprovalRow,
     CareStepRow,
+    DisruptionRow,
     FamilyMemberRow,
+    OptionSetRow,
     PatientRow,
+    ReadinessItemRow,
     ResourceRow,
     TurnaroundRow,
 )
@@ -30,8 +36,17 @@ from ...domain.enums import (
     StepKind,
     StepStatus,
 )
-from ...domain.models import CareStep, FamilyMember, Patient, Resource
-from ...ports.records import StoredRecords, TurnaroundObservation
+from ...domain.models import (
+    ApprovalDecision,
+    CareStep,
+    Disruption,
+    FamilyMember,
+    Patient,
+    PlanOption,
+    ReadinessItem,
+    Resource,
+)
+from ...ports.records import StoredOptionSet, StoredRecords, TurnaroundObservation
 
 MIGRATIONS = Path(__file__).resolve().parents[2] / "db" / "migrations"
 
@@ -80,12 +95,43 @@ class SqlRecordStore:
                 )
                 for r in db.scalars(select(TurnaroundRow).order_by(TurnaroundRow.id))
             )
+            disruptions = tuple(
+                Disruption.model_validate_json(r.payload_json)
+                for r in db.scalars(select(DisruptionRow).order_by(DisruptionRow.id))
+            )
+            readiness = tuple(
+                ReadinessItem.model_validate_json(r.payload_json)
+                for r in db.scalars(
+                    select(ReadinessItemRow).order_by(
+                        ReadinessItemRow.patient_id, ReadinessItemRow.item_id
+                    )
+                )
+            )
+            option_sets = tuple(
+                StoredOptionSet(
+                    patient_id=r.patient_id,
+                    disruption_id=r.disruption_id,
+                    options=tuple(
+                        PlanOption.model_validate(o) for o in json.loads(r.payload_json)
+                    ),
+                    created_at=_aware(r.created_at),
+                )
+                for r in db.scalars(select(OptionSetRow).order_by(OptionSetRow.created_at))
+            )
+            approvals = tuple(
+                ApprovalDecision.model_validate_json(r.payload_json)
+                for r in db.scalars(select(ApprovalRow).order_by(ApprovalRow.approved_at))
+            )
         return StoredRecords(
             patients=tuple(patients),
             steps={pid: tuple(rows) for pid, rows in steps.items()},
             resources=resources,
             plan_targets=targets,
             turnaround=turnaround,
+            disruptions=disruptions,
+            readiness_items=readiness,
+            option_sets=option_sets,
+            approvals=approvals,
         )
 
     # ---------------- writing ----------------
@@ -159,6 +205,65 @@ class SqlRecordStore:
                     observed_on=observation.observed_on,
                 )
             )
+
+    def save_disruption(self, disruption: Disruption) -> None:
+        with self._sessions.begin() as db:
+            row = db.get(DisruptionRow, disruption.id)
+            if row is None:
+                row = DisruptionRow(id=disruption.id)
+                db.add(row)
+            row.resource_id = disruption.resource_id
+            row.unavailable_to = disruption.unavailable_to
+            row.payload_json = disruption.model_dump_json()
+
+    def save_readiness_item(self, item: ReadinessItem) -> None:
+        with self._sessions.begin() as db:
+            row = db.get(ReadinessItemRow, (item.patient_id, item.id))
+            if row is None:
+                row = ReadinessItemRow(patient_id=item.patient_id, item_id=item.id)
+                db.add(row)
+            row.payload_json = item.model_dump_json()
+
+    def delete_readiness_item(self, patient_id: str, item_id: str) -> None:
+        with self._sessions.begin() as db:
+            row = db.get(ReadinessItemRow, (patient_id, item_id))
+            if row is not None:
+                db.delete(row)
+
+    def save_option_set(self, option_set: StoredOptionSet) -> None:
+        with self._sessions.begin() as db:
+            row = db.get(OptionSetRow, option_set.patient_id)
+            if row is None:
+                row = OptionSetRow(patient_id=option_set.patient_id)
+                db.add(row)
+            row.disruption_id = option_set.disruption_id
+            row.created_at = option_set.created_at
+            row.payload_json = json.dumps([o.model_dump(mode="json") for o in option_set.options])
+
+    def delete_option_set(self, patient_id: str) -> None:
+        with self._sessions.begin() as db:
+            row = db.get(OptionSetRow, patient_id)
+            if row is not None:
+                db.delete(row)
+
+    def add_approval(self, approval: ApprovalDecision) -> None:
+        with self._sessions.begin() as db:
+            if db.get(ApprovalRow, approval.id) is not None:
+                return  # append-only: an approval already on file is never rewritten
+            db.add(
+                ApprovalRow(
+                    id=approval.id,
+                    patient_id=approval.patient_id,
+                    disruption_id=approval.disruption_id,
+                    approved_at=approval.approved_at,
+                    payload_json=approval.model_dump_json(),
+                )
+            )
+
+
+def _aware(moment: datetime) -> datetime:
+    """SQLite drops the timezone it was given; everything here is UTC."""
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
 def _patient(row: PatientRow) -> Patient:
