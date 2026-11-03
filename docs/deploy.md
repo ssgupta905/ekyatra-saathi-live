@@ -79,8 +79,10 @@ The API address is fixed into the app when it is built, so build it once the API
 Needs JDK 17 and the Android SDK (Android Studio installs both). From `android/`:
 
 ```bash
-./gradlew assembleDebug -PapiBase=https://<your-api>.onrender.com/api
+JAVA_HOME=$(/usr/libexec/java_home -v 17) ./gradlew assembleDebug -PapiBase=https://<your-api>.onrender.com/api
 ```
+
+(`JAVA_HOME=...` picks JDK 17 on a Mac that also has newer ones. Skip it if 17 is your default.)
 
 The APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`. Copy it to a phone and
 install it (allow installs from your file manager when asked). It is a debug build, signed with
