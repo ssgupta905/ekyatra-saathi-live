@@ -81,9 +81,12 @@ def apply_demo_contacts(store: RecordStore, settings: Settings) -> bool:
     email = (settings.seed_demo_email or "").strip().lower()
     if not email:
         return False
-    first = next((p for p in store.load().patients if p.id == FIRST_FAMILY), None)
+    patients = store.load().patients
+    first = next((p for p in patients if p.id == FIRST_FAMILY), None)
     if first is None or first.caregiver_email == email:
         return False
+    if any(p.caregiver_email == email for p in patients if p.id != FIRST_FAMILY):
+        return False  # an address belongs to one family, and another already holds it
     store.save_patient(first.model_copy(update={"caregiver_email": email}))
     logger.info("the first seeded family now answers to the demo email")
     return True

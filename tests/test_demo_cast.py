@@ -139,3 +139,13 @@ def test_loading_again_puts_every_family_back_at_the_start_of_its_story(demo):
     reset = _guide(demo, "DEMO-1")
     assert reset["now_stage_id"] == "reports" and reset["decision"] != "go"
     assert demo.world.readiness_for("DEMO-1") == ()
+
+
+def test_an_address_given_to_the_cast_is_taken_from_any_other_family(demo):
+    demo.world.update_patient("P0000", caregiver_email="one@example.com")
+
+    demo.post("/api/demo/cast", json={"emails": EMAILS})
+
+    holders = [p["id"] for p in demo.get("/api/patients").json()
+               if p["caregiver_email"] == "one@example.com"]
+    assert holders == ["DEMO-1"]

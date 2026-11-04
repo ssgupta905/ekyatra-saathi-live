@@ -208,3 +208,16 @@ def test_an_email_added_later_reaches_a_database_seeded_before(tmp_path):
     assert next(p for p in store.load().patients if p.id == "P0000").caregiver_email == (
         "me@gmail.com"
     )
+
+
+def test_a_demo_email_already_held_by_another_family_is_not_taken_again(tmp_path):
+    settings = _real(tmp_path, seed_demo=True)
+    build_container(settings)
+    store = SqlRecordStore(settings.records_url)
+    other = next(p for p in store.load().patients if p.id != "P0000")
+    store.save_patient(other.model_copy(update={"caregiver_email": "me@gmail.com"}))
+
+    changed = apply_demo_contacts(store, _real(tmp_path, seed_demo_email="me@gmail.com"))
+
+    assert changed is False
+    assert next(p for p in store.load().patients if p.id == "P0000").caregiver_email is None

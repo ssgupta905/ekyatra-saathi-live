@@ -42,6 +42,13 @@ async def load_cast(state: ContainerDep, principal: PrincipalDep, body: CastIn) 
             uber.model_copy(update={"answer": "cannot", "alternate_id": "cab-ola"})
         )
 
+    # An address belongs to one family: take it from anyone else who has it.
+    taken = {m.patient.caregiver_email for m in cast if m.patient.caregiver_email}
+    cast_ids = {m.patient.id for m in cast}
+    for other in state.world.patients():
+        if other.id not in cast_ids and other.caregiver_email in taken:
+            state.world.update_patient(other.id, caregiver_email=None)
+
     # Fill in each family's background first: it skips a family that already has details.
     seed_demo_onboarding(state.onboarding, tuple(m.patient for m in cast), state.registry)
     loaded = []
