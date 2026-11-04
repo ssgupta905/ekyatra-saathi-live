@@ -25,6 +25,7 @@ from ...db.tables import (
     ConsentRequestRow,
     DisruptionRow,
     FamilyMemberRow,
+    FamilyMessageRow,
     OptionSetRow,
     PatientRow,
     ReadinessItemRow,
@@ -143,6 +144,10 @@ class SqlRecordStore:
                 AccessAttempt.model_validate_json(r.payload_json)
                 for r in db.scalars(select(AccessAttemptRow).order_by(AccessAttemptRow.at))
             )
+            family_messages = tuple(
+                json.loads(r.payload_json)
+                for r in db.scalars(select(FamilyMessageRow).order_by(FamilyMessageRow.sent_at))
+            )
         return StoredRecords(
             patients=tuple(patients),
             steps={pid: tuple(rows) for pid, rows in steps.items()},
@@ -153,6 +158,7 @@ class SqlRecordStore:
             readiness_items=readiness,
             option_sets=option_sets,
             approvals=approvals,
+            family_messages=family_messages,
             consent_requests=consent_requests,
             consent_grants=consent_grants,
             record_pointers=pointers,
@@ -271,6 +277,19 @@ class SqlRecordStore:
             row = db.get(OptionSetRow, patient_id)
             if row is not None:
                 db.delete(row)
+
+    def add_family_message(self, row: dict) -> None:
+        with self._sessions.begin() as db:
+            if db.get(FamilyMessageRow, row["id"]) is not None:
+                return  # a message already on file is never rewritten
+            db.add(
+                FamilyMessageRow(
+                    id=row["id"],
+                    patient_id=row["patient_id"],
+                    sent_at=datetime.fromisoformat(row["sent_at"]),
+                    payload_json=json.dumps(row),
+                )
+            )
 
     def add_approval(self, approval: ApprovalDecision) -> None:
         with self._sessions.begin() as db:

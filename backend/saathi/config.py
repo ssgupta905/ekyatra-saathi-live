@@ -71,6 +71,10 @@ class Settings(BaseSettings):
     #: holds a family. `seed_demo_phone` makes the first family answer to that
     #: number, so someone can sign in as a caregiver.
     seed_demo: bool = False
+    #: "simulated" answers on behalf of the directory's organisations so a journey
+    #: moves by itself; "off" leaves every party to be recorded by a person. Left
+    #: unset it follows `seed_demo`.
+    partners: str | None = None
     seed_demo_phone: str | None = None
     #: With no SMS provider the one-time code only reaches the log. Setting this to
     #: six digits makes `seed_demo_phone` (that phone alone) accept it, so a
@@ -194,6 +198,19 @@ class Settings(BaseSettings):
                 "controls must never be reachable on real records"
             )
         return self
+
+    @field_validator("partners")
+    @classmethod
+    def _partners_mode(cls, mode: str | None) -> str | None:
+        if mode is not None and mode not in ("simulated", "off"):
+            raise ValueError("SAATHI_PARTNERS must be 'simulated' or 'off'")
+        return mode
+
+    @property
+    def partners_on(self) -> bool:
+        """Whether simulated organisations answer. Real records only, and only when asked for."""
+        mode = self.partners or ("simulated" if self.seed_demo else "off")
+        return self.real_world and mode == "simulated"
 
     @field_validator("demo_otp")
     @classmethod

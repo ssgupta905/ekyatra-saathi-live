@@ -26,6 +26,7 @@ class MemoryRecordStore:
         self._readiness: dict[tuple[str, str], ReadinessItem] = {}
         self._option_sets: dict[str, StoredOptionSet] = {}
         self._approvals: dict[str, ApprovalDecision] = {}
+        self._family_messages: dict[str, dict] = {}
         self._consent_requests: dict[str, ConsentRequest] = {}
         self._consent_grants: dict[str, ConsentGrant] = {}
         self._pointers: dict[str, RecordPointer] = {}
@@ -42,6 +43,7 @@ class MemoryRecordStore:
             readiness_items=tuple(self._readiness.values()),
             option_sets=tuple(self._option_sets.values()),
             approvals=tuple(self._approvals.values()),
+            family_messages=tuple(self._family_messages.values()),
             consent_requests=tuple(self._consent_requests.values()),
             consent_grants=tuple(self._consent_grants.values()),
             record_pointers=tuple(self._pointers.values()),
@@ -77,6 +79,9 @@ class MemoryRecordStore:
 
     def delete_option_set(self, patient_id: str) -> None:
         self._option_sets.pop(patient_id, None)
+
+    def add_family_message(self, row: dict) -> None:
+        self._family_messages.setdefault(row["id"], dict(row))
 
     def add_approval(self, approval: ApprovalDecision) -> None:
         # Append-only: an approval already on file is never rewritten.

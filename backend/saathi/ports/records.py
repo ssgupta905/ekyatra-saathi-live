@@ -72,6 +72,8 @@ class StoredRecords:
     consent_grants: tuple[ConsentGrant, ...] = ()
     record_pointers: tuple[RecordPointer, ...] = ()
     access_attempts: tuple[AccessAttempt, ...] = ()
+    #: What each family was told, oldest first, as the rows the thread shows.
+    family_messages: tuple[dict, ...] = ()
 
 
 class RecordStore(Protocol):
@@ -104,6 +106,10 @@ class RecordStore(Protocol):
         ...
 
     def delete_option_set(self, patient_id: str) -> None: ...
+
+    def add_family_message(self, row: dict) -> None:
+        """Keep one message a family was sent, so their thread survives a restart."""
+        ...
 
     def add_approval(self, approval: ApprovalDecision) -> None:
         """Append-only: an approval is never edited or removed."""

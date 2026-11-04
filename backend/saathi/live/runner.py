@@ -211,6 +211,9 @@ class LiveRunner:
     #: Set when Groq credentials are present. Every use is guarded; with it
     #: unset the world still ticks and every decision is still made.
     actors: object | None = None
+    #: The network answering journeys: asks the directory's organisations and hears
+    #: back. None when partners are off.
+    partners: object | None = None
     #: Fact sources — journeys, resource status, lab queues, entitlements.
     #: Every call is timed, written to the ledger and published, so a figure on
     #: screen can be traced back to the call that produced it.
@@ -225,6 +228,8 @@ class LiveRunner:
     active_work: dict[str, dict] = field(default_factory=dict)
 
     plans: dict[str, PlanRun] = field(default_factory=dict)
+    #: The last journey guide each family was told about, to say only what changed.
+    guides: dict[str, object] = field(default_factory=dict)
     inbound: list[InboundRecord] = field(default_factory=list)
     #: Everything actually sent to a family, in the order they received it.
     #: Kept because "the family hears first" is a claim about what reached a
@@ -243,6 +248,7 @@ class LiveRunner:
 
     _task: asyncio.Task | None = None
     _inbound_task: asyncio.Task | None = None
+    _partner_task: asyncio.Task | None = None
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     _rng: random.Random = field(default_factory=lambda: random.Random(7))
     _work_seq: int = 0
@@ -261,8 +267,11 @@ class LiveRunner:
             )
             self.world.pending_approval[stored.patient_id] = stored.disruption_id
         self.approvals.extend(self.world.restored_approvals)
+        # What each family was told, so a restart does not empty their thread.
+        self.outbound.extend(self.world.restored_messages)
         self.world.restored_option_sets = ()
         self.world.restored_approvals = ()
+        self.world.restored_messages = ()
 
     async def start(self) -> None:
         self.restore()
@@ -272,19 +281,22 @@ class LiveRunner:
             self._inbound_task = asyncio.create_task(
                 self._inbound_loop(), name="saathi-inbound"
             )
+        if self.partners is not None and (self._partner_task is None or self._partner_task.done()):
+            self._partner_task = asyncio.create_task(self._partner_loop(), name="saathi-partners")
         # Plan once up front so a console that connects before the first tick
         # still sees real decisions rather than an empty page.
         await self.plan_all()
         await self.update_metrics()
 
     async def stop(self) -> None:
-        for task in (self._task, self._inbound_task):
+        for task in (self._task, self._inbound_task, self._partner_task):
             if task is not None:
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await task
         self._task = None
         self._inbound_task = None
+        self._partner_task = None
 
     @contextlib.asynccontextmanager
     async def working(self, task: str, *, patient_id: str | None = None, detail: str = ""):
@@ -407,6 +419,29 @@ class LiveRunner:
             except Exception:  # noqa: BLE001 - the world must not stop on one bad day
                 logger.exception("tick failed; continuing")
                 await asyncio.sleep(1.0)
+
+    async def _partner_loop(self) -> None:
+        """Every few seconds, hear back from any simulated organisation whose time has come."""
+        while True:
+            try:
+                await self.settle_partners()
+                await asyncio.sleep(5.0)
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # noqa: BLE001 - one bad answer must not stop the rest
+                logger.exception("partner round failed; continuing")
+                await asyncio.sleep(5.0)
+
+    async def settle_partners(self) -> int:
+        desk = self.partners
+        if desk is None:
+            return 0
+        answered = 0
+        for patient_id, item in desk.due():
+            if desk.settle(item) is not None:
+                answered += 1
+                await self.plan_patient(patient_id, allow_render=True)
+        return answered
 
     async def tick(self) -> None:
         async with self._lock:
@@ -1256,6 +1291,47 @@ class LiveRunner:
             if run.patient_id in self.world.watched:
                 await self._render_for(run.patient_id)
 
+        if self.partners is not None:
+            for patient, _ in work:
+                if await self.partners.ask_for_needs(patient.id):
+                    await self.plan_patient(patient.id, allow_render=True)
+        for patient, _ in work:
+            await self._announce_guide(patient.id)
+
+    async def _announce_guide(self, patient_id: str) -> None:
+        """Tell a family what changed on their journey, in their language, in the thread."""
+        from ..guide.update import guide_update
+        from ..language.guide_messages import render_guide_message
+        from .guides import compute_guide
+
+        patient = self.world.patient(patient_id)
+        if patient is None or not self.world.real:
+            return
+        now = await compute_guide(self, patient_id)
+        before = self.guides.get(patient_id)
+        self.guides[patient_id] = now
+        if now is None or before is None:
+            return  # the first guide is a baseline, not news
+        update = guide_update(before, now)
+        body = render_guide_message(patient.language, update) if update else None
+        if body is None:
+            return
+        self._record_outbound(
+            patient_id,
+            kind="guide",
+            body=body,
+            language=patient.language.value,
+            channel="whatsapp",
+            rendered_by="template",
+        )
+        self.bus.publish(
+            EventKind.MESSAGE_RENDERED,
+            self.world.today.isoformat(),
+            patient_id=patient_id,
+            summary=f"{patient_id}: journey update sent",
+            message_kind="guide",
+        )
+
     async def plan_patient(self, patient_id: str, *, allow_render: bool = False) -> PlanRun | None:
         patient = self.world.patient(patient_id)
         if patient is None:
@@ -1287,6 +1363,10 @@ class LiveRunner:
             duration_ms=run.plan_ms,
             decision=run.decision.value if run.decision else None,
         )
+        if self.partners is not None and await self.partners.ask_for_needs(patient_id):
+            # The journey now has parties to wait on; plan again to say so.
+            return await self.plan_patient(patient_id, allow_render=allow_render)
+        await self._announce_guide(patient_id)
         if allow_render and patient_id in self.world.watched:
             await self._render_for(patient_id)
         return run
@@ -1543,22 +1623,31 @@ class LiveRunner:
         duration_ms: float | None = None,
     ) -> None:
         """Keep what was sent, so the family's own screen can show it back."""
-        self.outbound.append(
-            {
-                "id": f"out-{patient_id}-{len(self.outbound)}",
-                "patient_id": patient_id,
-                "kind": kind,
-                "body": body,
-                "language": language,
-                "channel": channel,
-                "held": held,
-                "reason": reason,
-                "rendered_by": rendered_by,
-                "duration_ms": duration_ms,
-                "sim_date": self.world.today.isoformat(),
-                "sent_at": datetime.now(UTC).isoformat(),
-            }
-        )
+        if kind == "plan":
+            last = next((r for r in reversed(self.outbound) if r["patient_id"] == patient_id), None)
+            if (
+                last is not None
+                and last["kind"] == "plan"
+                and (last["body"], last["language"], last["held"]) == (body, language, held)
+            ):
+                return  # the same words again, after a restart say, are not news
+        row = {
+            "id": f"out-{patient_id}-{len(self.outbound)}",
+            "patient_id": patient_id,
+            "kind": kind,
+            "body": body,
+            "language": language,
+            "channel": channel,
+            "held": held,
+            "reason": reason,
+            "rendered_by": rendered_by,
+            "duration_ms": duration_ms,
+            "sim_date": self.world.today.isoformat(),
+            "sent_at": datetime.now(UTC).isoformat(),
+        }
+        self.outbound.append(row)
+        if self.world.store is not None:
+            self.world.store.add_family_message(row)
 
     def ledger_size(self) -> int:
         return self.ledger.size()

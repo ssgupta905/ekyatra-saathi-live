@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
-from .enums import ResourceKind, StepKind
+from .enums import ReadinessKind, ResourceKind, StepKind
 
 DEFAULT_PATHWAY_ID = "oncology"
 
@@ -55,6 +55,9 @@ class Pathway(BaseModel):
     #: The step a family is planned towards when none is chosen.
     default_target: StepKind = StepKind.REVIEW_CONSULT
     recurrence: Recurrence | None = None
+    #: Which other parties a journey towards each step depends on. A stay is
+    #: only asked for when the family lives far enough to need one.
+    partner_needs: dict[StepKind, tuple[ReadinessKind, ...]] = {}
 
     @property
     def kinds(self) -> frozenset[StepKind]:
@@ -66,6 +69,14 @@ class Pathway(BaseModel):
         rule = self.recurrence
         return bool(rule and rule.companion and index in rule.gated_indices)
 
+
+#: Who a cancer journey leans on beyond the hospital: scheme, pharmacy, ride, a room.
+_ONCOLOGY_PARTIES = (
+    ReadinessKind.INSURANCE,
+    ReadinessKind.MEDICINE,
+    ReadinessKind.TRANSPORT,
+    ReadinessKind.STAY,
+)
 
 ONCOLOGY = Pathway(
     id=DEFAULT_PATHWAY_ID,
@@ -130,6 +141,11 @@ ONCOLOGY = Pathway(
         StepKind.ECHO_REVIEW: "cardiology reception",
     },
     default_target=StepKind.REVIEW_CONSULT,
+    partner_needs={
+        StepKind.REVIEW_CONSULT: _ONCOLOGY_PARTIES,
+        StepKind.TREATMENT: _ONCOLOGY_PARTIES,
+        StepKind.MAINTENANCE_DOSE: _ONCOLOGY_PARTIES,
+    },
     recurrence=Recurrence(
         kind=StepKind.MAINTENANCE_DOSE,
         interval_days=21,
@@ -166,6 +182,7 @@ DIALYSIS = Pathway(
         StepKind.NEPHROLOGY_REVIEW: "OPD registration counter",
     },
     default_target=StepKind.DIALYSIS_SESSION,
+    partner_needs={StepKind.DIALYSIS_SESSION: (ReadinessKind.TRANSPORT, ReadinessKind.STAY)},
     recurrence=Recurrence(kind=StepKind.DIALYSIS_SESSION, interval_days=2),
 )
 
@@ -194,6 +211,9 @@ POST_DISCHARGE = Pathway(
         StepKind.BLOODS: "sample collection counter",
     },
     default_target=StepKind.DISCHARGE_REVIEW,
+    partner_needs={
+        StepKind.DISCHARGE_REVIEW: (ReadinessKind.MEDICINE, ReadinessKind.TRANSPORT),
+    },
 )
 
 PATHWAYS: dict[str, Pathway] = {p.id: p for p in (ONCOLOGY, DIALYSIS, POST_DISCHARGE)}

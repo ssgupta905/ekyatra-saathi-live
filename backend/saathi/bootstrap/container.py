@@ -341,6 +341,20 @@ def build_container(settings: Settings | None = None, today: date | None = None)
         seed_demo_onboarding(onboarding, tuple(world.patients()), registry)
     rules = HospitalRules(registry)
     planner.rules_for = rules
+    if settings.real_world:
+        from ..live.partners import PartnerDesk
+
+        runner.partners = PartnerDesk(
+            world=world,
+            registry=registry,
+            onboarding=onboarding,
+            graph_for=planner.graph_for,
+            rules_for=rules,
+            journey_hours=runner.journey_hours,
+            auto=settings.partners_on,
+        )
+        if settings.partners_on:
+            logger.info("the network answers: journeys ask the directory's organisations")
 
     return Container(
         settings=settings,

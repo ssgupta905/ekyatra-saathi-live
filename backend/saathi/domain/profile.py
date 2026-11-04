@@ -90,11 +90,25 @@ class MedicalSection(_Form):
     emergency_contact_phone: str = Field(default="", max_length=24, title="Emergency phone")
 
 
+class PartnersSection(_Form):
+    """The organisations this family's journey should use, where staff choose one.
+
+    Blank means the directory's best fit for their district and hospital. Each
+    value is an organisation id from the directory.
+    """
+
+    transport: str | None = Field(default=None, max_length=64, title="Ride")
+    stay: str | None = Field(default=None, max_length=64, title="Stay")
+    medicine: str | None = Field(default=None, max_length=64, title="Pharmacy")
+    insurance: str | None = Field(default=None, max_length=64, title="Insurer or scheme desk")
+
+
 #: Form name -> model, for `GET /forms/{name}`.
 SECTIONS: dict[str, type[_Form]] = {
     "identity": IdentitySection,
     "background": BackgroundSection,
     "medical": MedicalSection,
+    "partners": PartnersSection,
 }
 
 #: Sections only these roles may read or write.

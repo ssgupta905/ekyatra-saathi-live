@@ -77,3 +77,41 @@ async def clear_readiness(state: ContainerDep, patient_id: str, item_id: str) ->
         raise HTTPException(404, "no such readiness item")
     run = await state.runner.plan_patient(patient_id, allow_render=True)
     return {"decision": run.decision.value if run and run.decision else None}
+
+
+def _desk(state: ContainerDep):
+    desk = getattr(state.runner, "partners", None)
+    if desk is None:
+        raise HTTPException(409, "organisations can only be asked on real records")
+    return desk
+
+
+class AskIn(BaseModel):
+    kind: ReadinessKind
+    organisation_id: str = Field(min_length=1, max_length=64)
+
+
+@router.post("/patients/{patient_id}/readiness/request", status_code=201, dependencies=[DeskWork])
+async def ask_organisation(state: ContainerDep, patient_id: str, body: AskIn) -> dict:
+    """Ask one particular organisation from the directory for a need."""
+    try:
+        item = _desk(state).ask(patient_id, body.kind, body.organisation_id)
+    except LookupError as exc:
+        raise HTTPException(404, "unknown patient") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    run = await state.runner.plan_patient(patient_id, allow_render=True)
+    return {"item": item.model_dump(mode="json"), "decision": run.decision.value if run else None}
+
+
+@router.post("/patients/{patient_id}/readiness/{item_id}/rebook", dependencies=[DeskWork])
+async def book_another(state: ContainerDep, patient_id: str, item_id: str) -> dict:
+    """Ask the alternate of an organisation that could not. A person decides this, not the desk."""
+    try:
+        item = _desk(state).rebook(patient_id, item_id)
+    except LookupError as exc:
+        raise HTTPException(404, "no such readiness item") from exc
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    run = await state.runner.plan_patient(patient_id, allow_render=True)
+    return {"item": item.model_dump(mode="json"), "decision": run.decision.value if run else None}

@@ -145,12 +145,23 @@ def seed_showcase(store: RecordStore, today: date) -> bool:
             step(pid, kind, StepStatus.RESULT_AVAILABLE, released=earlier)
         step(pid, StepKind.REVIEW_CONSULT, StepStatus.SCHEDULED, on=today + timedelta(days=2))
 
-    def party(pid, kind, who, status, *, alt=False, detail=""):
+    def party(pid, kind, who, status, *, alt=False, detail="", org=None):
         store.save_readiness_item(
             ReadinessItem(id=f"{pid}-{kind.value}", patient_id=pid, kind=kind, party=who,
                           status=status, alternative_available=alt, detail=detail,
-                          source=SourceSystem.PARTNER)
+                          source=SourceSystem.PARTNER, partner_id=org)
         )
+
+    def others_ready(pid, *, but=()):
+        """Everyone else a cancer journey leans on has said yes; the scripted one is the story."""
+        for kind, who, org in (
+            (ReadinessKind.INSURANCE, "PM-JAY help desk", "in-pmjay-desk"),
+            (ReadinessKind.MEDICINE, "Day-care pharmacy, Mumbai", "ph-daycare-mum"),
+            (ReadinessKind.TRANSPORT, "Uber", "cab-uber"),
+            (ReadinessKind.STAY, "OYO, Parel", "ho-oyo-parel"),
+        ):
+            if kind not in but:
+                party(pid, kind, who, ReadinessStatus.READY, detail="confirmed", org=org)
 
     # Other conditions, same engine: a dialysis family that can go, one still
     # waiting on bloods, and a family home from hospital.
@@ -194,28 +205,28 @@ def seed_showcase(store: RecordStore, today: date) -> bool:
     family("SHOW-GO-1", "Anita Kumari", "Purnia", 2008.0, Language.HINDI, "+919000000016",
            abha="91-1000-0000-0016")
     ready_oncology("SHOW-GO-1")
-    party("SHOW-GO-1", ReadinessKind.TRANSPORT, "Uber", ReadinessStatus.READY,
-          detail="cab booked for 6 am")
-    party("SHOW-GO-1", ReadinessKind.STAY, "OYO", ReadinessStatus.READY,
-          detail="two nights near the hospital")
+    others_ready("SHOW-GO-1")
 
     family("SHOW-WAIT-1", "Geeta Kumari", "Purnia", 1955.0, Language.HINDI, "+919000000017",
            abha="91-1000-0000-0017")
     ready_oncology("SHOW-WAIT-1")
-    party("SHOW-WAIT-1", ReadinessKind.MEDICINE, "day-care pharmacy", ReadinessStatus.PENDING,
-          detail="stock arrives tomorrow")
+    others_ready("SHOW-WAIT-1", but=(ReadinessKind.MEDICINE,))
+    party("SHOW-WAIT-1", ReadinessKind.MEDICINE, "Day-care pharmacy, Mumbai",
+          ReadinessStatus.PENDING, detail="stock arrives tomorrow", org="ph-daycare-mum")
 
     family("SHOW-REPLAN-1", "Imtiyaz Ansari", "Nadia", 1940.0, Language.BENGALI,
            "+919000000018", abha="91-1000-0000-0018")
     ready_oncology("SHOW-REPLAN-1")
+    others_ready("SHOW-REPLAN-1", but=(ReadinessKind.TRANSPORT,))
     party("SHOW-REPLAN-1", ReadinessKind.TRANSPORT, "Ola", ReadinessStatus.BLOCKED,
-          alt=True, detail="driver cancelled; another cab is free")
+          alt=True, detail="driver cancelled; another cab is free", org="cab-ola")
 
     family("SHOW-UNSURE-1", "Lakshmi Behera", "Cuttack", 1665.0, Language.ODIA,
            "+919000000019", abha="91-1000-0000-0019")
     ready_oncology("SHOW-UNSURE-1")
-    party("SHOW-UNSURE-1", ReadinessKind.INSURANCE, "PM-JAY desk", ReadinessStatus.UNKNOWN,
-          detail="no answer yet on the pre-authorisation")
+    others_ready("SHOW-UNSURE-1", but=(ReadinessKind.INSURANCE,))
+    party("SHOW-UNSURE-1", ReadinessKind.INSURANCE, "PM-JAY help desk", ReadinessStatus.UNKNOWN,
+          detail="no answer yet on the pre-authorisation", org="in-pmjay-desk")
 
     logger.info("added the showcase families, resources and partner statuses")
     return True

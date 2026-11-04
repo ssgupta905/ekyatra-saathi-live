@@ -99,6 +99,10 @@ FAMILY_STEP_WORDS: dict[str, tuple[str, bool]] = {
     StepKind.TREATMENT.value: ("Treatment", True),
     StepKind.MAINTENANCE_DOSE.value: ("Next dose", True),
     StepKind.ECHO_REVIEW.value: ("Heart check and review", True),
+    StepKind.DIALYSIS_SESSION.value: ("Dialysis session", True),
+    StepKind.NEPHROLOGY_REVIEW.value: ("Kidney doctor review", True),
+    StepKind.DISCHARGE_REVIEW.value: ("Check-up after leaving hospital", True),
+    StepKind.WOUND_CHECK.value: ("Dressing check", True),
 }
 
 
@@ -241,6 +245,13 @@ def _latest_plan_message(runner, patient_id: str) -> dict | None:
     return None
 
 
+async def _guide(state: ContainerDep, patient_id: str) -> dict | None:
+    from .guide import guide_for
+
+    found = await guide_for(state, patient_id)
+    return found.model_dump(mode="json") if found else None
+
+
 @router.get("/patients/{patient_id}/home", dependencies=[FamilyOrStaff])
 async def home(state: ContainerDep, patient_id: str) -> dict:
     """Everything the family's phone shows, in one call.
@@ -337,6 +348,9 @@ async def home(state: ContainerDep, patient_id: str) -> dict:
         "where_to_go_first": plan.where_to_go_first if plan else None,
         "sim_date": state.world.today.isoformat(),
         "updated_at": run.computed_at.isoformat() if run else None,
+        #: The whole journey in order, from the first test to the doctor: what is
+        #: done, who has what, and what the family should do now.
+        "guide": (await _guide(state, patient_id)),
     }
 
 

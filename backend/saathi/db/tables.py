@@ -294,6 +294,17 @@ class ReadinessItemRow(Base):
     payload_json: Mapped[str] = mapped_column(Text)
 
 
+class FamilyMessageRow(Base):
+    """One message a family was sent, so the thread on their phone survives a restart."""
+
+    __tablename__ = "family_messages"
+
+    id: Mapped[str] = mapped_column(String(96), primary_key=True)
+    patient_id: Mapped[str] = mapped_column(String(32), index=True)
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    payload_json: Mapped[str] = mapped_column(Text)
+
+
 class OptionSetRow(Base):
     """Ranked options awaiting a human. One per patient, removed once approved."""
 

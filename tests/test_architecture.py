@@ -27,8 +27,10 @@ ALLOWED: dict[str, set[str]] = {
     "adapters": {"domain", "ports", "db", "ledger"},
     # The product core: pure decision logic and its helpers.
     "planner": {"domain", "ports", "graph", "readiness", "language"},
-    "language": {"domain", "ports", "planner"},
+    "language": {"domain", "ports", "planner", "guide"},
     "readiness": {"domain"},
+    "guide": {"domain"},
+    "orchestrator": {"domain"},
     "graph": {"domain"},
     "engagement": {"domain"},
     "ledger": {"domain", "ports"},

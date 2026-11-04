@@ -166,6 +166,7 @@ class LiveWorld:
     #: it takes these once, at start, and the world forgets them.
     restored_option_sets: tuple[StoredOptionSet, ...] = ()
     restored_approvals: tuple[ApprovalDecision, ...] = ()
+    restored_messages: tuple[dict, ...] = ()
 
     def target_kind_for(self, patient_id: str) -> StepKind:
         if patient_id in self.plan_targets:
@@ -233,6 +234,7 @@ class LiveWorld:
             world.readiness_items.setdefault(item.patient_id, {})[item.id] = item
         world.restored_option_sets = records.option_sets
         world.restored_approvals = records.approvals
+        world.restored_messages = records.family_messages
         # Every family is watched: with no actors there is no per-family cost to
         # cap, and a family the hospital entered should hear from it.
         world.watched = tuple(p.id for p in records.patients)

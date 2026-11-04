@@ -11,6 +11,7 @@ from .api.board import router as board_router
 from .api.consent import router as consent_router
 from .api.directory import router as directory_router
 from .api.family import router as family_router
+from .api.guide import router as guide_router
 from .api.live import router as live_router
 from .api.onboarding import router as onboarding_router
 from .api.readiness import router as readiness_router
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(onboarding_router, prefix="/api")
     app.include_router(reports_router, prefix="/api")
     app.include_router(family_router, prefix="/api")
+    app.include_router(guide_router, prefix="/api")
     return app
 
 

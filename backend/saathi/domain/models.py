@@ -148,6 +148,10 @@ class ReadinessItem(Base):
     #: between WAIT and REPLAN.
     alternative_available: bool = False
     source: SourceSystem = SourceSystem.NAVIGATOR
+    #: The directory organisation this was asked of, when it came from the directory.
+    partner_id: str | None = None
+    #: When a simulated organisation will answer. Cleared once it has.
+    due_at: datetime | None = None
 
 
 class VisitPlan(Base):
