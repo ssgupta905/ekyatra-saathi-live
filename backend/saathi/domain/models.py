@@ -60,6 +60,9 @@ class Patient(Base):
     home_district: str
     language: Language
     caregiver_phone: str
+    #: Where the caregiver can be sent a one-time code, when the family would
+    #: rather use email than a phone number. Never put in a message.
+    caregiver_email: str | None = None
     hospital_id: str
     #: Which care pathway this family is on; see `domain.pathway`. The planner
     #: reads its dependency graph, documents and first stops from here.

@@ -8,7 +8,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { ApiError, auth, installAuth, tokenStore, type Principal } from "@saathi/api-client";
+import { ApiError, auth, installAuth, tokenStore, type Contact, type Principal } from "@saathi/api-client";
 
 /**
  * Nothing in an app shows until the server says who is looking.
@@ -201,21 +201,27 @@ function StaffSignIn({ onSignedIn }: { onSignedIn: (p: Principal) => void }) {
 }
 
 function FamilySignIn({ onSignedIn }: { onSignedIn: (p: Principal) => void }) {
-  const [phone, setPhone] = useState("");
+  // Email first: it works without an SMS provider and costs the family nothing.
+  const [by, setBy] = useState<"email" | "phone">("email");
+  const [value, setValue] = useState("");
   const [code, setCode] = useState("");
   const [asked, setAsked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const contact = (): Contact =>
+    by === "email" ? { email: value.trim().toLowerCase() } : { phone: value.trim() };
+  const looksRight = by === "email" ? /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value.trim()) : value.trim().length >= 5;
 
   const ask = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      await auth.requestOtp(phone.trim());
+      await auth.requestOtp(contact());
       setAsked(true);
     } catch {
-      setError("Could not send a code. Check the number and try again.");
+      setError(`Could not send a code. Check the ${by === "email" ? "email address" : "number"} and try again.`);
     } finally {
       setBusy(false);
     }
@@ -226,7 +232,7 @@ function FamilySignIn({ onSignedIn }: { onSignedIn: (p: Principal) => void }) {
     setBusy(true);
     setError(null);
     try {
-      const session = await auth.verifyOtp(phone.trim(), code.trim());
+      const session = await auth.verifyOtp(contact(), code.trim());
       tokenStore.set(session.token);
       onSignedIn(session.principal);
     } catch (e) {
@@ -236,25 +242,37 @@ function FamilySignIn({ onSignedIn }: { onSignedIn: (p: Principal) => void }) {
     }
   };
 
+  const switchTo = (next: "email" | "phone") => {
+    setBy(next);
+    setValue("");
+    setError(null);
+  };
+
   if (!asked) {
     return (
       <form onSubmit={ask}>
         <label>
-          Your phone number
+          {by === "email" ? "Your email address" : "Your phone number"}
           <input
+            key={by}
             autoFocus
-            inputMode="tel"
-            autoComplete="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            type={by === "email" ? "email" : "tel"}
+            inputMode={by === "email" ? "email" : "tel"}
+            autoComplete={by === "email" ? "email" : "tel"}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
           />
         </label>
         <p className="auth-small">
-          We send a code to the number the hospital has for you. If it is on record, it arrives.
+          We send a code to the {by === "email" ? "email address" : "number"} the hospital has for you. If it
+          is on record, it arrives{by === "email" ? " (look in spam too)" : ""}.
         </p>
         {error && <p className="auth-error" role="alert">{error}</p>}
-        <button className="auth-btn primary" disabled={busy || phone.trim().length < 5}>
+        <button className="auth-btn primary" disabled={busy || !looksRight}>
           Send me a code
+        </button>
+        <button type="button" className="auth-btn" onClick={() => switchTo(by === "email" ? "phone" : "email")}>
+          {by === "email" ? "Use my phone number instead" : "Use my email address instead"}
         </button>
       </form>
     );
@@ -284,7 +302,7 @@ function FamilySignIn({ onSignedIn }: { onSignedIn: (p: Principal) => void }) {
           setError(null);
         }}
       >
-        Use a different number
+        Use a different {by === "email" ? "address" : "number"}
       </button>
     </form>
   );

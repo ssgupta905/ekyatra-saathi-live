@@ -40,6 +40,9 @@ from ..ingest.records_import import (
 from .access import AdminOnly, Desk, DeskWork, PrincipalDep
 from .deps import ContainerDep
 
+#: Deliberately plain: one @, something either side, a dot in the domain.
+EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
 router = APIRouter()
 
 
@@ -71,6 +74,8 @@ class PatientIn(BaseModel):
     home_distance_km: float = Field(ge=0)
     language: Language
     caregiver_phone: str = Field(min_length=5)
+    #: Optional. A family with an email address can sign in with a code sent to it.
+    caregiver_email: str | None = Field(default=None, max_length=254, pattern=EMAIL_PATTERN)
     hospital_id: str = Field(min_length=1)
     #: The care pathway this family is on (see `GET /pathways`).
     pathway_id: str = DEFAULT_PATHWAY_ID
@@ -87,6 +92,7 @@ class PatientPatch(BaseModel):
     home_distance_km: float | None = Field(default=None, ge=0)
     language: Language | None = None
     caregiver_phone: str | None = None
+    caregiver_email: str | None = Field(default=None, max_length=254, pattern=EMAIL_PATTERN)
     hospital_id: str | None = None
     pathway_id: str | None = None
     plan_target: StepKind | None = None
@@ -136,6 +142,7 @@ async def register_patient(state: ContainerDep, body: PatientIn) -> dict:
         home_distance_km=body.home_distance_km,
         language=body.language,
         caregiver_phone=body.caregiver_phone,
+        caregiver_email=body.caregiver_email.lower() if body.caregiver_email else None,
         hospital_id=body.hospital_id,
         pathway_id=body.pathway_id,
         family_members=tuple(_member(patient_id, m) for m in body.family_members),
@@ -154,6 +161,8 @@ async def edit_patient(state: ContainerDep, patient_id: str, body: PatientPatch)
     if body.pathway_id is not None:
         _known_pathway(body.pathway_id)
     changes = body.model_dump(exclude_unset=True, exclude={"plan_target"})
+    if changes.get("caregiver_email"):
+        changes["caregiver_email"] = changes["caregiver_email"].lower()
     try:
         patient = state.world.update_patient(patient_id, **changes) if changes else (
             state.world.patient(patient_id)

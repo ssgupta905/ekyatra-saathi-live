@@ -27,7 +27,8 @@ from sqlalchemy.orm import sessionmaker
 
 from ...db.tables import UserRow
 from ...domain.enums import Role
-from ...ports.identity import STAFF_ROLES, LockedOut, OtpSender, Principal
+from ...ports.identity import STAFF_ROLES, EmailSender, LockedOut, OtpSender, Principal
+from .email import LogEmailSender
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,10 @@ class PhoneDirectory(Protocol):
         """(patient id, the name to greet them by) for every family this phone is on."""
         ...
 
+    def families_for_email(self, email: str) -> tuple[tuple[str, str], ...]:
+        """The same, for an email address (already lower-cased)."""
+        ...
+
 
 class LogOtpSender:
     """Writes the code to the server log. For a developer at a terminal, not a family."""
@@ -54,6 +59,10 @@ class LogOtpSender:
         logger.warning(
             "one-time code for ***%s: %s (no SMS provider is configured)", phone[-4:], code
         )
+
+
+def normalise_email(email: str) -> str:
+    return email.strip().lower()
 
 
 def digits(phone: str) -> str:
@@ -77,10 +86,12 @@ class LocalIdentity:
         secret: str,
         phones: PhoneDirectory,
         sender: OtpSender | None = None,
+        email_sender: EmailSender | None = None,
         staff_ttl: int = STAFF_TOKEN_SECONDS,
         caregiver_ttl: int = CAREGIVER_TOKEN_SECONDS,
         now: Callable[[], float] = time.time,
         fixed_codes: dict[str, str] | None = None,
+        fixed_email_codes: dict[str, str] | None = None,
     ) -> None:
         connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
         self._engine = create_engine(url, connect_args=connect_args, pool_pre_ping=True)
@@ -88,6 +99,7 @@ class LocalIdentity:
         self._secret = secret
         self._phones = phones
         self._sender = sender or LogOtpSender()
+        self._email_sender = email_sender or LogEmailSender()
         self._staff_ttl = staff_ttl
         self._caregiver_ttl = caregiver_ttl
         self._now = now
@@ -102,6 +114,9 @@ class LocalIdentity:
         #: provider exists; the container only fills it in for the one phone named
         #: in configuration, never for a family's own number.
         self._fixed_codes = {digits(phone): code for phone, code in (fixed_codes or {}).items()}
+        self._fixed_email_codes = {
+            normalise_email(email): code for email, code in (fixed_email_codes or {}).items()
+        }
         self._tickets: dict[str, tuple[Principal, float]] = {}
 
     def close(self) -> None:
@@ -230,6 +245,46 @@ class LocalIdentity:
             return None
         return Principal(
             id=f"caregiver:{key}",
+            name=families[0][1],
+            role=Role.CAREGIVER,
+            patient_ids=tuple(pid for pid, _ in families),
+        )
+
+    # ---------------- families, by email ----------------
+
+    def request_email_otp(self, email: str) -> None:
+        key = normalise_email(email)
+        if "@" not in key or not self._phones.families_for_email(key):
+            return  # say nothing, for the same reason as a phone number
+        with self._lock:
+            existing = self._otps.get(f"email:{key}")
+            if existing and self._now() - existing.sent_at < OTP_RESEND_SECONDS:
+                return
+            code = self._fixed_email_codes.get(key) or f"{secrets.randbelow(10**6):06d}"
+            self._otps[f"email:{key}"] = _Otp(
+                code_hash=self._hash_code(f"email:{key}", code),
+                expires=self._now() + OTP_SECONDS,
+                sent_at=self._now(),
+            )
+        self._email_sender.send(key, code)
+
+    def verify_email_otp(self, email: str, code: str) -> Principal | None:
+        key = normalise_email(email)
+        slot = f"email:{key}"
+        with self._lock:
+            otp = self._otps.get(slot)
+            if otp is None or otp.expires < self._now() or otp.attempts >= OTP_ATTEMPTS:
+                self._otps.pop(slot, None)
+                return None
+            otp.attempts += 1
+            if not hmac.compare_digest(otp.code_hash, self._hash_code(slot, code.strip())):
+                return None
+            del self._otps[slot]
+        families = self._phones.families_for_email(key)
+        if not families:
+            return None
+        return Principal(
+            id=f"caregiver:{slot}",
             name=families[0][1],
             role=Role.CAREGIVER,
             patient_ids=tuple(pid for pid, _ in families),

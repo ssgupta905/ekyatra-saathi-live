@@ -42,6 +42,7 @@ class PatientRow(Base):
     home_distance_km: Mapped[float] = mapped_column(Float)
     language: Mapped[str] = mapped_column(String(8))
     caregiver_phone: Mapped[str] = mapped_column(String(24))
+    caregiver_email: Mapped[str | None] = mapped_column(String(254), nullable=True, index=True)
     hospital_id: Mapped[str] = mapped_column(String(32), index=True)
     pathway_id: Mapped[str] = mapped_column(
         String(32), default="oncology", server_default="oncology"

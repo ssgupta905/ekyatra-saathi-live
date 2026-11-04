@@ -77,6 +77,14 @@ class Settings(BaseSettings):
     #: demonstration can sign in without anyone reading a log. Off by default;
     #: a real deployment sends real codes.
     demo_otp: str | None = None
+    #: The email the first seeded family answers to, so someone can sign in with
+    #: a code sent there. `demo_otp` applies to it as well.
+    seed_demo_email: str | None = None
+    #: Email for one-time codes, sent through Brevo over HTTPS. Without both of
+    #: these the code is written to the log, as it is for a phone with no SMS.
+    brevo_api_key: str | None = None
+    email_from: str | None = None
+    email_from_name: str = "Saathi"
     #: How often the real world re-plans, in real seconds. In the real world a
     #: "day" is not simulated, so this is only how soon a changed fact (a report
     #: released, a date rolling over) is noticed.

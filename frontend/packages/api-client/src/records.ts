@@ -18,6 +18,7 @@ export interface PatientInput {
   home_distance_km: number;
   language: Language;
   caregiver_phone: string;
+  caregiver_email?: string | null;
   hospital_id: string;
   pathway_id?: string;
   plan_target?: string | null;

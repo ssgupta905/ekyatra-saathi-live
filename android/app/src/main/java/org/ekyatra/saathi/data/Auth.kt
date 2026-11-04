@@ -67,6 +67,22 @@ suspend fun SaathiApi.requestOtp(phone: String) {
     send("POST", "/auth/otp/request", json { put("phone", phone) })
 }
 
+/** The same, for a family that signs in by email. The address is sent lower-cased. */
+suspend fun SaathiApi.requestEmailOtp(email: String) {
+    send("POST", "/auth/otp/request", json { put("email", email.trim().lowercase()) })
+}
+
+suspend fun SaathiApi.verifyEmailOtp(email: String, code: String): Session {
+    val session: Session = SaathiJson.decodeFromString(
+        send(
+            "POST", "/auth/otp/verify",
+            json { put("email", email.trim().lowercase()); put("code", code) },
+        ),
+    )
+    tokens.set(session.token)
+    return session
+}
+
 /** Verifies the code and, on success, remembers the session's token. */
 suspend fun SaathiApi.verifyOtp(phone: String, code: String): Session {
     val session: Session = SaathiJson.decodeFromString(

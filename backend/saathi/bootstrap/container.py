@@ -111,6 +111,23 @@ class _WorldPhones:
                     found.append((patient.id, member.name))
         return tuple(found)
 
+    def families_for_email(self, email: str) -> tuple[tuple[str, str], ...]:
+        return tuple(
+            (patient.id, patient.name or "Family")
+            for patient in self._world.patients()
+            if patient.caregiver_email and patient.caregiver_email.lower() == email
+        )
+
+
+def _email_sender(settings: Settings):
+    from ..adapters.identity import BrevoEmailSender, LogEmailSender
+
+    if settings.brevo_api_key and settings.email_from:
+        return BrevoEmailSender(
+            settings.brevo_api_key, settings.email_from, settings.email_from_name
+        )
+    return LogEmailSender()
+
 
 def build_identity(settings: Settings, world: LiveWorld) -> IdentityProvider | None:
     """Local accounts, or an organisation's sign-in. None when login is off."""
@@ -126,15 +143,22 @@ def build_identity(settings: Settings, world: LiveWorld) -> IdentityProvider | N
     migrate(settings.records_url)
     if settings.auth_secret.startswith("dev-only"):
         logger.warning("signing tokens with the built-in dev secret; set SAATHI_AUTH_SECRET")
-    fixed = {}
-    if settings.demo_otp and settings.seed_demo and settings.seed_demo_phone:
-        fixed[settings.seed_demo_phone] = settings.demo_otp
-        logger.warning("the demo phone signs in with a fixed code; not for real families")
+    fixed: dict[str, str] = {}
+    fixed_email: dict[str, str] = {}
+    if settings.demo_otp and settings.seed_demo:
+        if settings.seed_demo_phone:
+            fixed[settings.seed_demo_phone] = settings.demo_otp
+        if settings.seed_demo_email:
+            fixed_email[settings.seed_demo_email] = settings.demo_otp
+        if fixed or fixed_email:
+            logger.warning("the demo contact signs in with a fixed code; not for real families")
     identity = LocalIdentity(
         settings.records_url,
         secret=settings.auth_secret,
         phones=_WorldPhones(world),
+        email_sender=_email_sender(settings),
         fixed_codes=fixed,
+        fixed_email_codes=fixed_email,
     )
     _ensure_first_admin(identity, settings)
     return identity
@@ -232,11 +256,12 @@ def build_container(settings: Settings | None = None, today: date | None = None)
         # the true answer.
         store = SqlRecordStore(settings.records_url)
         if settings.seed_demo:
-            from .demo_records import seed_demo_records, seed_showcase
+            from .demo_records import apply_demo_contacts, seed_demo_records, seed_showcase
 
             today = SystemClock(settings.hospital_timezone).today()
             seed_demo_records(store, today, settings)
             seed_showcase(store, today)
+            apply_demo_contacts(store, settings)
         world = LiveWorld.build_real(
             store,
             SystemClock(settings.hospital_timezone),

@@ -41,6 +41,12 @@ class LockedOut(Exception):
         self.seconds = seconds
 
 
+class EmailSender(Protocol):
+    """Delivers a one-time code to an email address."""
+
+    def send(self, email: str, code: str) -> None: ...
+
+
 class IdentityProvider(Protocol):
     def login(self, username: str, password: str) -> Principal | None:
         """Staff sign-in. None for a wrong name or password; the two look the same."""
@@ -51,6 +57,12 @@ class IdentityProvider(Protocol):
         ...
 
     def verify_otp(self, phone: str, code: str) -> Principal | None: ...
+
+    def request_email_otp(self, email: str) -> None:
+        """As `request_otp`, for a family that signs in with an email address."""
+        ...
+
+    def verify_email_otp(self, email: str, code: str) -> Principal | None: ...
 
     def issue_token(self, principal: Principal) -> tuple[str, int]:
         """A bearer token and the seconds it stays valid."""

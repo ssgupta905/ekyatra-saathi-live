@@ -72,6 +72,26 @@ def seed_demo_records(store: RecordStore, today: date, settings: Settings) -> bo
     return True
 
 
+def apply_demo_contacts(store: RecordStore, settings: Settings) -> bool:
+    """Point the first seeded family at the email in configuration.
+
+    Done on every start, not only the first, so an email added to configuration
+    later reaches a database that was seeded long before. True when it changed one.
+    """
+    email = (settings.seed_demo_email or "").strip().lower()
+    if not email:
+        return False
+    first = next((p for p in store.load().patients if p.id == FIRST_FAMILY), None)
+    if first is None or first.caregiver_email == email:
+        return False
+    store.save_patient(first.model_copy(update={"caregiver_email": email}))
+    logger.info("the first seeded family now answers to the demo email")
+    return True
+
+
+#: The family `seed_demo_phone` and `seed_demo_email` are attached to.
+FIRST_FAMILY = "P0000"
+
 #: Showcase families carry this prefix, so topping up never mistakes them for
 #: anyone else's records and never adds them twice.
 SHOWCASE_PREFIX = "SHOW-"

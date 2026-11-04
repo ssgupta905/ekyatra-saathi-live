@@ -16,6 +16,7 @@ export function RegisterFamily({ onRegistered }: { onRegistered: (patientId: str
     home_distance_km: "",
     language: "hi" as Language,
     caregiver_phone: "",
+    caregiver_email: "",
     hospital_id: "",
     pathway_id: "oncology",
     abha_number: "",
@@ -47,13 +48,14 @@ export function RegisterFamily({ onRegistered }: { onRegistered: (patientId: str
         home_distance_km: Number(form.home_distance_km),
         language: form.language,
         caregiver_phone: form.caregiver_phone.trim(),
+        caregiver_email: form.caregiver_email.trim().toLowerCase() || null,
         hospital_id: form.hospital_id.trim(),
         pathway_id: form.pathway_id,
         abha_number: form.abha_number.trim() || null,
       });
       setDone(patient.id);
       onRegistered(patient.id);
-      setForm({ ...form, name: "", home_district: "", home_distance_km: "", caregiver_phone: "" });
+      setForm({ ...form, name: "", home_district: "", home_distance_km: "", caregiver_phone: "", caregiver_email: "" });
     } catch (e) {
       setError(e instanceof ApiError && e.status === 409 ? "That family is already on record." : String(e));
     } finally {
@@ -94,6 +96,14 @@ export function RegisterFamily({ onRegistered }: { onRegistered: (patientId: str
         <label>
           Caregiver phone
           <input value={form.caregiver_phone} onChange={(e) => set({ caregiver_phone: e.target.value })} />
+        </label>
+        <label>
+          Caregiver email (optional, lets them sign in by email)
+          <input
+            type="email"
+            value={form.caregiver_email}
+            onChange={(e) => set({ caregiver_email: e.target.value })}
+          />
         </label>
         <label>
           Care pathway

@@ -52,6 +52,16 @@ services:
       # to get real random codes.
       - key: SAATHI_DEMO_OTP
         sync: false
+      # The email the first seeded family answers to, so you can sign in with a
+      # code sent to it. Your own Gmail address works.
+      - key: SAATHI_SEED_DEMO_EMAIL
+        sync: false
+      # Email for one-time codes, through Brevo over HTTPS (Render's free tier
+      # cannot use SMTP). The address must be a sender verified in Brevo.
+      - key: SAATHI_BREVO_API_KEY
+        sync: false
+      - key: SAATHI_EMAIL_FROM
+        sync: false
       # The addresses of the two static sites below, comma-separated. Only
       # browsers need this; the Android app is not bound by CORS.
       - key: SAATHI_CORS_ORIGINS

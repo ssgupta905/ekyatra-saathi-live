@@ -76,13 +76,28 @@ Save, and Render redeploys. The Android app is not affected by this setting.
 ## 5. Signing in
 
 - **Staff:** the control centre, with the admin username and password from step 2.
-- **A family:** enter the phone number you gave as `SAATHI_SEED_DEMO_PHONE`. There is no SMS
-  provider, so by default the one-time code is only written to the API service's **Logs** tab on
-  Render, as `one-time code for ***NNNN: 123456`.
-  To sign in without reading a log, add `SAATHI_DEMO_OTP` on the API service with six digits of your
-  choosing (for example `246810`) and redeploy. That phone, and only that phone, then accepts
-  that code. Every other family number still gets a random code. This is a demonstration
-  arrangement; a real pilot needs an SMS provider and should leave `SAATHI_DEMO_OTP` unset.
+- **A family:** enter the email address you gave as `SAATHI_SEED_DEMO_EMAIL` (or the phone number
+  from `SAATHI_SEED_DEMO_PHONE`), and a six-digit code is sent to it. Families can sign in by
+  email or by phone; any family with an email on record can use it.
+
+  **Email codes through Brevo (free, 300 a day).** Render's free tier blocks SMTP, so Gmail
+  cannot be used directly. Brevo is called over HTTPS instead:
+  1. Make a free account at brevo.com.
+  2. Add your Gmail address as a sender (Senders, Domains & Dedicated IPs > Senders) and confirm the
+     email Brevo sends you.
+  3. Create an API key (SMTP & API > API Keys).
+  4. On the API service in Render, set `SAATHI_BREVO_API_KEY` to that key,
+     `SAATHI_EMAIL_FROM` to the verified sender address, and `SAATHI_SEED_DEMO_EMAIL` to the
+     address that should receive the code. Redeploy.
+
+  Check spam the first time: mail from a new sender often lands there.
+
+  **Without Brevo,** the code is written to the API service's **Logs** tab on Render, as
+  `one-time code for j***@gmail.com: 123456`.
+
+  **Fixed demo code.** To sign in without any email at all, set `SAATHI_DEMO_OTP` to six digits (for
+  example `246810`). The demo email and the demo phone, and only those, then accept that code.
+  This is a demonstration arrangement; a real pilot should leave it unset.
 
 ## 6. The Android APK
 

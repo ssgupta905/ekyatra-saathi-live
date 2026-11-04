@@ -38,6 +38,7 @@ export interface Patient {
   home_district: string;
   language: "hi" | "bn" | "or" | "en";
   caregiver_phone: string;
+  caregiver_email?: string | null;
   hospital_id: string;
   /** Which care pathway the family is on; see `pathways.list`. */
   pathway_id?: string;

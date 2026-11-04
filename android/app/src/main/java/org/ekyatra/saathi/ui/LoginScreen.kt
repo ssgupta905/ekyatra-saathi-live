@@ -30,18 +30,22 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.ekyatra.saathi.data.ApiException
 import org.ekyatra.saathi.data.SaathiApi
+import org.ekyatra.saathi.data.requestEmailOtp
 import org.ekyatra.saathi.data.requestOtp
+import org.ekyatra.saathi.data.verifyEmailOtp
 import org.ekyatra.saathi.data.verifyOtp
 import org.ekyatra.saathi.ui.theme.Tokens
 
 /**
- * How a family gets in: the phone number the hospital has for them, then the
- * code sent to it. Whether the number is on record is never said, so a stranger
- * learns nothing by trying numbers.
+ * How a family gets in: the email address (or phone number) the hospital has
+ * for them, then the code sent to it. Whether the contact is on record is never
+ * said, so a stranger learns nothing by trying addresses. Email comes first: it
+ * needs no SMS provider and costs the family nothing.
  */
 @Composable
 fun LoginScreen(api: SaathiApi, onSignedIn: () -> Unit) {
-    var phone by remember { mutableStateOf("") }
+    var byEmail by remember { mutableStateOf(true) }
+    var contact by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     var asked by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
@@ -76,7 +80,7 @@ fun LoginScreen(api: SaathiApi, onSignedIn: () -> Unit) {
         ) { Text("S", color = androidx.compose.ui.graphics.Color.White, fontWeight = FontWeight.Bold, fontSize = 28.sp) }
         Text("Saathi", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Tokens.ink)
         Text(
-            if (asked) "Enter the code we sent" else "Your phone number",
+            if (asked) "Enter the code we sent" else if (byEmail) "Your email address" else "Your phone number",
             fontSize = 16.sp,
             color = Tokens.ink3,
             modifier = Modifier.padding(top = 4.dp, bottom = 20.dp),
@@ -84,23 +88,43 @@ fun LoginScreen(api: SaathiApi, onSignedIn: () -> Unit) {
 
         if (!asked) {
             OutlinedTextField(
-                value = phone,
-                onValueChange = { phone = it },
+                value = contact,
+                onValueChange = { contact = it },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (byEmail) KeyboardType.Email else KeyboardType.Phone,
+                ),
                 modifier = Modifier.fillMaxWidth().testTag("login-phone"),
             )
             Text(
-                "We send a code to the number the hospital has for you. If it is on record, it arrives.",
+                "We send a code to the ${if (byEmail) "email address" else "number"} the hospital has for you. " +
+                    "If it is on record, it arrives${if (byEmail) " (look in spam too)" else ""}.",
                 fontSize = 13.sp,
                 color = Tokens.ink3,
                 modifier = Modifier.padding(top = 10.dp, bottom = 16.dp),
             )
-            Action("Send me a code", enabled = !busy && phone.trim().length >= 5, tag = "login-send") {
-                run {
-                    api.requestOtp(phone.trim())
-                    asked = true
+            val looksRight = if (byEmail) {
+                Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$").matches(contact.trim())
+            } else {
+                contact.trim().length >= 5
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Action("Send me a code", enabled = !busy && looksRight, tag = "login-send") {
+                    run {
+                        if (byEmail) api.requestEmailOtp(contact) else api.requestOtp(contact.trim())
+                        asked = true
+                    }
                 }
+                Text(
+                    if (byEmail) "Use my phone number instead" else "Use my email address instead",
+                    fontSize = 15.sp,
+                    color = Tokens.blue500,
+                    modifier = Modifier
+                        .heightIn(min = 44.dp)
+                        .clickable { byEmail = !byEmail; contact = ""; error = null }
+                        .padding(vertical = 10.dp)
+                        .testTag("login-switch"),
+                )
             }
         } else {
             OutlinedTextField(
@@ -113,12 +137,12 @@ fun LoginScreen(api: SaathiApi, onSignedIn: () -> Unit) {
             Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Action("Continue", enabled = !busy && code.trim().length >= 4, tag = "login-verify") {
                     run {
-                        api.verifyOtp(phone.trim(), code.trim())
+                        if (byEmail) api.verifyEmailOtp(contact, code.trim()) else api.verifyOtp(contact.trim(), code.trim())
                         onSignedIn()
                     }
                 }
                 Text(
-                    "Use a different number",
+                    if (byEmail) "Use a different address" else "Use a different number",
                     fontSize = 15.sp,
                     color = Tokens.blue500,
                     modifier = Modifier

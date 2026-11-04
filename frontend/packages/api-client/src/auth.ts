@@ -23,6 +23,8 @@ export interface Session {
   principal: Principal;
 }
 
+export type Contact = { phone: string; email?: never } | { email: string; phone?: never };
+
 export interface AuthConfig {
   required: boolean;
   provider: string;
@@ -64,8 +66,10 @@ export const auth = {
   config: () => request<AuthConfig>("/auth/config"),
   login: (username: string, password: string) =>
     post<Session>("/auth/login", { username, password }),
-  requestOtp: (phone: string) => post<{ sent: boolean }>("/auth/otp/request", { phone }),
-  verifyOtp: (phone: string, code: string) => post<Session>("/auth/otp/verify", { phone, code }),
+  /** A family is reached by a phone number or an email address, never both. */
+  requestOtp: (contact: Contact) => post<{ sent: boolean }>("/auth/otp/request", contact),
+  verifyOtp: (contact: Contact, code: string) =>
+    post<Session>("/auth/otp/verify", { ...contact, code }),
   me: () => request<Principal>("/auth/me"),
   streamTicket: () => request<{ ticket: string }>("/auth/stream-ticket", { method: "POST" }),
 };

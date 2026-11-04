@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from ..ports.identity import LockedOut, Principal
 from .access import PrincipalDep
@@ -60,25 +62,54 @@ async def login(state: ContainerDep, body: LoginIn) -> dict:
     return _session(state, principal)
 
 
+EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
+
+
 class OtpRequestIn(BaseModel):
-    phone: str = Field(min_length=5, max_length=24)
+    """A phone number or an email address, never both."""
+
+    phone: str | None = Field(default=None, min_length=5, max_length=24)
+    email: str | None = Field(default=None, max_length=254, pattern=EMAIL_PATTERN)
+
+    @model_validator(mode="after")
+    def _one_way_to_be_reached(self):
+        if (self.phone is None) == (self.email is None):
+            raise ValueError("give a phone number or an email address, not both and not neither")
+        return self
 
 
 @router.post("/otp/request", status_code=202)
 async def otp_request(state: ContainerDep, body: OtpRequestIn) -> dict:
-    """Always 202: it must not reveal whether this number is on a family's record."""
-    _identity(state).request_otp(body.phone)
+    """Always 202: it must not reveal whether this contact is on a family's record."""
+    identity = _identity(state)
+    if body.email is not None:
+        # An HTTPS call to the email provider: off the event loop.
+        await asyncio.to_thread(identity.request_email_otp, body.email)
+    else:
+        identity.request_otp(body.phone)
     return {"sent": True}
 
 
 class OtpVerifyIn(BaseModel):
-    phone: str = Field(min_length=5, max_length=24)
+    phone: str | None = Field(default=None, min_length=5, max_length=24)
+    email: str | None = Field(default=None, max_length=254, pattern=EMAIL_PATTERN)
     code: str = Field(min_length=4, max_length=8)
+
+    @model_validator(mode="after")
+    def _one_way_to_be_reached(self):
+        if (self.phone is None) == (self.email is None):
+            raise ValueError("give a phone number or an email address, not both and not neither")
+        return self
 
 
 @router.post("/otp/verify")
 async def otp_verify(state: ContainerDep, body: OtpVerifyIn) -> dict:
-    principal = _identity(state).verify_otp(body.phone, body.code)
+    identity = _identity(state)
+    principal = (
+        identity.verify_email_otp(body.email, body.code)
+        if body.email is not None
+        else identity.verify_otp(body.phone, body.code)
+    )
     if principal is None:
         raise HTTPException(401, "that code is wrong or has expired")
     return _session(state, principal)

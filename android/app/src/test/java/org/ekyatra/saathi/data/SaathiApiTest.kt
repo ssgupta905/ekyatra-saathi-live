@@ -151,6 +151,25 @@ class SaathiApiTest {
     }
 
     @Test
+    fun `an email code is sent and verified by the address, lower-cased`() = runTest {
+        val recorder = Recorder(body = session)
+        val tokens = MemoryTokenStore()
+        val api = SaathiApi(
+            "http://host/api", OkHttpClient.Builder().addInterceptor(recorder).build(), tokens,
+        )
+
+        api.requestEmailOtp(" Rai.Family@Gmail.com ")
+        val result = api.verifyEmailOtp("Rai.Family@Gmail.com", "123456")
+
+        assertEquals("tok-1", tokens.get())
+        assertEquals(listOf("P-A"), result.principal.patientIds)
+        val (asked, verified) = recorder.requests
+        assertTrue(asked.bodyText().contains("\"email\":\"rai.family@gmail.com\""))
+        assertTrue(!asked.bodyText().contains("phone"))
+        assertTrue(verified.bodyText().contains("\"code\":\"123456\""))
+    }
+
+    @Test
     fun `a wrong code stores nothing`() = runTest {
         val tokens = MemoryTokenStore()
         val failing = SaathiApi(
