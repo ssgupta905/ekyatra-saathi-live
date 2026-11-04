@@ -9,9 +9,11 @@ import { Approvals } from "./sections/Approvals";
 import { Audit } from "./sections/Audit";
 import { Boards } from "./sections/Boards";
 import { Cohort } from "./sections/Cohort";
+import { Directory } from "./sections/Directory";
 import { Configuration } from "./sections/Configuration";
 import { Families } from "./sections/Families";
 import { Issues } from "./sections/Issues";
+import { Onboarding } from "./sections/Onboarding";
 import { Operator } from "./sections/Operator";
 import { Records } from "./sections/Records";
 import { Registries } from "./sections/Registries";
@@ -21,7 +23,7 @@ import { StorySection } from "./sections/StorySection";
 import { Today } from "./sections/Today";
 
 /** Screens that carry their own heading; the rest get the section's title and one line. */
-const OWN_HEADING = new Set(["today", "families"]);
+const OWN_HEADING = new Set(["today", "families", "onboarding"]);
 
 /**
  * The hospital's control centre: one website, every staff role, each seeing the
@@ -57,12 +59,14 @@ export default function App() {
         {section === "approvals" && <Approvals />}
         {section === "issues" && <Issues />}
         {section === "releases" && <Releases />}
+        {section === "onboarding" && <Onboarding patientId={route.id} onOpen={(id) => go({ section: "onboarding", id })} />}
         {section === "records" && <Records />}
         {section === "boards" && <Boards />}
         {section === "reports" && <Reports onOpenFamily={(id) => openFamily(id, "reports")} />}
         {section === "cohort" && <Cohort onOpen={(id) => openFamily(id)} />}
         {section === "story" && <StorySection />}
         {section === "operator" && <Operator />}
+        {section === "directory" && <Directory />}
         {section === "registries" && <Registries tab={route.id} onTab={(t) => go({ section: "registries", id: t })} />}
         {section === "config" && <Configuration />}
         {section === "audit" && <Audit />}

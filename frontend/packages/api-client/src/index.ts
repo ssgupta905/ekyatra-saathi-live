@@ -2,6 +2,7 @@ export * from "./api";
 export * from "./auth";
 export * from "./client";
 export * from "./live";
+export * from "./onboarding";
 export * from "./orchestration";
 export * from "./records";
 export * from "./reports";

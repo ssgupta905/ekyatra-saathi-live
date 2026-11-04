@@ -137,7 +137,20 @@ def test_a_bad_form_names_the_field_that_is_wrong(api):
     )
 
     assert response.status_code == 422
-    assert response.json()["detail"][0]["field"] == "caregiver_email"
+    problem = response.json()["detail"][0]
+    assert problem["field"] == "caregiver_email"
+    assert problem["message"] == "Enter a valid email address"
+
+
+def test_an_empty_required_field_just_says_required(api):
+    pid = _new_family(api)
+
+    blank = {**IDENTITY, "patient_name": ""}
+    response = api.put(f"/api/patients/{pid}/profile/identity", json=blank)
+
+    assert {p["field"]: p["message"] for p in response.json()["detail"]} == {
+        "patient_name": "Required"
+    }
 
 
 def test_a_unknown_field_is_refused_rather_than_silently_dropped(api):

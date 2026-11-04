@@ -7,5 +7,5 @@ export const ICONS: Record<Icon, () => ReactNode> = {
   home: () => <I.Home />, users: () => <I.Users />, approve: () => <I.Approve />, file: () => <I.FileText />,
   graph: () => <I.Graph />, alert: () => <I.Alert />, inbox: () => <I.Inbox />, userplus: () => <I.UserPlus />,
   chart: () => <I.Chart />, building: () => <I.Building />, sliders: () => <I.Sliders />,
-  ledger: () => <I.Ledger />, film: () => <I.Film />, dial: () => <I.Dial />,
+  ledger: () => <I.Ledger />, film: () => <I.Film />, dial: () => <I.Dial />, network: () => <I.Graph />,
 };

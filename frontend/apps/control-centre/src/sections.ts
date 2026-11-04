@@ -10,7 +10,7 @@ import type { Role } from "@saathi/api-client";
  */
 export type Icon =
   | "home" | "users" | "approve" | "file" | "graph" | "alert" | "inbox" | "userplus"
-  | "chart" | "building" | "sliders" | "ledger" | "film" | "dial";
+  | "chart" | "building" | "sliders" | "ledger" | "film" | "dial" | "network";
 
 export interface Section {
   id: string;
@@ -42,8 +42,10 @@ export const SECTIONS: Section[] = [
   { id: "releases", label: "Releases", hint: "Reports to confirm or mark released", icon: "inbox", roles: ["desk", "admin"], group: "work" },
   { id: "reports", label: "Reports", hint: "Every report against the window it should land in", icon: "file", roles: STAFF, group: "records" },
   { id: "boards", label: "Plan boards", hint: "Every family's pathway at once", icon: "graph", roles: ["navigator", "doctor", "admin"], group: "records" },
+  { id: "onboarding", label: "Onboarding", hint: "Take a family on: what they tell us, then what the hospital adds", icon: "userplus", roles: ["desk", "navigator", "doctor", "admin"], group: "records", realOnly: true },
   { id: "records", label: "Enter records", hint: "Register a family, add steps, import a file", icon: "userplus", roles: ["desk", "navigator", "admin"], group: "records", realOnly: true },
   { id: "cohort", label: "Cohort", hint: "Who needs a person, and what the cohort has been spared", icon: "chart", roles: ["navigator", "doctor", "admin"], group: "records" },
+  { id: "directory", label: "Directory", hint: "Every lab, pharmacy, distributor, cab, hotel and insurer a journey runs through", icon: "network", roles: STAFF, group: "hospital" },
   { id: "registries", label: "Registries", hint: "Hospitals, centres, doctors, resources, staff accounts", icon: "building", roles: STAFF, group: "hospital" },
   { id: "config", label: "Configuration", hint: "Each hospital's rules and what is switched on", icon: "sliders", roles: ["admin"], group: "hospital" },
   { id: "audit", label: "Audit log", hint: "Every fact asserted, hash-chained", icon: "ledger", roles: ["admin"], group: "hospital" },

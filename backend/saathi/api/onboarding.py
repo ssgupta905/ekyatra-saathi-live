@@ -83,6 +83,32 @@ def _audit(state: ContainerDep, principal: Principal | None, patient_id: str, cl
     )
 
 
+def _plain(error: dict) -> str:
+    """A validation problem in a sentence a desk can act on, not the library's wording."""
+    kind, ctx, field = error["type"], error.get("ctx") or {}, str(error["loc"][-1])
+    if kind == "missing":
+        return "Required"
+    if kind == "string_too_short":
+        least = ctx["min_length"]
+        return "Required" if least == 1 else f"Needs at least {least} characters"
+    if kind == "string_too_long":
+        return f"Too long: at most {ctx['max_length']} characters"
+    if kind == "string_pattern_mismatch":
+        return "Enter a valid email address" if "email" in field else "Not in the expected format"
+    if kind in ("date_from_datetime_parsing", "date_parsing", "date_type"):
+        return "Enter a valid date"
+    if kind in ("int_parsing", "int_type"):
+        return "Enter a whole number"
+    if kind in ("greater_than_equal", "less_than_equal"):
+        word = "at least" if kind == "greater_than_equal" else "at most"
+        return f"Must be {word} {ctx.get('ge', ctx.get('le'))}"
+    if kind == "enum":
+        return "Pick one of the choices"
+    if kind == "extra_forbidden":
+        return "This field is not part of the form"
+    return str(error["msg"])
+
+
 # ---------------------------------------------------------------- the forms
 
 
@@ -201,7 +227,7 @@ async def put_section(
         parsed = SECTIONS[section].model_validate(body.model_dump())
     except ValidationError as exc:
         problems = [
-            {"field": ".".join(str(p) for p in e["loc"]), "message": e["msg"]}
+            {"field": ".".join(str(p) for p in e["loc"]), "message": _plain(e)}
             for e in exc.errors()
         ]
         raise HTTPException(422, problems) from exc

@@ -20,6 +20,12 @@ const KINDS = [
   "review_consult",
   "joint_clinic",
   "treatment",
+  "maintenance_dose",
+  "echo_review",
+  "dialysis_session",
+  "nephrology_review",
+  "discharge_review",
+  "wound_check",
 ] as const;
 const REPORTS = new Set(["pathology_report", "radiology_report"]);
 const STATUSES: StepStatus[] = ["not_scheduled", "scheduled", "completed", "pending_result", "cancelled"];
