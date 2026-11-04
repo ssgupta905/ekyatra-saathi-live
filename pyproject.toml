@@ -15,7 +15,7 @@ dependencies = [
   "pydantic>=2.9",
   "pydantic-settings>=2.6",
   "httpx>=0.27",
-  "sqlalchemy>=2.0",
+  "sqlalchemy[asyncio]>=2.0",
   "alembic>=1.13",
   "aiosqlite>=0.20",
   "langgraph>=0.2.50",
@@ -23,6 +23,9 @@ dependencies = [
   "groq>=0.11",
   # Multipart form parsing, for the family's spoken replies.
   "python-multipart>=0.0.9",
+  # Local identity: signed sign-in tokens and hashed staff passwords.
+  "PyJWT>=2.8",
+  "argon2-cffi>=23.1",
 ]
 
 [project.optional-dependencies]
