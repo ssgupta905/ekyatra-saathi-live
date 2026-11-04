@@ -225,9 +225,11 @@ def build_container(settings: Settings | None = None, today: date | None = None)
         # the true answer.
         store = SqlRecordStore(settings.records_url)
         if settings.seed_demo:
-            from .demo_records import seed_demo_records
+            from .demo_records import seed_demo_records, seed_showcase
 
-            seed_demo_records(store, SystemClock(settings.hospital_timezone).today(), settings)
+            today = SystemClock(settings.hospital_timezone).today()
+            seed_demo_records(store, today, settings)
+            seed_showcase(store, today)
         world = LiveWorld.build_real(
             store,
             SystemClock(settings.hospital_timezone),

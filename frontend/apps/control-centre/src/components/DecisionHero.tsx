@@ -50,7 +50,7 @@ export function DecisionHero({
             <DecisionGlyph decision={decision} size={34} />
           </span>
           <span className="word">
-            {decision === "go" ? "Go" : decision === "wait" ? "Wait" : "Uncertain"}
+            {decision === "go" ? "Go" : decision === "wait" ? "Wait" : decision === "replan" ? "Re-plan" : "Uncertain"}
           </span>
         </div>
 

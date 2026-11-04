@@ -57,7 +57,7 @@ export function Card({
 export const DecisionGlyph = ({ decision, size = 15 }: { decision: Decision; size?: number }) =>
   decision === "go" ? (
     <CheckCircle size={size} />
-  ) : decision === "wait" ? (
+  ) : decision === "wait" || decision === "replan" ? (
     <Clock size={size} />
   ) : (
     <Question size={size} />

@@ -4,6 +4,7 @@ import {
   boards,
   disruptions,
   live,
+  pathways,
   reports,
   LANGUAGE_NAMES,
   type Alert,
@@ -11,6 +12,7 @@ import {
   type InboundMessage,
   type LedgerView,
   type Patient,
+  type PathwayInfo,
   type PendingOption,
   type PlanBoard as Board,
   type PlanResponse,
@@ -25,6 +27,8 @@ import {
   type Citation,
 } from "@saathi/ui-web";
 import { CallBrief } from "../components/CallBrief";
+import { ConsentLayer } from "../components/ConsentLayer";
+import { PartnersLayer } from "../components/PartnersLayer";
 import { DecisionHero } from "../components/DecisionHero";
 import { FamilyList } from "../components/FamilyList";
 import { JourneyStepper } from "../components/JourneyStepper";
@@ -136,6 +140,17 @@ function FamilyWorkspace({
   const [changedAt, setChangedAt] = useState(0);
   const last = useRef<string | null>(null);
   const [open, toggle, ensure] = useOpenLayers("family", []);
+  const [pathwayName, setPathwayName] = useState<string | null>(null);
+  const { persona } = usePersona();
+
+  useEffect(() => {
+    pathways
+      .list()
+      .then((all: PathwayInfo[]) =>
+        setPathwayName(all.find((p) => p.id === (patient.pathway_id ?? "oncology"))?.name ?? null),
+      )
+      .catch(() => undefined);
+  }, [patient.pathway_id]);
 
   useEffect(() => {
     if (focus) ensure(focus);
@@ -191,6 +206,7 @@ function FamilyWorkspace({
           <span className="fam-avatar">{(patient.name || patient.id).replace(/^P-?/, "").slice(0, 2).toUpperCase()}</span>
           <div>
             <h1>{patient.name || patient.id}</h1>
+            {pathwayName && <Pill tone="brand">{pathwayName}</Pill>}
             <p>
               {patient.name && <span className="mono">{patient.id} · </span>}
               {patient.home_district} · {Math.round(patient.home_distance_km)} km from {patient.hospital_id} · hears {LANGUAGE_NAMES[patient.language]}
@@ -226,6 +242,17 @@ function FamilyWorkspace({
           summary={decision ? `${blockers ? `${blockers} thing${blockers > 1 ? "s" : ""} in the way` : "nothing in the way"} · every claim cited` : "…"}>
           {() => <DecisionTrace response={plan} steps={steps} patient={patient} />}
         </Layer>
+        <Layer id="partners" title="Ride, stay, medicine, insurer" icon={<I.Users size={16} />} open={open.has("partners")} onToggle={onToggle}
+          summary="what every other party has said about this journey">
+          {() => (
+            <PartnersLayer
+              patientId={patient.id}
+              revision={revision}
+              canEdit={canEdit}
+              onChanged={() => setEdits((n) => n + 1)}
+            />
+          )}
+        </Layer>
         <Layer id="reports" title="Reports" icon={<I.FileText size={16} />} open={open.has("reports")} onToggle={onToggle}
           tone={urgentReports ? "wait" : "neutral"}
           summary={reportRows.length ? `${pendingReports} pending${urgentReports ? ` · ${urgentReports} due or overdue` : ""} · ${reportRows.length - pendingReports} released` : "none"}>
@@ -247,6 +274,17 @@ function FamilyWorkspace({
         <Layer id="family" title="What the family said" icon={<I.Users size={16} />} open={open.has("family")} onToggle={onToggle}
           tone={alerted ? "critical" : "neutral"} summary={alerted ? "a question needs a person" : "their messages, as the guard read them"}>
           {() => <InboundLayer patient={patient} revision={revision} />}
+        </Layer>
+        <Layer id="consent" title="What the family has agreed to share" icon={<I.Approve size={16} />} open={open.has("consent")} onToggle={onToggle}
+          summary="who may be told what, and for how long">
+          {() => (
+            <ConsentLayer
+              patientId={patient.id}
+              revision={revision}
+              canAsk={canEdit}
+              actor={persona.name ?? "staff"}
+            />
+          )}
         </Layer>
         <Layer id="pathway" title="Pathway diagram" icon={<I.Graph size={16} />} open={open.has("pathway")} onToggle={onToggle}
           summary="what waits on what">

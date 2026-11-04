@@ -7,7 +7,7 @@ from datetime import date
 import pytest
 from saathi.adapters.records import MemoryRecordStore, SqlRecordStore
 from saathi.bootstrap.container import build_container
-from saathi.bootstrap.demo_records import SEED_FAMILIES, seed_demo_records
+from saathi.bootstrap.demo_records import SEED_FAMILIES, SHOWCASE_PREFIX, seed_demo_records
 from saathi.config import Settings
 from saathi.domain.enums import Role
 
@@ -100,6 +100,8 @@ def test_a_seeded_deployment_boots_with_families_and_a_way_in(tmp_path):
         )
     )
 
-    assert len(state.world.patients()) == SEED_FAMILIES
+    families = state.world.patients()
+    assert len([p for p in families if not p.id.startswith(SHOWCASE_PREFIX)]) == SEED_FAMILIES
+    assert any(p.id.startswith(SHOWCASE_PREFIX) for p in families), "the showcase comes with it"
     assert state.identity.login("founder", "a-long-secret") is not None
     assert state.identity._phones.families_for("9811122233"), "the seeded phone finds its family"

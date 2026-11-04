@@ -181,7 +181,7 @@ async def patient_board(state: ContainerDep, patient_id: str) -> dict:
 
 
 @router.get("/boards", dependencies=[AnyStaff])
-async def boards(state: ContainerDep, watched: bool = True, limit: int = 12) -> dict:
+async def boards(state: ContainerDep, watched: bool = True, limit: int = 500) -> dict:
     """Every board a navigator is holding, worst first.
 
     Ordered by how much is in the family's way, then by how far they would have

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ApiError, records, type Language } from "@saathi/api-client";
+import { useEffect, useState } from "react";
+import { ApiError, pathways, records, type Language, type PathwayInfo } from "@saathi/api-client";
 import { Card, Notice } from "@saathi/ui-web";
 
 const LANGUAGES: Record<Language, string> = { hi: "Hindi", bn: "Bengali", or: "Odia", en: "English" };
@@ -17,7 +17,13 @@ export function RegisterFamily({ onRegistered }: { onRegistered: (patientId: str
     language: "hi" as Language,
     caregiver_phone: "",
     hospital_id: "",
+    pathway_id: "oncology",
+    abha_number: "",
   });
+  const [available, setAvailable] = useState<PathwayInfo[]>([]);
+  useEffect(() => {
+    pathways.list().then(setAvailable).catch(() => undefined);
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -42,6 +48,8 @@ export function RegisterFamily({ onRegistered }: { onRegistered: (patientId: str
         language: form.language,
         caregiver_phone: form.caregiver_phone.trim(),
         hospital_id: form.hospital_id.trim(),
+        pathway_id: form.pathway_id,
+        abha_number: form.abha_number.trim() || null,
       });
       setDone(patient.id);
       onRegistered(patient.id);
@@ -86,6 +94,20 @@ export function RegisterFamily({ onRegistered }: { onRegistered: (patientId: str
         <label>
           Caregiver phone
           <input value={form.caregiver_phone} onChange={(e) => set({ caregiver_phone: e.target.value })} />
+        </label>
+        <label>
+          Care pathway
+          <select value={form.pathway_id} onChange={(e) => set({ pathway_id: e.target.value })}>
+            {(available.length ? available : [{ id: "oncology", name: "Solid-tumour pathway" } as PathwayInfo]).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          ABHA number (optional, needed to ask for consent)
+          <input value={form.abha_number} onChange={(e) => set({ abha_number: e.target.value })} />
         </label>
         <label>
           Hospital id

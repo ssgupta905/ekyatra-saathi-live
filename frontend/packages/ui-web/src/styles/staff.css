@@ -224,7 +224,8 @@
 
 .hero.go::before { background: var(--go); }
 
-.hero.wait::before { background: var(--wait); }
+.hero.wait::before,
+.hero.replan::before { background: var(--wait); }
 
 .hero.uncertain::before { background: var(--uncertain); }
 
@@ -244,7 +245,8 @@
 
 .hero.go .verdict .word { color: var(--go); }
 
-.hero.wait .verdict .word { color: var(--wait); }
+.hero.wait .verdict .word,
+.hero.replan .verdict .word { color: var(--wait); }
 
 .hero.uncertain .verdict .word { color: var(--uncertain); }
 

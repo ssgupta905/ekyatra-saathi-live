@@ -45,6 +45,15 @@ The app creates its own tables on first start. Nothing to run in the Supabase SQ
 The first start seeds 12 synthetic families into the empty database. It never seeds a database
 that already holds a family, so a restart is safe.
 
+It also adds a showcase of nine more families (prefix `SHOW-`) and three hospital resources, so
+every screen has something to show: families on the dialysis and post-discharge pathways, a ride
+that was cancelled, a pharmacy still pending, an insurer that has not answered, and two families
+booked on `MRI-2`. The showcase tops up an existing database too, and never adds itself twice.
+
+To see the approval loop, report an outage on `MRI-2` (Report an issue, "MRI-2 down for a week")
+and open Approvals. Options that touch treatment timing can only be approved by a doctor, so create
+one under Registries > Staff accounts first.
+
 **The free plan sleeps** after 15 minutes without traffic, and the first request after that takes
 about a minute. Wake it before a demo by opening the health URL.
 

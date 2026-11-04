@@ -19,6 +19,7 @@ export interface PatientInput {
   language: Language;
   caregiver_phone: string;
   hospital_id: string;
+  pathway_id?: string;
   plan_target?: string | null;
 }
 
