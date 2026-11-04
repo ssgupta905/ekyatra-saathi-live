@@ -239,7 +239,7 @@ function FamilyWorkspace({
 
       <div className="fam-layers">
         <Layer id="why" title="Why this answer" icon={<I.Graph size={16} />} open={open.has("why")} onToggle={onToggle}
-          summary={decision ? `${blockers ? `${blockers} thing${blockers > 1 ? "s" : ""} in the way` : "nothing in the way"} · every claim cited` : "…"}>
+          summary={decision ? `${blockers ? `${blockers} thing${blockers > 1 ? "s" : ""} in the way` : decision === "go" ? "nothing in the way" : (plan?.plan?.rationale ?? "see the trace")} · every claim cited` : "…"}>
           {() => <DecisionTrace response={plan} steps={steps} patient={patient} />}
         </Layer>
         <Layer id="partners" title="Ride, stay, medicine, insurer" icon={<I.Users size={16} />} open={open.has("partners")} onToggle={onToggle}
