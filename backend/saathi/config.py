@@ -72,6 +72,11 @@ class Settings(BaseSettings):
     #: number, so someone can sign in as a caregiver.
     seed_demo: bool = False
     seed_demo_phone: str | None = None
+    #: With no SMS provider the one-time code only reaches the log. Setting this to
+    #: six digits makes `seed_demo_phone` (that phone alone) accept it, so a
+    #: demonstration can sign in without anyone reading a log. Off by default;
+    #: a real deployment sends real codes.
+    demo_otp: str | None = None
     #: How often the real world re-plans, in real seconds. In the real world a
     #: "day" is not simulated, so this is only how soon a changed fact (a report
     #: released, a date rolling over) is noticed.
@@ -181,6 +186,13 @@ class Settings(BaseSettings):
                 "controls must never be reachable on real records"
             )
         return self
+
+    @field_validator("demo_otp")
+    @classmethod
+    def _demo_otp_is_six_digits(cls, code: str | None) -> str | None:
+        if code is not None and not (len(code) == 6 and code.isdigit()):
+            raise ValueError("SAATHI_DEMO_OTP must be exactly six digits")
+        return code
 
     @field_validator("records_url")
     @classmethod

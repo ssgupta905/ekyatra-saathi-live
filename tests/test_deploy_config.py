@@ -105,3 +105,33 @@ def test_a_seeded_deployment_boots_with_families_and_a_way_in(tmp_path):
     assert any(p.id.startswith(SHOWCASE_PREFIX) for p in families), "the showcase comes with it"
     assert state.identity.login("founder", "a-long-secret") is not None
     assert state.identity._phones.families_for("9811122233"), "the seeded phone finds its family"
+
+
+def test_the_demo_phone_signs_in_with_a_fixed_code_and_nobody_else_does(tmp_path):
+    state = build_container(
+        _real(
+            tmp_path, seed_demo=True, seed_demo_phone="+919811122233", demo_otp="246810",
+        )
+    )
+    other = next(
+        p for p in state.world.patients() if p.caregiver_phone != "+919811122233"
+    ).caregiver_phone
+
+    state.identity.request_otp("9811122233")
+    state.identity.request_otp(other)
+
+    assert state.identity.verify_otp("9811122233", "246810") is not None
+    assert state.identity.verify_otp(other, "246810") is None, "other families get real codes"
+
+
+def test_without_a_demo_code_the_seeded_phone_still_gets_a_random_one(tmp_path):
+    state = build_container(_real(tmp_path, seed_demo=True, seed_demo_phone="+919811122233"))
+
+    state.identity.request_otp("9811122233")
+
+    assert state.identity.verify_otp("9811122233", "246810") is None
+
+
+def test_a_demo_code_must_be_six_digits():
+    with pytest.raises(ValueError):
+        Settings(_env_file=None, demo_otp="12ab")

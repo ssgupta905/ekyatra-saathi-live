@@ -47,6 +47,11 @@ services:
       # the service log, not sent.
       - key: SAATHI_SEED_DEMO_PHONE
         sync: false
+      # Six digits. With no SMS provider, this phone (and only this one) signs in
+      # with this code instead of one that only reaches the log. Leave it empty
+      # to get real random codes.
+      - key: SAATHI_DEMO_OTP
+        sync: false
       # The addresses of the two static sites below, comma-separated. Only
       # browsers need this; the Android app is not bound by CORS.
       - key: SAATHI_CORS_ORIGINS

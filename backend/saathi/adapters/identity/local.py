@@ -80,6 +80,7 @@ class LocalIdentity:
         staff_ttl: int = STAFF_TOKEN_SECONDS,
         caregiver_ttl: int = CAREGIVER_TOKEN_SECONDS,
         now: Callable[[], float] = time.time,
+        fixed_codes: dict[str, str] | None = None,
     ) -> None:
         connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
         self._engine = create_engine(url, connect_args=connect_args, pool_pre_ping=True)
@@ -97,6 +98,10 @@ class LocalIdentity:
         self._lock = threading.Lock()
         self._failures: dict[str, tuple[int, float]] = {}
         self._otps: dict[str, _Otp] = {}
+        #: phone -> a code that never changes. For a demonstration where no SMS
+        #: provider exists; the container only fills it in for the one phone named
+        #: in configuration, never for a family's own number.
+        self._fixed_codes = {digits(phone): code for phone, code in (fixed_codes or {}).items()}
         self._tickets: dict[str, tuple[Principal, float]] = {}
 
     def close(self) -> None:
@@ -201,7 +206,7 @@ class LocalIdentity:
             existing = self._otps.get(key)
             if existing and self._now() - existing.sent_at < OTP_RESEND_SECONDS:
                 return
-            code = f"{secrets.randbelow(10**6):06d}"
+            code = self._fixed_codes.get(key) or f"{secrets.randbelow(10**6):06d}"
             self._otps[key] = _Otp(
                 code_hash=self._hash_code(key, code),
                 expires=self._now() + OTP_SECONDS,

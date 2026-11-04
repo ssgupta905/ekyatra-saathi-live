@@ -77,9 +77,12 @@ Save, and Render redeploys. The Android app is not affected by this setting.
 
 - **Staff:** the control centre, with the admin username and password from step 2.
 - **A family:** enter the phone number you gave as `SAATHI_SEED_DEMO_PHONE`. There is no SMS
-  provider, so the one-time code is written to the API service's **Logs** tab on Render, as
-  `one-time code for ***NNNN: 123456`. Read it from there. This is a demonstration
-  arrangement; a real pilot needs an SMS provider.
+  provider, so by default the one-time code is only written to the API service's **Logs** tab on
+  Render, as `one-time code for ***NNNN: 123456`.
+  To sign in without reading a log, add `SAATHI_DEMO_OTP` on the API service with six digits of your
+  choosing (for example `246810`) and redeploy. That phone, and only that phone, then accepts
+  that code. Every other family number still gets a random code. This is a demonstration
+  arrangement; a real pilot needs an SMS provider and should leave `SAATHI_DEMO_OTP` unset.
 
 ## 6. The Android APK
 

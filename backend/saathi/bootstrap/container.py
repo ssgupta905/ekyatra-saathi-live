@@ -126,8 +126,15 @@ def build_identity(settings: Settings, world: LiveWorld) -> IdentityProvider | N
     migrate(settings.records_url)
     if settings.auth_secret.startswith("dev-only"):
         logger.warning("signing tokens with the built-in dev secret; set SAATHI_AUTH_SECRET")
+    fixed = {}
+    if settings.demo_otp and settings.seed_demo and settings.seed_demo_phone:
+        fixed[settings.seed_demo_phone] = settings.demo_otp
+        logger.warning("the demo phone signs in with a fixed code; not for real families")
     identity = LocalIdentity(
-        settings.records_url, secret=settings.auth_secret, phones=_WorldPhones(world)
+        settings.records_url,
+        secret=settings.auth_secret,
+        phones=_WorldPhones(world),
+        fixed_codes=fixed,
     )
     _ensure_first_admin(identity, settings)
     return identity
