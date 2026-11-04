@@ -9,8 +9,8 @@ needs to be sent to anyone: they go straight into Render's dashboard.
 
 ## 1. Supabase: the database
 
-1. New project, named `Ekyatri-saathi`. Choose region **Southeast Asia (Singapore)**, which sits
-   next to the Render service. Set a database password and keep it.
+1. New project, named `Ekyatri-saathi`. Pick a region and note it: the Render service in `render.yaml` should be in the nearest Render
+   region (Frankfurt for Supabase's eu-west-1, Singapore for ap-southeast-1). Set a database password and keep it.
 2. Open **Connect** and copy the **Session pooler** connection string. It looks like
    `postgresql://postgres.<project-ref>:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres`.
 3. Put your real password in place of `[YOUR-PASSWORD]`. If it contains `@ : / ? # %`, encode

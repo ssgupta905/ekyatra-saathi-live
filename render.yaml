@@ -15,9 +15,9 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
-    # Closest to a Supabase project in Singapore (ap-southeast-1), which is the
-    # region to pick when creating it.
-    region: singapore
+    # Keep this next to the database: the Supabase project is in eu-west-1
+    # (Ireland), and Frankfurt is Render's nearest region. Change both together.
+    region: frankfurt
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
@@ -60,7 +60,6 @@ services:
   - type: web
     name: ekyatra-saathi-control-centre
     runtime: static
-    plan: free
     buildCommand: >-
       cd frontend && npm ci && npm run build -w @saathi/control-centre &&
       printf '{"apiBase":"%s"}' "$SAATHI_API_BASE" > apps/control-centre/dist/config.json
@@ -75,7 +74,6 @@ services:
   - type: web
     name: ekyatra-saathi-family
     runtime: static
-    plan: free
     buildCommand: >-
       cd frontend && npm ci && npm run build -w @saathi/family-web &&
       printf '{"apiBase":"%s"}' "$SAATHI_API_BASE" > apps/family-web/dist/config.json
