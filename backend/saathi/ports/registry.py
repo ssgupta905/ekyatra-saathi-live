@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from ..domain.directory import Organisation
 from ..domain.registry import Clinician, Hospital, NetworkCentre
 
 
@@ -23,6 +24,10 @@ class RegistryStore(Protocol):
     def clinicians(self) -> tuple[Clinician, ...]: ...
 
     def save_clinician(self, clinician: Clinician) -> None: ...
+
+    def organisations(self) -> tuple[Organisation, ...]: ...
+
+    def save_organisation(self, organisation: Organisation) -> None: ...
 
     def policy(self, hospital_id: str) -> tuple[dict, int, str] | None:
         """The hospital's rules as stored (a `HospitalPolicy` dict), its version, who saved it."""

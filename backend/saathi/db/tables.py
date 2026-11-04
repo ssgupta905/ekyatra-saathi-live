@@ -19,6 +19,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
 )
@@ -114,6 +115,47 @@ class ClinicianRow(Base):
     department: Mapped[str] = mapped_column(String(80), default="")
     username: Mapped[str | None] = mapped_column(String(64), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class OrganisationRow(Base):
+    """A lab, pharmacy, distributor, cab service, hotel or other party in the network."""
+
+    __tablename__ = "organisations"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(160))
+    type: Mapped[str] = mapped_column(String(32), index=True)
+    mode: Mapped[str] = mapped_column(String(16), default="simulated")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    payload_json: Mapped[str] = mapped_column(Text)
+
+
+class FamilyProfileRow(Base):
+    """What a family told us when they were taken on, section by section."""
+
+    __tablename__ = "family_profiles"
+
+    patient_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    sections_json: Mapped[str] = mapped_column(Text, default="{}")
+    activated_by: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ProfileDocumentRow(Base):
+    __tablename__ = "profile_documents"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    patient_id: Mapped[str] = mapped_column(String(32), index=True)
+    meta_json: Mapped[str] = mapped_column(Text)
+    content: Mapped[bytes] = mapped_column(LargeBinary)
+
+
+class AdmissionRow(Base):
+    __tablename__ = "admissions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    patient_id: Mapped[str] = mapped_column(String(32), index=True)
+    payload_json: Mapped[str] = mapped_column(Text)
 
 
 class HospitalPolicyRow(Base):

@@ -51,6 +51,8 @@ def require(*roles: Role):
             raise HTTPException(403, f"{principal.role.value} may not do this")
         return principal
 
+    #: Read back by the roles page, so what it shows is what is enforced.
+    check.allowed = allowed  # type: ignore[attr-defined]
     return Depends(check)
 
 

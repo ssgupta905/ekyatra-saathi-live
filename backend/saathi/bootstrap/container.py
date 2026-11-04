@@ -34,6 +34,7 @@ from ..ports.clock import Clock
 from ..ports.identity import IdentityProvider
 from ..ports.language import LanguageLayer
 from ..ports.ledger import EvidenceLedger
+from ..ports.onboarding import OnboardingStore
 from ..ports.registry import RegistryStore
 from ..readiness.conformal import ConformalReadinessPredictor, TurnaroundSample
 from ..synthetic.generate import SyntheticCohort
@@ -60,6 +61,8 @@ class Container:
     rules: HospitalRules | None = None
     #: Who has agreed to share what. Kept across restarts in the real world.
     consent: ConsentRegistry | None = None
+    #: A family's background, documents and admissions. Never read by the planner.
+    onboarding: OnboardingStore | None = None
 
     @property
     def cohort(self) -> SyntheticCohort:
@@ -229,7 +232,22 @@ def build_registry(settings: Settings) -> RegistryStore:
 
         store = MemoryRegistryStore()
     seed_registry(store, settings, demo=not settings.real_world)
+    if settings.seed_demo or not settings.real_world:
+        from .demo_directory import seed_directory
+
+        seed_directory(store)
     return store
+
+
+def build_onboarding(settings: Settings) -> OnboardingStore:
+    """Where a family's onboarding details are kept: the database for real, memory for the demo."""
+    if settings.real_world:
+        from ..adapters.onboarding import SqlOnboardingStore
+
+        return SqlOnboardingStore(settings.records_url)
+    from ..adapters.onboarding import MemoryOnboardingStore
+
+    return MemoryOnboardingStore()
 
 
 def build_actors(settings: Settings, world: LiveWorld):
@@ -316,6 +334,11 @@ def build_container(settings: Settings | None = None, today: date | None = None)
     )
 
     registry = build_registry(settings)
+    onboarding = build_onboarding(settings)
+    if settings.seed_demo or not settings.real_world:
+        from .demo_profiles import seed_demo_onboarding
+
+        seed_demo_onboarding(onboarding, tuple(world.patients()), registry)
     rules = HospitalRules(registry)
     planner.rules_for = rules
 
@@ -332,4 +355,5 @@ def build_container(settings: Settings | None = None, today: date | None = None)
         registry=registry,
         rules=rules,
         consent=consent,
+        onboarding=onboarding,
     )

@@ -7,7 +7,14 @@ import json
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
-from ...db.tables import CentreRow, ClinicianRow, HospitalPolicyRow, HospitalRow
+from ...db.tables import (
+    CentreRow,
+    ClinicianRow,
+    HospitalPolicyRow,
+    HospitalRow,
+    OrganisationRow,
+)
+from ...domain.directory import Organisation
 from ...domain.registry import Clinician, Hospital, NetworkCentre
 
 
@@ -78,6 +85,23 @@ class SqlRegistryStore:
             row.name, row.specialty = clinician.name, clinician.specialty
             row.hospital_id, row.department = clinician.hospital_id, clinician.department
             row.username, row.active = clinician.username, clinician.active
+            db.merge(row)
+
+    # ---------------- the directory ----------------
+
+    def organisations(self) -> tuple[Organisation, ...]:
+        with self._sessions() as db:
+            return tuple(
+                Organisation.model_validate_json(r.payload_json)
+                for r in db.scalars(select(OrganisationRow).order_by(OrganisationRow.name))
+            )
+
+    def save_organisation(self, organisation: Organisation) -> None:
+        with self._sessions.begin() as db:
+            row = db.get(OrganisationRow, organisation.id) or OrganisationRow(id=organisation.id)
+            row.name, row.type = organisation.name, organisation.type.value
+            row.mode, row.active = organisation.mode.value, organisation.active
+            row.payload_json = organisation.model_dump_json()
             db.merge(row)
 
     # ---------------- rules ----------------

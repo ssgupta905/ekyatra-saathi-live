@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from ...domain.directory import Organisation
 from ...domain.registry import Clinician, Hospital, NetworkCentre
 
 
@@ -10,6 +11,7 @@ class MemoryRegistryStore:
         self._hospitals: dict[str, Hospital] = {}
         self._centres: dict[str, NetworkCentre] = {}
         self._clinicians: dict[str, Clinician] = {}
+        self._organisations: dict[str, Organisation] = {}
         self._policies: dict[str, tuple[dict, int, str]] = {}
 
     def hospitals(self) -> tuple[Hospital, ...]:
@@ -29,6 +31,12 @@ class MemoryRegistryStore:
 
     def save_clinician(self, clinician: Clinician) -> None:
         self._clinicians[clinician.id] = clinician
+
+    def organisations(self) -> tuple[Organisation, ...]:
+        return tuple(self._organisations.values())
+
+    def save_organisation(self, organisation: Organisation) -> None:
+        self._organisations[organisation.id] = organisation
 
     def policy(self, hospital_id: str) -> tuple[dict, int, str] | None:
         return self._policies.get(hospital_id)
