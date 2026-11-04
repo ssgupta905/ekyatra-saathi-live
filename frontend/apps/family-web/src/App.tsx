@@ -4,6 +4,7 @@ import { useSession } from "@saathi/auth";
 import { LANGS, t, type Lang } from "@saathi/i18n";
 import { Verdict } from "./Verdict";
 import { Why } from "./Why";
+import { Journey } from "./Journey";
 import { PlanStrip } from "./PlanStrip";
 import { Thread } from "./Thread";
 import { Composer } from "./Composer";
@@ -48,7 +49,7 @@ export default function FamilyApp() {
   // the conversation were stacked, which put the conversation permanently below
   // the fold — a family could not find the messages they were sent without
   // scrolling past their whole care pathway.
-  const [tab, setTab] = useState<"plan" | "messages">("plan");
+  const [tab, setTab] = useState<"journey" | "plan" | "messages">("journey");
   const [error, setError] = useState<string | null>(null);
   const world = useLiveWorld();
 
@@ -142,6 +143,15 @@ export default function FamilyApp() {
         <button
           type="button"
           role="tab"
+          aria-selected={tab === "journey"}
+          onClick={() => setTab("journey")}
+        >
+          <Spark size={14} />
+          {s.journeyTab}
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={tab === "plan"}
           onClick={() => setTab("plan")}
         >
@@ -163,7 +173,9 @@ export default function FamilyApp() {
       <main className="fx-scroll">
         {error && <div className="fx-error">{error}</div>}
 
-        {tab === "plan" ? (
+        {tab === "journey" ? (
+          <Journey guide={home?.guide} lang={lang} s={s} />
+        ) : tab === "plan" ? (
           <>
             <Why waits={home?.waiting_for ?? []} lang={lang} s={s} />
             <PlanStrip steps={home?.steps ?? []} lang={lang} s={s} />

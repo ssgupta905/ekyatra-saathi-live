@@ -75,6 +75,8 @@ DEMO_DIRECTORY: tuple[Organisation, ...] = (
          districts=("Mumbai", "Patna", "Kolkata"), delay=30, alternate="cab-meru-mum"),
     _org("cab-meru-mum", "Meru Cabs, Mumbai", OrgType.CAB, services=("pickup", "station pickup"),
          districts=("Mumbai",), hospitals=_MUM),
+    _org("cab-regional", "Regional taxi network", OrgType.CAB,
+         services=("pickup from any district",), delay=40),
     _org("cab-saarthi-patna", "Saarthi Taxi, Patna", OrgType.CAB, services=("pickup",),
          districts=("Patna", "Gaya")),
     # ---- travel partners

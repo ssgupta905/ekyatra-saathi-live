@@ -71,6 +71,46 @@ data class FamilyStep(
 )
 
 @Serializable
+data class StageStep(
+    val kind: String,
+    val done: Boolean = false,
+    val on: String? = null,
+)
+
+@Serializable
+data class GuideStage(
+    val id: String,
+    /** "tests", "reports", "insurance", "pharmacy", "ride", "stay", "documents", "visit", "next_session". */
+    val kind: String,
+    /** "done", "waiting", "problem" or "upcoming". */
+    val state: String,
+    /** The first stage not yet done: the one to look at. */
+    @SerialName("is_now") val isNow: Boolean = false,
+    /** What the family should do: "nothing_yet", "wait_for_team", "keep_documents_ready"... */
+    val action: String = "none",
+    /** Who has it: "Uber", "the lab". */
+    val party: String? = null,
+    val detail: String = "",
+    val steps: List<StageStep> = emptyList(),
+    /** A forecast window for a report still to come, never a promise. */
+    val window: List<String>? = null,
+    /** Only the visit, and only when the plan is a GO. */
+    val on: String? = null,
+    @SerialName("first_stop") val firstStop: String? = null,
+    val bring: List<String> = emptyList(),
+)
+
+@Serializable
+data class JourneyGuide(
+    @SerialName("patient_id") val patientId: String,
+    val decision: String? = null,
+    val stages: List<GuideStage> = emptyList(),
+    @SerialName("now_stage_id") val nowStageId: String? = null,
+    val done: Int = 0,
+    val total: Int = 0,
+)
+
+@Serializable
 data class FamilyHome(
     val patient: HomePatient,
     /** "go", "wait", "uncertain" or "replan"; null before there is a plan. */
@@ -82,6 +122,8 @@ data class FamilyHome(
     /** Only for a family cleared to travel: what to carry, and the first desk. */
     @SerialName("what_to_bring") val whatToBring: List<String> = emptyList(),
     @SerialName("where_to_go_first") val whereToGoFirst: String? = null,
+    /** The whole journey in order, with what the family should do now. */
+    val guide: JourneyGuide? = null,
     @SerialName("sim_date") val simDate: String? = null,
     @SerialName("updated_at") val updatedAt: String? = null,
 )

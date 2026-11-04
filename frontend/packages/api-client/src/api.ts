@@ -571,9 +571,73 @@ export interface FamilyHome {
   waiting_for: FamilyWait[];
   message: FamilyMessage | null;
   steps: FamilyStep[];
+  /** What to carry and the first desk to reach; present once the family may travel. */
+  what_to_bring?: string[];
+  where_to_go_first?: string | null;
+  /** The whole journey in order, with what the family should do now. */
+  guide?: JourneyGuide | null;
   sim_date: string;
   updated_at: string | null;
 }
+
+export type StageKind =
+  | "tests" | "reports" | "insurance" | "pharmacy" | "ride" | "stay"
+  | "documents" | "visit" | "next_session";
+export type StageState = "done" | "waiting" | "problem" | "upcoming";
+export type FamilyAction =
+  | "nothing_yet" | "wait_for_team" | "keep_documents_ready"
+  | "be_ready_for_pickup" | "go_to_first_stop" | "none";
+
+export interface GuideStage {
+  id: string;
+  kind: StageKind;
+  state: StageState;
+  /** The first stage not yet done: the one to look at. */
+  is_now: boolean;
+  action: FamilyAction;
+  /** Who has it: "Uber", "the lab". */
+  party: string | null;
+  detail: string;
+  steps: { kind: string; done: boolean; on: string | null }[];
+  /** A forecast, never a promise. */
+  window: [string, string] | null;
+  /** Only the visit, and only when the plan is a GO. */
+  on: string | null;
+  first_stop: string | null;
+  bring: string[];
+}
+
+export interface JourneyGuide {
+  patient_id: string;
+  decision: Decision | null;
+  stages: GuideStage[];
+  now_stage_id: string | null;
+  done: number;
+  total: number;
+}
+
+export interface NetworkFamily {
+  patient_id: string;
+  name: string;
+  district: string;
+  pathway_id: string;
+  decision: Decision | null;
+  now: string | null;
+  done: number;
+  total: number;
+  stuck: boolean;
+  stages: { kind: StageKind; state: StageState; party: string | null; detail: string }[];
+}
+
+export interface NetworkBoard {
+  families: NetworkFamily[];
+  parties: { party: string; waiting: number; problem: number }[];
+}
+
+export const network = {
+  board: () => request<NetworkBoard>("/network"),
+  guide: (patientId: string) => request<JourneyGuide>(`/patients/${patientId}/guide`),
+};
 
 export interface ThreadEntry {
   id: string;

@@ -51,8 +51,8 @@ def choose_organisation(
     """Who to ask for a need: the family's own choice, else the first that fits.
 
     "Fits" means the right kind, active, serving the family's district and working
-    with their hospital. Ties go to the alphabetically first name, so the same
-    inputs always choose the same organisation.
+    with their hospital. The more wanted kind wins, then the alphabetically first
+    name, so the same inputs always choose the same organisation.
     """
     types = NEED_FOR_TYPE.get(kind.value, ())
     candidates = [o for o in organisations if o.active and o.type in types]
@@ -67,4 +67,5 @@ def choose_organisation(
         if (not o.districts or place in {d.lower() for d in o.districts})
         and (not o.hospital_ids or hospital_id in o.hospital_ids)
     ]
-    return min(fits, key=lambda o: o.name.lower(), default=None)
+    # Kinds are listed most-wanted first: a cab before a rail desk for a ride.
+    return min(fits, key=lambda o: (types.index(o.type), o.name.lower()), default=None)

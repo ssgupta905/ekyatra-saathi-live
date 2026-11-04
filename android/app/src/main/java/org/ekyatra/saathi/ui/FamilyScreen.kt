@@ -117,10 +117,19 @@ fun FamilyScreen(vm: FamilyViewModel, onBack: () -> Unit) {
                         SaathiCard {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 GlyphBadge(Glyph.Route, Tokens.blue600, Tokens.blue100)
-                                Text(s.plan, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Tokens.ink)
+                                Text(
+                                    if (ui.home?.guide?.stages?.isNotEmpty() == true) s.journeyTab else s.plan,
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Tokens.ink,
+                                )
                             }
                             Box(Modifier.height(14.dp))
-                            PlanStrip(ui.home?.steps ?: emptyList(), lang, s, inCard = true)
+                            if (ui.home?.guide?.stages?.isNotEmpty() == true) {
+                                JourneyChain(ui.home?.guide, lang, s)
+                            } else {
+                                PlanStrip(ui.home?.steps ?: emptyList(), lang, s, inCard = true)
+                            }
                         }
                         Boundary(lang, s)
                     }

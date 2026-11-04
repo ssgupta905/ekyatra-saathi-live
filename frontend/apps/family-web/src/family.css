@@ -590,7 +590,7 @@
 .fx-tabs {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
@@ -600,14 +600,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 6px;
   min-height: 46px;
+  padding: 0 4px;
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--ink-3);
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   cursor: pointer;
   transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
 }
@@ -668,3 +669,29 @@
   font-size: 12px;
   cursor: pointer;
 }
+
+/* — the journey ————————————————————————————————————————————————— */
+.fx-now { border-left: 4px solid var(--blue-500); }
+.fx-now.problem { border-left-color: var(--critical); background: var(--critical-tint); }
+.fx-now.waiting { border-left-color: var(--wait); }
+.fx-now-what { display: flex; align-items: center; gap: 10px; margin: 6px 0 4px; font-size: 18px; }
+.fx-now-action { margin: 6px 0 2px; font-size: 16px; line-height: 1.45; }
+.fx-now-party { margin: 4px 0 0; color: var(--ink-3); font-size: 14px; }
+.fx-pill {
+  padding: 2px 10px;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--fill-quiet);
+  color: var(--ink-2);
+}
+.fx-pill.waiting { background: var(--wait-tint); color: var(--wait); }
+.fx-pill.problem { background: var(--critical-tint); color: var(--critical); }
+.fx-pill.done { background: var(--go-tint); color: var(--go); }
+.fx-progress { height: 6px; border-radius: 3px; background: var(--fill-quiet); overflow: hidden; margin: 8px 0 4px; }
+.fx-progress span { display: block; height: 100%; background: var(--go); transition: width 0.4s var(--ease); }
+.fx-progress-text { margin: 0 0 12px; font-size: 13px; color: var(--ink-3); }
+.fx-steps li.problem .fx-step-dot { background: var(--critical-tint); border-color: var(--critical); color: var(--critical); }
+.fx-step-note { display: block; margin-top: 3px; font-size: 13px; color: var(--ink-3); line-height: 1.4; }
+.fx-empty { margin: 0; padding: 8px 0; color: var(--ink-3); }
+@media (prefers-reduced-motion: reduce) { .fx-progress span { transition: none; } }

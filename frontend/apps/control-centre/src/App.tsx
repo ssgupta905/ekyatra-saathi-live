@@ -13,6 +13,7 @@ import { Directory } from "./sections/Directory";
 import { Configuration } from "./sections/Configuration";
 import { Families } from "./sections/Families";
 import { Issues } from "./sections/Issues";
+import { Network } from "./sections/Network";
 import { Onboarding } from "./sections/Onboarding";
 import { Operator } from "./sections/Operator";
 import { Records } from "./sections/Records";
@@ -56,6 +57,7 @@ export default function App() {
         {meta && !OWN_HEADING.has(section) && <PageHeader title={meta.label} lead={meta.hint} />}
         {section === "today" && <Today go={navigate} open={openFamily} />}
         {section === "families" && <Families patientId={route.id} layer={route.tab} onOpen={openFamily} />}
+        {section === "network" && <Network onOpen={(id) => openFamily(id)} />}
         {section === "approvals" && <Approvals />}
         {section === "issues" && <Issues />}
         {section === "releases" && <Releases />}

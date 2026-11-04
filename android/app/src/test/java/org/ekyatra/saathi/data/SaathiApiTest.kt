@@ -170,6 +170,40 @@ class SaathiApiTest {
     }
 
     @Test
+    fun `a home with a journey guide decodes it, with the date only on the visit`() {
+        val json = """
+            {"patient":{"id":"P","district":"Gaya","language":"hi","distance_km":900.0},
+             "decision":"go","travel_on":"2026-11-05",
+             "guide":{"patient_id":"P","decision":"go","now_stage_id":"documents","done":2,"total":4,
+               "stages":[
+                 {"id":"reports","kind":"reports","state":"done","is_now":false,"action":"none"},
+                 {"id":"ride","kind":"ride","state":"done","party":"Uber","detail":"6 am","action":"be_ready_for_pickup"},
+                 {"id":"documents","kind":"documents","state":"upcoming","is_now":true,
+                  "action":"keep_documents_ready","bring":["card"]},
+                 {"id":"visit","kind":"visit","state":"upcoming","action":"go_to_first_stop",
+                  "on":"2026-11-05","first_stop":"OPD counter"}]}}
+        """.trimIndent()
+
+        val home = SaathiJson.decodeFromString<FamilyHome>(json)
+
+        val guide = home.guide!!
+        assertEquals("documents", guide.nowStageId)
+        assertEquals(listOf("reports", "ride", "documents", "visit"), guide.stages.map { it.id })
+        assertEquals("Uber", guide.stages[1].party)
+        assertEquals(listOf("visit"), guide.stages.filter { it.on != null }.map { it.id })
+        assertTrue(guide.stages.first { it.isNow }.bring.isNotEmpty())
+    }
+
+    @Test
+    fun `a home from before there was a guide still decodes`() {
+        val home = SaathiJson.decodeFromString<FamilyHome>(
+            """{"patient":{"id":"P","district":"Gaya","language":"hi","distance_km":9.0}}""",
+        )
+
+        assertEquals(null, home.guide)
+    }
+
+    @Test
     fun `a wrong code stores nothing`() = runTest {
         val tokens = MemoryTokenStore()
         val failing = SaathiApi(

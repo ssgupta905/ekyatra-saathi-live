@@ -1,11 +1,92 @@
 import { useEffect, useState } from "react";
-import { admin, config as configApi, type AdminConfig, type Integrations } from "@saathi/api-client";
+import {
+  admin,
+  config as configApi,
+  demo,
+  type AdminConfig,
+  type DemoFamily,
+  type Integrations,
+} from "@saathi/api-client";
 import { Card, Chip, Notice } from "@saathi/ui-web";
+import { errorText } from "../components/RecordForm";
 import { RulesEditor } from "../components/RulesEditor";
 import { usePersona } from "../session";
+import { useToast } from "../ui/kit";
 
 const on = (value: boolean | string | null | undefined, off = "off") =>
   value ? <Chip tone="go">{typeof value === "string" ? value : "on"}</Chip> : <Chip tone="neutral">{off}</Chip>;
+
+/**
+ * Three scripted families for a walk-through. Where each family's sign-in code goes
+ * is typed here, by whoever is demonstrating; nothing about it lives in the code.
+ * Loading again puts every family back at the start of its story.
+ */
+function DemoCast() {
+  const [emails, setEmails] = useState(["", "", ""]);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<DemoFamily[] | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  const toast = useToast();
+  const given = emails.map((e) => e.trim()).filter(Boolean);
+  const ok = given.length > 0 && given.every((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e));
+  const stories = ["Smooth journey", "A vendor fails", "A second condition (dialysis)"];
+
+  const load = async () => {
+    setBusy(true);
+    setProblem(null);
+    try {
+      const done = await demo.loadCast(given);
+      setResult(done.families);
+      toast("Demo families loaded. Each is back at the start of its story.");
+    } catch (e) {
+      setProblem(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card
+      title="Demo families"
+      hint="Three scripted journeys, each sent its sign-in code at the address you give. Load again to start over."
+    >
+      <div className="iss-fields cc-form">
+        {stories.map((story, i) => (
+          <label key={story} htmlFor={`demo-email-${i}`}>
+            <span>{i + 1}. {story}</span>
+            <input
+              id={`demo-email-${i}`}
+              type="email"
+              value={emails[i]}
+              placeholder="email address (optional)"
+              onChange={(e) => setEmails((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))}
+            />
+          </label>
+        ))}
+      </div>
+      <div className="iss-actions" style={{ marginTop: 10 }}>
+        <button type="button" className="btn primary" disabled={!ok || busy} onClick={load}>
+          {busy ? "loading…" : "Load the demo families"}
+        </button>
+        <span className="hint">The first address needs at least one entry; leave the rest blank to load fewer.</span>
+      </div>
+      {problem && <Notice tone="warn">{problem}</Notice>}
+      {result && (
+        <table className="audit-table" style={{ marginTop: 10 }}>
+          <tbody>
+            {result.map((f) => (
+              <tr key={f.patient_id}>
+                <td><strong>{f.name}</strong><div className="hint">{f.patient_id}</div></td>
+                <td>{f.story}</td>
+                <td>{f.email ?? "no address"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Card>
+  );
+}
 
 /**
  * How the system is set up: each hospital's rules (editable, versioned, and
@@ -109,6 +190,8 @@ export function Configuration() {
           <p className="empty">Loading…</p>
         )}
       </Card>
+
+      {integrations?.world === "real" && persona.role === "admin" && <DemoCast />}
     </div>
   );
 }

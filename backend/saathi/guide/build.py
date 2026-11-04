@@ -196,7 +196,7 @@ def build_guide(
     )  # fmt: skip
 
     # 6. A repeating pathway keeps going; the next one is never dated in advance.
-    if pathway.recurrence is not None:
+    if pathway.recurrence is not None and target.kind is pathway.recurrence.kind:
         stages.append(
             GuideStage(
                 id=StageKind.NEXT_SESSION.value, kind=StageKind.NEXT_SESSION,

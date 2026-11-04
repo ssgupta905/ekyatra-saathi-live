@@ -180,6 +180,12 @@ def test_a_repeating_pathway_ends_with_a_next_session_that_is_never_dated():
     assert any(s.kind is StageKind.RIDE for s in guide.stages)
 
 
+def test_a_visit_that_does_not_repeat_has_no_next_session(patient):
+    guide = _guide(patient)
+
+    assert StageKind.NEXT_SESSION not in {s.kind for s in guide.stages}
+
+
 def test_a_family_with_no_steps_gets_an_empty_chain_not_an_error():
     guide = build_guide(
         patient_id="X", pathway=ONCOLOGY, steps=[], plan=None, items=(), needs=()

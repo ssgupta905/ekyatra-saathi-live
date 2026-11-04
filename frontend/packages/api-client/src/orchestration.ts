@@ -31,6 +31,8 @@ export interface ReadinessItem {
   detail: string;
   alternative_available: boolean;
   source: string;
+  /** The directory organisation this was asked of, when it came from the directory. */
+  partner_id?: string | null;
 }
 
 export interface ReadinessInput {
@@ -55,6 +57,18 @@ export const readiness = {
     request<{ item: ReadinessItem; decision: Decision | null; rationale: string }>(
       `/patients/${patientId}/readiness`,
       { method: "PUT", body: JSON.stringify(body) },
+    ),
+  /** Ask one particular organisation from the directory for a need. */
+  ask: (patientId: string, kind: ReadinessKind, organisationId: string) =>
+    request<{ item: ReadinessItem; decision: Decision | null }>(
+      `/patients/${patientId}/readiness/request`,
+      { method: "POST", body: JSON.stringify({ kind, organisation_id: organisationId }) },
+    ),
+  /** Ask the alternate of an organisation that could not. */
+  rebook: (patientId: string, itemId: string) =>
+    request<{ item: ReadinessItem; decision: Decision | null }>(
+      `/patients/${patientId}/readiness/${itemId}/rebook`,
+      { method: "POST" },
     ),
   clear: (patientId: string, itemId: string) =>
     request<{ decision: Decision | null }>(`/patients/${patientId}/readiness/${itemId}`, {

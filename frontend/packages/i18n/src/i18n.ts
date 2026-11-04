@@ -86,6 +86,31 @@ export interface Strings {
   tapForWhy: string;
   /** A ticked item on the what-to-bring list. */
   packed: string;
+
+  /** The journey: every party between the first test and the doctor, in order. */
+  journeyTab: string;
+  doNow: string;
+  progress: string; // "{done} of {total} steps done"
+  noJourney: string;
+  stageTests: string;
+  stageReports: string;
+  stageInsurance: string;
+  stagePharmacy: string;
+  stageRide: string;
+  stageStay: string;
+  stageDocuments: string;
+  stageVisit: string;
+  stageNextSession: string;
+  stateDone: string;
+  stateNow: string;
+  stateWaiting: string;
+  stateProblem: string;
+  stateNext: string;
+  actionNothingYet: string;
+  actionWaitForTeam: string;
+  actionKeepDocuments: string;
+  actionPickup: string;
+  actionFirstStop: string;
 }
 
 /**
@@ -140,6 +165,29 @@ export const STRINGS: Record<Lang, Strings> = {
     firstStop: "सबसे पहले यहाँ जाएँ",
     tapForWhy: "क्यों? देखने के लिए छुएँ",
     packed: "रख लिया",
+    journeyTab: "सफ़र",
+    doNow: "अभी क्या करना है",
+    progress: "{total} में से {done} कदम पूरे",
+    noJourney: "आपका कदम-दर-कदम सफ़र यहाँ दिखेगा।",
+    stageTests: "जाँच",
+    stageReports: "रिपोर्ट",
+    stageInsurance: "योजना की मंज़ूरी",
+    stagePharmacy: "फार्मेसी",
+    stageRide: "गाड़ी",
+    stageStay: "ठहरने की जगह",
+    stageDocuments: "कागज़ात",
+    stageVisit: "डॉक्टर से मिलना",
+    stageNextSession: "अगली बार",
+    stateDone: "पूरा",
+    stateNow: "अभी",
+    stateWaiting: "जारी है",
+    stateProblem: "दिक्कत",
+    stateNext: "आगे",
+    actionNothingYet: "हम इस पर काम कर रहे हैं। आपको कुछ करने की ज़रूरत नहीं है।",
+    actionWaitForTeam: "दिक्कत आई है। हमारी टीम दूसरा रास्ता निकाल रही है। अभी यात्रा न करें।",
+    actionKeepDocuments: "अपने कागज़ात तैयार रखें।",
+    actionPickup: "गाड़ी तय हो गई है। लेने के समय तैयार रहें।",
+    actionFirstStop: "आपकी मुलाक़ात पक्की हो गई है।",
   },
   bn: {
     come: "আসুন",
@@ -187,6 +235,29 @@ export const STRINGS: Record<Lang, Strings> = {
     firstStop: "প্রথমে এখানে যান",
     tapForWhy: "কেন? দেখতে ছুঁয়ে দিন",
     packed: "নেওয়া হয়েছে",
+    journeyTab: "যাত্রা",
+    doNow: "এখন কী করতে হবে",
+    progress: "{total}টির মধ্যে {done}টি ধাপ সম্পূর্ণ",
+    noJourney: "আপনার ধাপে ধাপে যাত্রা এখানে দেখা যাবে।",
+    stageTests: "পরীক্ষা",
+    stageReports: "রিপোর্ট",
+    stageInsurance: "প্রকল্পের অনুমোদন",
+    stagePharmacy: "ফার্মেসি",
+    stageRide: "গাড়ি",
+    stageStay: "থাকার জায়গা",
+    stageDocuments: "কাগজপত্র",
+    stageVisit: "ডাক্তারের সঙ্গে দেখা",
+    stageNextSession: "পরের বার",
+    stateDone: "সম্পূর্ণ",
+    stateNow: "এখন",
+    stateWaiting: "চলছে",
+    stateProblem: "সমস্যা",
+    stateNext: "সামনে",
+    actionNothingYet: "আমরা এটা নিয়ে কাজ করছি। আপনাকে কিছু করতে হবে না।",
+    actionWaitForTeam: "সমস্যা হয়েছে। আমাদের দল অন্য উপায় ঠিক করছে। এখনই যাত্রা করবেন না।",
+    actionKeepDocuments: "আপনার কাগজপত্র তৈরি রাখুন।",
+    actionPickup: "গাড়ি ঠিক হয়েছে। নেওয়ার সময় তৈরি থাকুন।",
+    actionFirstStop: "আপনার দেখা পাকা হয়েছে।",
   },
   or: {
     come: "ଆସନ୍ତୁ",
@@ -234,6 +305,29 @@ export const STRINGS: Record<Lang, Strings> = {
     firstStop: "ପ୍ରଥମେ ଏଠାକୁ ଯାଆନ୍ତୁ",
     tapForWhy: "କାହିଁକି? ଦେଖିବାକୁ ଛୁଅନ୍ତୁ",
     packed: "ନିଆଗଲା",
+    journeyTab: "ଯାତ୍ରା",
+    doNow: "ଏବେ କ'ଣ କରିବେ",
+    progress: "{total}ଟିରୁ {done}ଟି ପଦକ୍ଷେପ ସମ୍ପୂର୍ଣ୍ଣ",
+    noJourney: "ଆପଣଙ୍କ ପଦକ୍ଷେପ-ପଦକ୍ଷେପ ଯାତ୍ରା ଏଠାରେ ଦେଖାଯିବ।",
+    stageTests: "ପରୀକ୍ଷା",
+    stageReports: "ରିପୋର୍ଟ",
+    stageInsurance: "ଯୋଜନା ଅନୁମୋଦନ",
+    stagePharmacy: "ଫାର୍ମାସୀ",
+    stageRide: "ଗାଡ଼ି",
+    stageStay: "ରହିବା ସ୍ଥାନ",
+    stageDocuments: "କାଗଜପତ୍ର",
+    stageVisit: "ଡାକ୍ତରଙ୍କ ସହ ଭେଟ",
+    stageNextSession: "ପରବର୍ତ୍ତୀ ଥର",
+    stateDone: "ସମ୍ପୂର୍ଣ୍ଣ",
+    stateNow: "ଏବେ",
+    stateWaiting: "ଚାଲିଛି",
+    stateProblem: "ଅସୁବିଧା",
+    stateNext: "ଆଗକୁ",
+    actionNothingYet: "ଆମେ ଏହା ଉପରେ କାମ କରୁଛୁ। ଆପଣଙ୍କୁ କିଛି କରିବାକୁ ପଡ଼ିବ ନାହିଁ।",
+    actionWaitForTeam: "ଅସୁବିଧା ହୋଇଛି। ଆମ ଦଳ ଅନ୍ୟ ଉପାୟ ଠିକ୍ କରୁଛି। ଏବେ ଯାତ୍ରା କରନ୍ତୁ ନାହିଁ।",
+    actionKeepDocuments: "ଆପଣଙ୍କ କାଗଜପତ୍ର ପ୍ରସ୍ତୁତ ରଖନ୍ତୁ।",
+    actionPickup: "ଗାଡ଼ି ଠିକ୍ ହୋଇଛି। ନେବା ସମୟରେ ପ୍ରସ୍ତୁତ ରୁହନ୍ତୁ।",
+    actionFirstStop: "ଆପଣଙ୍କ ଭେଟ ପକ୍କା ହୋଇଛି।",
   },
   en: {
     come: "Come",
@@ -281,6 +375,29 @@ export const STRINGS: Record<Lang, Strings> = {
     firstStop: "Go first to",
     tapForWhy: "Why? Tap to see",
     packed: "packed",
+    journeyTab: "Journey",
+    doNow: "Do this now",
+    progress: "{done} of {total} steps done",
+    noJourney: "Your step-by-step journey will appear here.",
+    stageTests: "Tests",
+    stageReports: "Reports",
+    stageInsurance: "Scheme approval",
+    stagePharmacy: "Pharmacy",
+    stageRide: "Ride",
+    stageStay: "Place to stay",
+    stageDocuments: "Papers",
+    stageVisit: "Doctor visit",
+    stageNextSession: "Next session",
+    stateDone: "Done",
+    stateNow: "Now",
+    stateWaiting: "In progress",
+    stateProblem: "Problem",
+    stateNext: "Next",
+    actionNothingYet: "We are working on this. You do not need to do anything.",
+    actionWaitForTeam: "There is a problem. Our team is arranging another way. Please do not travel yet.",
+    actionKeepDocuments: "Please keep your papers ready.",
+    actionPickup: "Your ride is arranged. Be ready at pickup time.",
+    actionFirstStop: "Your visit is confirmed.",
   },
 };
 
@@ -342,6 +459,10 @@ export const STEP_WORDS: Record<Lang, Record<string, string>> = {
     treatment: "इलाज",
     maintenance_dose: "अगली दवा",
     echo_review: "दिल की जाँच और मुलाक़ात",
+    dialysis_session: "डायलिसिस",
+    nephrology_review: "गुर्दे के डॉक्टर से मिलना",
+    discharge_review: "अस्पताल से लौटने के बाद जाँच",
+    wound_check: "पट्टी की जाँच",
   },
   bn: {
     consult: "ডাক্তারের সঙ্গে দেখা",
@@ -356,6 +477,10 @@ export const STEP_WORDS: Record<Lang, Record<string, string>> = {
     treatment: "চিকিৎসা",
     maintenance_dose: "পরের ডোজ",
     echo_review: "হৃদযন্ত্র পরীক্ষা ও দেখা",
+    dialysis_session: "ডায়ালিসিস",
+    nephrology_review: "কিডনির ডাক্তারের সঙ্গে দেখা",
+    discharge_review: "হাসপাতাল থেকে ফেরার পর পরীক্ষা",
+    wound_check: "ব্যান্ডেজ পরীক্ষা",
   },
   or: {
     consult: "ଡାକ୍ତରଙ୍କୁ ଦେଖା",
@@ -370,6 +495,10 @@ export const STEP_WORDS: Record<Lang, Record<string, string>> = {
     treatment: "ଚିକିତ୍ସା",
     maintenance_dose: "ପରବର୍ତ୍ତୀ ଡୋଜ୍",
     echo_review: "ହୃଦୟ ପରୀକ୍ଷା ଓ ଦେଖା",
+    dialysis_session: "ଡାୟଲିସିସ୍",
+    nephrology_review: "ବୃକକ୍ ଡାକ୍ତରଙ୍କୁ ଦେଖା",
+    discharge_review: "ଡାକ୍ତରଖାନା ପରେ ଯାଞ୍ଚ",
+    wound_check: "ପଟି ଯାଞ୍ଚ",
   },
   en: {},
 };

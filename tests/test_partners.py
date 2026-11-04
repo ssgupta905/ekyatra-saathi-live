@@ -88,6 +88,17 @@ def test_otherwise_the_first_that_serves_the_place_and_hospital_by_name():
     assert chosen.id == "o"
 
 
+def test_a_cab_is_preferred_to_a_rail_desk_for_a_ride():
+    orgs = [
+        _org("r", OrgType.TRAVEL, name="Railway desk"),
+        _org("c", OrgType.CAB, name="Zed Cabs"),
+    ]
+
+    chosen = choose_organisation(TRANSPORT, district="Gaya", hospital_id="H", organisations=orgs)
+
+    assert chosen.id == "c"
+
+
 def test_nobody_in_the_directory_means_nobody_is_asked():
     assert (
         choose_organisation(TRANSPORT, district="Gaya", hospital_id="H", organisations=[]) is None

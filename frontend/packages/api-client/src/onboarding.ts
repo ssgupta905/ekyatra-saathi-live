@@ -82,7 +82,7 @@ export interface SchemaProperty {
   anyOf?: SchemaProperty[];
 }
 
-export interface StageState {
+export interface OnboardingStage {
   id: string;
   title: string;
   done: boolean;
@@ -93,7 +93,7 @@ export interface StageState {
 export interface OnboardingStatus {
   patient_id: string;
   name: string;
-  stages: StageState[];
+  stages: OnboardingStage[];
   done: number;
   total: number;
   ready: boolean;
@@ -154,6 +154,19 @@ export function fieldProblems(error: unknown): FieldProblem[] | null {
   }
   return null;
 }
+
+export interface DemoFamily {
+  patient_id: string;
+  name: string;
+  email: string | null;
+  story: string;
+}
+
+export const demo = {
+  /** Load, or reset, three scripted families whose sign-in codes go to these addresses. */
+  loadCast: (emails: string[]) =>
+    send<{ families: DemoFamily[] }>("POST", "/demo/cast", { emails }),
+};
 
 export const onboarding = {
   forms: () =>

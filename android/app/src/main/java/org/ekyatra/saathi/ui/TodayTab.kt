@@ -54,6 +54,8 @@ fun TodayTab(home: FamilyHome?, lang: Lang, s: Strings, speaker: Speaker, patien
         AnswerCard(home, lang, s, speaker)
         if (home == null || home.decision == null) return@Column
 
+        DoNowCard(home.guide, lang, s)
+
         if (home.waitingFor.isNotEmpty()) {
             ExpandableCard(
                 title = s.why,

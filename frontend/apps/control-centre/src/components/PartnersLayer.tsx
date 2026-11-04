@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  directory,
   readiness,
+  type Organisation,
+  type OrgType,
   type ReadinessItem,
   type ReadinessKind,
   type ReadinessStatus,
@@ -14,6 +17,15 @@ const KIND: Record<ReadinessKind, string> = {
   medicine: "Medicine",
   insurance: "Insurer / scheme",
   slot: "Booked slot",
+};
+
+/** Which kinds of organisation can answer each need. */
+const ORG_TYPES: Record<ReadinessKind, OrgType[]> = {
+  transport: ["cab", "travel"],
+  stay: ["hotel"],
+  medicine: ["pharmacy"],
+  insurance: ["insurer"],
+  slot: ["lab"],
 };
 
 const STATUS: Record<ReadinessStatus, { label: string; tone: Tone }> = {
@@ -79,6 +91,24 @@ export function PartnersLayer({
     }
   };
 
+  const [orgs, setOrgs] = useState<Organisation[]>([]);
+  const [ask, setAsk] = useState({ kind: "transport" as ReadinessKind, organisation: "" });
+  useEffect(() => {
+    if (canEdit) directory.list().then(setOrgs).catch(() => undefined);
+  }, [canEdit]);
+  const candidates = orgs.filter((o) => o.active && ORG_TYPES[ask.kind].includes(o.type));
+
+  const run = async (work: () => Promise<unknown>) => {
+    setError(null);
+    try {
+      await work();
+      load();
+      onChanged();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
   const clear = async (id: string) => {
     await readiness.clear(patientId, id).catch((e: Error) => setError(e.message));
     load();
@@ -118,7 +148,16 @@ export function PartnersLayer({
                 <td>{item.detail || "—"}</td>
                 {canEdit && (
                   <td>
-                    <button type="button" className="btn" onClick={() => clear(item.id)}>
+                    {item.status === "blocked" && item.alternative_available && item.partner_id && (
+                      <button
+                        type="button"
+                        className="btn primary small"
+                        onClick={() => run(() => readiness.rebook(patientId, item.id))}
+                      >
+                        Book another
+                      </button>
+                    )}{" "}
+                    <button type="button" className="btn small" onClick={() => clear(item.id)}>
                       Clear
                     </button>
                   </td>
@@ -131,6 +170,40 @@ export function PartnersLayer({
 
       {canEdit && (
         <div style={{ marginTop: 14 }}>
+          <h3>Ask an organisation from the directory</h3>
+          <div className="iss-fields cc-form">
+            <label>
+              <span>What</span>
+              <select
+                value={ask.kind}
+                onChange={(e) => setAsk({ kind: e.target.value as ReadinessKind, organisation: "" })}
+              >
+                {Object.entries(KIND).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Organisation</span>
+              <select value={ask.organisation} onChange={(e) => setAsk({ ...ask, organisation: e.target.value })}>
+                <option value="">Choose…</option>
+                {candidates.map((o) => (
+                  <option key={o.id} value={o.id}>{o.name}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="iss-actions" style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={!ask.organisation}
+              onClick={() => run(() => readiness.ask(patientId, ask.kind, ask.organisation))}
+            >
+              Ask them
+            </button>
+          </div>
+          <h3 style={{ marginTop: 18 }}>Or record an answer by hand</h3>
           <div className="iss-fields">
             <label>
               What

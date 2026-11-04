@@ -9,6 +9,7 @@ from .api.admin import router as admin_router
 from .api.auth import router as auth_router
 from .api.board import router as board_router
 from .api.consent import router as consent_router
+from .api.demo import router as demo_router
 from .api.directory import router as directory_router
 from .api.family import router as family_router
 from .api.guide import router as guide_router
@@ -47,6 +48,7 @@ def create_app() -> FastAPI:
     app.include_router(consent_router, prefix="/api")
     app.include_router(registry_router, prefix="/api")
     app.include_router(directory_router, prefix="/api")
+    app.include_router(demo_router, prefix="/api")
     app.include_router(onboarding_router, prefix="/api")
     app.include_router(reports_router, prefix="/api")
     app.include_router(family_router, prefix="/api")

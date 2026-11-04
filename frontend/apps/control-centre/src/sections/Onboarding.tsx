@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  directory,
   onboarding,
   registry,
   type AdmissionRecord,
@@ -8,6 +9,8 @@ import {
   type Hospital,
   type OnboardingRow,
   type OnboardingStatus,
+  type Organisation,
+  type OrgType,
   type ProfileDocument,
 } from "@saathi/api-client";
 import { Card, Chip, Notice } from "@saathi/ui-web";
@@ -248,12 +251,14 @@ function SectionForm({
   patientId,
   section,
   onSaved,
+  choices,
 }: {
   title: string;
   hint?: string;
   patientId: string;
   section: string;
   onSaved: () => void;
+  choices?: Record<string, { value: string; label: string }[]>;
 }) {
   const [schema, setSchema] = useState<FormSchema | null>(null);
   const [initial, setInitial] = useState<Record<string, unknown> | null>(null);
@@ -284,6 +289,7 @@ function SectionForm({
             key={`${patientId}-${section}`}
             schema={schema}
             initial={initial}
+            choices={choices}
             onSave={(values) => onboarding.saveSection(patientId, section, values)}
             onSaved={onSaved}
           />
@@ -414,6 +420,10 @@ function Admissions({ patientId, onChanged }: { patientId: string; onChanged: ()
   const [clinicians, setClinicians] = useState<Clinician[]>([]);
   const [pathways, setPathways] = useState<{ id: string; name: string }[]>([]);
   const [steps, setSteps] = useState(0);
+  const [orgs, setOrgs] = useState<Organisation[]>([]);
+  useEffect(() => {
+    directory.list().then(setOrgs).catch(() => undefined);
+  }, []);
 
   const load = useCallback(() => {
     onboarding.admissions(patientId).then(setList).catch(() => setList([]));
@@ -427,6 +437,8 @@ function Admissions({ patientId, onChanged }: { patientId: string; onChanged: ()
   }, []);
 
   const hospitalName = (id: string) => hospitals.find((h) => h.id === id)?.name ?? id;
+  const orgChoices = (...types: OrgType[]) =>
+    orgs.filter((o) => o.active && types.includes(o.type)).map((o) => ({ value: o.id, label: o.name }));
   const choices = {
     hospital_id: hospitals.filter((h) => h.active).map((h) => ({ value: h.id, label: h.name })),
     clinician_id: clinicians.filter((c) => c.active).map((c) => ({ value: c.id, label: `${c.name} · ${hospitalName(c.hospital_id)}` })),
@@ -473,6 +485,19 @@ function Admissions({ patientId, onChanged }: { patientId: string; onChanged: ()
           />
         </Card>
       )}
+      <SectionForm
+        title="Who this family's journey should use"
+        hint="Leave a choice blank and the directory's best fit for their district and hospital is used."
+        patientId={patientId}
+        section="partners"
+        onSaved={onChanged}
+        choices={{
+          transport: orgChoices("cab", "travel"),
+          stay: orgChoices("hotel"),
+          medicine: orgChoices("pharmacy"),
+          insurance: orgChoices("insurer"),
+        }}
+      />
       <Card title="Care steps" hint="The visits and reports this admission involves. The family is planned the moment one is added.">
         <AddStep revision={steps} onAdded={() => { setSteps((n) => n + 1); onChanged(); }} />
       </Card>
