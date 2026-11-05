@@ -93,7 +93,12 @@ RESPONSE_SCHEMA = {
         },
         "restates_decision": {
             "type": "string",
-            "enum": ["go", "wait", "uncertain"],
+            # Derived, not listed. A hand-written copy of this enum silently
+            # rotted the moment `REPLAN` joined `Decision`: the model correctly
+            # reported a replan, strict decoding rejected it as out of enum, and
+            # every message to a family whose journey had just gone wrong was
+            # diverted — at precisely the moment they most needed telling.
+            "enum": [d.value for d in Decision],
             "description": "The decision the body communicates. Must match the plan.",
         },
         "mentions_date": {

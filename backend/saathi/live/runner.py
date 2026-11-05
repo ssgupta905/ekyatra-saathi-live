@@ -283,6 +283,12 @@ class LiveRunner:
             )
         if self.partners is not None and (self._partner_task is None or self._partner_task.done()):
             self._partner_task = asyncio.create_task(self._partner_loop(), name="saathi-partners")
+            # Said out loud because the failure is silent: without this task the
+            # network's answers never land, no error is raised anywhere, and the
+            # only symptom is a chain that stops halfway through a demonstration.
+            logger.info("partner loop started: simulated organisations will answer")
+        elif self.partners is None:
+            logger.info("no partner desk: nothing will answer on the network's behalf")
         # Plan once up front so a console that connects before the first tick
         # still sees real decisions rather than an empty page.
         await self.plan_all()

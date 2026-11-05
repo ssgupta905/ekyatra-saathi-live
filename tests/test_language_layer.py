@@ -186,3 +186,19 @@ def test_connection_error_is_diverted_not_raised(ledger_and_plan):
 
     assert message.routed_to_care_team is True
     assert message.body == ""
+
+
+def test_the_schema_offers_every_decision_the_domain_has():
+    """A hand-written copy of an enum rots the moment the enum grows.
+
+    `REPLAN` joined `Decision` and this list did not follow it, so strict
+    decoding rejected every render for a family whose journey had just gone
+    wrong — the one moment a family most needs to be told something. The list
+    is derived now; this fails if anyone writes it out by hand again.
+    """
+    from saathi.domain.enums import Decision
+    from saathi.language.rendering import RESPONSE_SCHEMA
+
+    offered = set(RESPONSE_SCHEMA["properties"]["restates_decision"]["enum"])
+
+    assert offered == {d.value for d in Decision}
