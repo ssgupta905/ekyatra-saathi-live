@@ -7,12 +7,13 @@
  * person signs in again on reload, which is the safe way to fail.
  */
 
+import type { Role } from "./api";
 import { configureClient, request } from "./client";
 
 export interface Principal {
   id: string;
   name: string;
-  role: "navigator" | "doctor" | "desk" | "admin" | "caregiver" | "patient";
+  role: Role;
   /** For a caregiver: the families they may see. Empty for staff. */
   patient_ids: string[];
 }

@@ -43,6 +43,8 @@ export const ROLE_TITLES: Record<Role, string> = {
   admin: "Administrator",
   caregiver: "Caregiver",
   patient: "Patient",
+  //: Listed for completeness; a partner signs in to its own app, not this one.
+  partner: "Network partner",
 };
 
 export const ROLE_GROUPS: { role: Role; label: string; does: string }[] = [

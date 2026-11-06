@@ -62,6 +62,9 @@ export const HOME: Record<Role, string> = {
   admin: "today",
   caregiver: "today",
   patient: "today",
+  //: A partner never reaches this app — `AuthGate` turns the role away — but
+  //: the map is exhaustive so a new role cannot be forgotten here silently.
+  partner: "today",
 };
 
 export function sectionsFor(role: Role, demo: boolean): Section[] {

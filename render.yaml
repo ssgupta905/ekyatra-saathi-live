@@ -98,3 +98,19 @@ services:
         sync: false
       - key: NODE_VERSION
         value: "22"
+
+  # The vendors' own site: a cab firm, a hotel desk, a pharmacy or a scheme
+  # desk signing in to answer the jobs its organisation was asked to do. It
+  # shares the backend and nothing else — the role cannot read a family.
+  - type: web
+    name: ekyatra-saathi-partner
+    runtime: static
+    buildCommand: >-
+      cd frontend && npm ci && npm run build -w @saathi/partner-web &&
+      printf '{"apiBase":"%s"}' "$SAATHI_API_BASE" > apps/partner-web/dist/config.json
+    staticPublishPath: frontend/apps/partner-web/dist
+    envVars:
+      - key: SAATHI_API_BASE
+        sync: false
+      - key: NODE_VERSION
+        value: "22"

@@ -30,8 +30,8 @@ function viteConfig(app: string): { name: string; port: number } {
 const portOf = (app: string) => viteConfig(app).port;
 
 describe("the apps", () => {
-  it("are the three we expect: the control centre, the family's site, the stage", () => {
-    expect(apps).toEqual(["control-centre", "demo-stage", "family-web"]);
+  it("are the four we expect: the control centre, the family, the partner, the stage", () => {
+    expect(apps).toEqual(["control-centre", "demo-stage", "family-web", "partner-web"]);
   });
 
   it.each(apps)("%s is a complete app", (app) => {
@@ -75,6 +75,11 @@ describe("the apps", () => {
     const family = read("family-web", "src/main.tsx");
     expect(family.indexOf("<AuthGate")).toBeLessThan(family.indexOf("<App />"));
     expect(family).toContain('roles={["caregiver"]}');
+    // A vendor's app admits vendors and nobody else. Staff have their own way
+    // in and no business in this one; a family must never land here at all.
+    const partner = read("partner-web", "src/main.tsx");
+    expect(partner.indexOf("<AuthGate")).toBeLessThan(partner.indexOf("<App />"));
+    expect(partner).toContain('roles={["partner"]}');
   });
 
   it("offer every staff screen a section, each for the roles that use it", async () => {

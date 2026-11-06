@@ -252,7 +252,16 @@ export type ControlAction = "play" | "pause" | "step" | "reset" | "speed";
    ────────────────────────────────────────────────────────────────────────── */
 
 export type DisruptionKind = "machine_down" | "staff_unavailable" | "stock_delay";
-export type Role = "navigator" | "doctor" | "desk" | "admin" | "patient" | "caregiver";
+/** Everyone who can sign in. `partner` is a vendor answering for one
+ *  organisation — not staff, and never able to read a family. */
+export type Role =
+  | "navigator"
+  | "doctor"
+  | "desk"
+  | "admin"
+  | "patient"
+  | "caregiver"
+  | "partner";
 
 export interface Disruption {
   id: string;
@@ -712,4 +721,45 @@ export const family = {
     return (await response.json()) as Transcript;
   },
   say: (patientId: string, text: string) => live.inject(patientId, undefined, text),
+};
+
+/* ──────────────────────────────────────────────────────────────────────────
+   The partner's own queue
+   --------------------------------------------------------------------------
+   A cab firm, a hotel desk, a pharmacy or a scheme desk sees the jobs its own
+   organisation was asked to do, and nothing else. A job carries a first name,
+   a district and — only when the plan promises one — a day. A contact appears
+   only when the family has agreed to share it, and `contact_withheld` says so
+   when they have not, rather than leaving a blank nobody can explain.
+   ────────────────────────────────────────────────────────────────────────── */
+
+export type PartnerAnswer = "accepted" | "ready" | "cannot";
+
+export interface PartnerJob {
+  item_id: string;
+  need: string;
+  status: string;
+  detail: string;
+  family: {
+    first_name: string;
+    district: string;
+    /** Null unless the plan promises a date. Never guess one. */
+    on: string | null;
+    contact: string | null;
+    contact_withheld: boolean;
+  };
+}
+
+export interface PartnerQueue {
+  organisation: { id: string; name: string };
+  jobs: PartnerJob[];
+}
+
+export const partner = {
+  jobs: () => request<PartnerQueue>("/partner/jobs"),
+  answer: (itemId: string, answer: PartnerAnswer, reason = "") =>
+    request<{ item_id: string; status: string; detail: string }>(
+      `/partner/jobs/${encodeURIComponent(itemId)}`,
+      { method: "POST", body: JSON.stringify({ answer, reason }) },
+    ),
 };

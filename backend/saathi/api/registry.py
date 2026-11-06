@@ -235,6 +235,11 @@ class UserIn(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     role: Role
     password: str = Field(min_length=8, max_length=256)
+    #: Required for a partner, meaningless for anyone else: the one
+    #: organisation this account answers for. The identity store refuses a
+    #: partner without it rather than creating an account that can see
+    #: nothing, or everything, depending on how a query was written.
+    organisation_id: str | None = None
 
 
 @router.post("/admin/users", status_code=201, dependencies=[AdminOnly])
@@ -243,11 +248,18 @@ async def add_user(state: ContainerDep, principal: PrincipalDep, body: UserIn) -
     if any(u["username"] == body.username.lower() for u in identity.list_users()):
         raise HTTPException(409, f"{body.username} already exists")
     try:
-        identity.add_user(body.username, body.name, body.role, body.password)
+        identity.add_user(
+            body.username,
+            body.name,
+            body.role,
+            body.password,
+            organisation_id=body.organisation_id,
+        )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
+    held = f" for {body.organisation_id}" if body.organisation_id else ""
     ledger(state, principal, f"user/{body.username.lower()}",
-           f"staff account {body.username.lower()} created as {body.role.value}")  # fmt: skip
+           f"{body.role.value} account {body.username.lower()} created{held}")  # fmt: skip
     return next(u for u in identity.list_users() if u["username"] == body.username.lower())
 
 

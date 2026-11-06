@@ -11,7 +11,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "test": "vitest run",
-    "dev": "concurrently -k -n control,family-web,demo-stage -c cyan,yellow,red \"npm run dev -w @saathi/control-centre\" \"npm run dev -w @saathi/family-web\" \"npm run dev -w @saathi/demo-stage\""
+    "dev": "concurrently -k -n control,family-web,partner-web,demo-stage -c cyan,yellow,magenta,red \"npm run dev -w @saathi/control-centre\" \"npm run dev -w @saathi/family-web\" \"npm run dev -w @saathi/partner-web\" \"npm run dev -w @saathi/demo-stage\""
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
