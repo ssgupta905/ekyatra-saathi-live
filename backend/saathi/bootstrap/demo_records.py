@@ -25,6 +25,7 @@ from ..domain.enums import (
     StepStatus,
 )
 from ..domain.models import CareStep, Patient, ReadinessItem, Resource
+from ..domain.seeded import SHOWCASE_PREFIX
 from ..ports.records import RecordStore, TurnaroundObservation
 from ..synthetic.generate import generate_cohort
 
@@ -95,9 +96,6 @@ def apply_demo_contacts(store: RecordStore, settings: Settings) -> bool:
 #: The family `seed_demo_phone` and `seed_demo_email` are attached to.
 FIRST_FAMILY = "P0000"
 
-#: Showcase families carry this prefix, so topping up never mistakes them for
-#: anyone else's records and never adds them twice.
-SHOWCASE_PREFIX = "SHOW-"
 _HOSPITAL = "TMH-MUM"
 
 

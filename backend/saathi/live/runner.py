@@ -214,6 +214,10 @@ class LiveRunner:
     #: The network answering journeys: asks the directory's organisations and hears
     #: back. None when partners are off.
     partners: object | None = None
+    #: False until the first full plan has run. Learning the state of a
+    #: hospital is not news to anybody in it: nothing has changed yet, so
+    #: nothing is written. See `plan_all`.
+    _has_planned: bool = False
     #: Fact sources — journeys, resource status, lab queues, entitlements.
     #: Every call is timed, written to the ledger and published, so a figure on
     #: screen can be traced back to the call that produced it.
@@ -1294,7 +1298,16 @@ class LiveRunner:
                 duration_ms=run.plan_ms,
                 decision=run.decision.value if run.decision else None,
             )
-            if run.patient_id in self.world.watched:
+            # A message says something changed. On the first pass nothing has:
+            # the planner is learning what the hospital already knew, and every
+            # family's plan is "new" only because this process just started.
+            #
+            # Writing to all of them anyway cost a hundred and ten model calls
+            # and a 429 from the provider, and every later call — including the
+            # ones that move a family's journey along — queued behind that
+            # burst. The network's answers arrived four minutes late instead of
+            # the ninety seconds the demonstration promises.
+            if run.patient_id in self.world.watched and self._has_planned:
                 await self._render_for(run.patient_id)
 
         if self.partners is not None:
@@ -1303,6 +1316,8 @@ class LiveRunner:
                     await self.plan_patient(patient.id, allow_render=True)
         for patient, _ in work:
             await self._announce_guide(patient.id)
+        # Everything from here on is a change, and changes are worth saying.
+        self._has_planned = True
 
     async def _announce_guide(self, patient_id: str) -> None:
         """Tell a family what changed on their journey, in their language, in the thread."""

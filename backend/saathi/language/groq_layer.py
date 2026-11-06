@@ -24,6 +24,9 @@ from __future__ import annotations
 
 import json
 import logging
+import re
+import threading
+import time
 
 import groq
 from pydantic import ValidationError
@@ -66,6 +69,59 @@ def _why(exc: groq.APIStatusError) -> str:
             if detail:
                 return str(detail)[:300]
     return str(exc)[:300]
+
+
+#: The longest a render will wait out a rate limit before giving up. A family
+#: hearing late is better than not hearing; a request held much longer than
+#: this is holding up everything behind it instead.
+RATE_LIMIT_WAIT = 20.0
+
+#: One render at a time. The limit that binds is tokens per minute, and two
+#: dozen renders firing together exhaust it, all back off together, and wake
+#: together to exhaust it again. Queued, each one waits out its own limit and
+#: the queue drains at whatever rate the service will actually sustain.
+#: Renders already run on worker threads, so this blocks a thread, never the
+#: event loop — the journey chain keeps moving while messages catch up.
+_ONE_AT_A_TIME = threading.Lock()
+
+
+def _retry_after(exc: groq.RateLimitError) -> float | None:
+    """How long to wait before one more try, or None for "do not bother".
+
+    Three cases, and they are not the same. The service names a short wait, so
+    wait it. The service names an hour, so do not: holding the request open
+    changes nothing and blocks everything behind it. The service names nothing,
+    so wait a couple of seconds — these bursts usually clear in about that.
+    """
+    headers = getattr(getattr(exc, "response", None), "headers", None) or {}
+    # Token-per-minute is the limit that actually bites, so read its reset
+    # first: it clears in under a second, while the daily request budget reads
+    # "4h29m16.8s" and is not worth waiting for.
+    for name in ("retry-after", "x-ratelimit-reset-tokens", "x-ratelimit-reset-requests"):
+        raw = headers.get(name)
+        if not raw:
+            continue
+        seconds = _duration(str(raw))
+        if seconds is None:
+            continue
+        return seconds if 0 < seconds <= RATE_LIMIT_WAIT else None
+    return 2.0
+
+
+#: Groq writes durations as "787ms", "1.5s" or "4h29m16.8s". A plain float()
+#: on any of those raises, which sent every wait down the blind two-second
+#: fallback — long enough to miss a bucket that refills in under a second, and
+#: short enough that two dozen renders all woke together and exhausted it again.
+_DURATION = re.compile(r"(\d+(?:\.\d+)?)(ms|s|m|h)?")
+_UNITS = {"ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0, None: 1.0}
+
+
+def _duration(raw: str) -> float | None:
+    """Seconds from a duration the service wrote in its own notation."""
+    parts = _DURATION.findall(raw.strip())
+    if not parts:
+        return None
+    return sum(float(value) * _UNITS[unit or None] for value, unit in parts)
 
 
 def _is_schema_miss(exc: groq.APIStatusError, why: str) -> bool:
@@ -115,28 +171,42 @@ class GroqLanguageLayer:
         # "someone will call you" instead of their travel date, which is a real
         # loss to them and no safer: the guard still reads whatever comes back.
         #
-        # Nothing else is retried. A rate limit, a bad model name, or an
-        # unreachable service are not transient in a way a second immediate
-        # call would fix, and hammering them makes each worse.
+        # A rate limit is retried too, but by waiting rather than by asking
+        # again at once. The service says how long; honouring it turns a
+        # dropped message into a late one, which for a family waiting to hear
+        # whether to travel is not the same thing at all.
+        #
+        # Nothing else is retried. A bad model name or an unreachable service
+        # are not transient in a way a second call would fix.
+        waited = False
         for attempt in range(2):
             try:
-                response = self._client.chat.completions.create(
-                    model=self._model,
-                    max_tokens=MAX_TOKENS,
-                    # Rendering a decided plan into one language is not a
-                    # creative task. Low temperature keeps the same plan reading
-                    # the same way twice, which matters when a navigator reads
-                    # it aloud. The retry nudges it up, because repeating a
-                    # near-deterministic call that just failed tends to fail the
-                    # same way.
-                    temperature=0.2 if attempt == 0 else 0.5,
-                    messages=messages,
-                    response_format=RESPONSE_FORMAT,
-                    # No tools, ever. There is nothing for an injection to call.
-                )
+                with _ONE_AT_A_TIME:
+                    response = self._client.chat.completions.create(
+                        model=self._model,
+                        max_tokens=MAX_TOKENS,
+                        # Rendering a decided plan into one language is not a
+                        # creative task. Low temperature keeps the same plan
+                        # reading the same way twice, which matters when a
+                        # navigator reads it aloud. The retry nudges it up,
+                        # because repeating a near-deterministic call that just
+                        # failed tends to fail the same way.
+                        temperature=0.2 if attempt == 0 else 0.5,
+                        messages=messages,
+                        response_format=RESPONSE_FORMAT,
+                        # No tools, ever. Nothing for an injection to call.
+                    )
                 break
-            except groq.RateLimitError:
-                return diverted("rate limited — retry queued")
+            except groq.RateLimitError as exc:
+                pause = _retry_after(exc)
+                if waited or pause is None:
+                    # Said plainly. The old wording claimed a retry was queued;
+                    # nothing queued one, so a family simply never heard.
+                    return diverted(f"rate limited, and still limited after {RATE_LIMIT_WAIT}s")
+                logger.info("rate limited; waiting %.1fs before one more try", pause)
+                time.sleep(pause)
+                waited = True
+                continue
             except groq.NotFoundError as exc:
                 return diverted(f"model or endpoint not found: {exc}")
             except groq.APIStatusError as exc:

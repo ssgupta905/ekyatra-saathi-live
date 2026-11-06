@@ -315,10 +315,17 @@ def test_the_retry_sends_the_same_prompt(ledger_and_plan):
     assert first["max_tokens"] == second["max_tokens"]
 
 
-def test_a_rate_limit_is_not_retried(ledger_and_plan):
-    """Not transient in a way an immediate second call fixes, and hammering a
-    rate limit makes it worse."""
+def test_a_rate_limit_is_retried_after_waiting(ledger_and_plan, monkeypatch):
+    """Once, after waiting — not immediately.
+
+    This test used to assert the opposite, on the reasoning that hammering a
+    rate limit makes it worse. That reasoning holds for an *immediate* retry
+    and not for a patient one: a burst of renders earned forty-six 429s in one
+    run, and twenty-two families were simply never written to. Waiting the
+    short time the service asks for turns those into late messages instead of
+    missing ones."""
     ledger, plan = ledger_and_plan
+    monkeypatch.setattr("saathi.language.groq_layer.time.sleep", lambda _: None)
     client = _StubClient(
         raises=groq.RateLimitError(
             "slow down",
@@ -331,7 +338,7 @@ def test_a_rate_limit_is_not_retried(ledger_and_plan):
         plan, Language.HINDI, Channel.WHATSAPP, ledger
     )
 
-    assert len(client.chat.completions.calls) == 1
+    assert len(client.chat.completions.calls) == 2, "one wait, then one more try"
     assert message.routed_to_care_team is True
 
 
@@ -353,3 +360,144 @@ def test_an_unrelated_400_is_not_retried(ledger_and_plan):
     assert message.routed_to_care_team is True
     # The service's own words reach the operator rather than a bare status code.
     assert "model_not_supported" in (message.routing_reason or "")
+
+
+# ---------------------------------------------------------------- rate limits
+
+
+def _rate_limited(retry_after: str | None = "1") -> groq.RateLimitError:
+    headers = {"retry-after": retry_after} if retry_after else {}
+    return groq.RateLimitError(
+        "slow down",
+        response=httpx.Response(
+            429, headers=headers, request=httpx.Request("POST", "http://x")
+        ),
+        body=None,
+    )
+
+
+class _LimitedThenFine:
+    """Rate-limits `limits` times, then renders normally."""
+
+    def __init__(self, limits: int, response) -> None:
+        self._limits = limits
+        self._response = response
+        self.calls: list[dict] = []
+        self.chat = type("_Chat", (), {})()
+        self.chat.completions = self
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        if len(self.calls) <= self._limits:
+            raise _rate_limited()
+        return self._response
+
+
+def test_a_rate_limit_is_waited_out_rather_than_dropped(ledger_and_plan, monkeypatch):
+    """The old behaviour said "retry queued" and queued nothing.
+
+    A family waiting to hear whether to travel is not served by a message that
+    was composed, refused and silently abandoned. The service says how long;
+    waiting that long turns a dropped message into a late one.
+    """
+    slept: list[float] = []
+    monkeypatch.setattr("saathi.language.groq_layer.time.sleep", slept.append)
+    ledger, plan = ledger_and_plan
+    client = _LimitedThenFine(1, _payload("12 मार्च को आइए।"))
+
+    message = GroqLanguageLayer(client=client).render(
+        plan, Language.HINDI, Channel.WHATSAPP, ledger
+    )
+
+    assert len(client.calls) == 2
+    assert slept == [1.0], "it should wait exactly as long as the service asked"
+    assert message.routed_to_care_team is False
+
+
+def test_it_waits_once_and_then_says_so(ledger_and_plan, monkeypatch):
+    monkeypatch.setattr("saathi.language.groq_layer.time.sleep", lambda _: None)
+    ledger, plan = ledger_and_plan
+    client = _LimitedThenFine(5, _payload("12 मार्च को आइए।"))
+
+    message = GroqLanguageLayer(client=client).render(
+        plan, Language.HINDI, Channel.WHATSAPP, ledger
+    )
+
+    assert len(client.calls) == 2, "one wait, not a loop that holds up everything behind it"
+    assert message.routed_to_care_team is True
+    assert "still limited" in (message.routing_reason or "")
+
+
+def test_an_unreasonable_wait_is_not_waited_for(ledger_and_plan, monkeypatch):
+    """A limit that clears in an hour is not worth holding a request open for."""
+    slept: list[float] = []
+    monkeypatch.setattr("saathi.language.groq_layer.time.sleep", slept.append)
+    ledger, plan = ledger_and_plan
+    client = _LimitedThenFine(1, _payload("12 मार्च को आइए।"))
+    def create(**kwargs):
+        client.calls.append(kwargs)
+        raise _rate_limited("3600")
+
+    client.chat.completions.create = create
+
+    message = GroqLanguageLayer(client=client).render(
+        plan, Language.HINDI, Channel.WHATSAPP, ledger
+    )
+
+    assert slept == [], "an hour-long limit is not something to sit and wait out"
+    assert message.routed_to_care_team is True
+
+
+def test_durations_are_read_in_the_notation_the_service_writes_them():
+    """Groq writes "787ms", "1.5s", "4h29m16.8s". float() raises on all three.
+
+    That sent every wait down the blind two-second fallback: long enough to
+    miss a token bucket that refills in under a second, short enough that two
+    dozen renders woke together and exhausted it again.
+    """
+    from saathi.language.groq_layer import _duration
+
+    assert _duration("787ms") == pytest.approx(0.787)
+    assert _duration("1.5s") == pytest.approx(1.5)
+    assert _duration("4h29m16.8s") == pytest.approx(16156.8)
+    assert _duration("2") == pytest.approx(2.0)
+    assert _duration("") is None
+
+
+def test_the_token_bucket_reset_is_preferred_over_the_daily_one(ledger_and_plan, monkeypatch):
+    """Tokens-per-minute is the limit that bites; requests-per-day is not worth
+    waiting for, and reading them in the wrong order gives up on both."""
+    slept: list[float] = []
+    monkeypatch.setattr("saathi.language.groq_layer.time.sleep", slept.append)
+    ledger, plan = ledger_and_plan
+
+    class _Limited:
+        def __init__(self) -> None:
+            self.calls: list[dict] = []
+            self.chat = type("_Chat", (), {})()
+            self.chat.completions = self
+
+        def create(self, **kwargs):
+            self.calls.append(kwargs)
+            if len(self.calls) == 1:
+                raise groq.RateLimitError(
+                    "slow down",
+                    response=httpx.Response(
+                        429,
+                        headers={
+                            "x-ratelimit-reset-requests": "4h29m16.8s",
+                            "x-ratelimit-reset-tokens": "787ms",
+                        },
+                        request=httpx.Request("POST", "http://x"),
+                    ),
+                    body=None,
+                )
+            return _payload("12 मार्च को आइए।")
+
+    client = _Limited()
+    message = GroqLanguageLayer(client=client).render(
+        plan, Language.HINDI, Channel.WHATSAPP, ledger
+    )
+
+    assert slept == [pytest.approx(0.787)], "it should wait for the bucket, not the day"
+    assert message.routed_to_care_team is False

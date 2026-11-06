@@ -44,6 +44,7 @@ from ..domain.models import (
     Resource,
 )
 from ..domain.pathway import get_pathway
+from ..domain.seeded import is_seed_data
 from ..ports.records import RecordStore, StoredOptionSet, TurnaroundObservation
 from ..synthetic.generate import GroundTruth, SyntheticCohort, generate_cohort
 from ..synthetic.scripted import (
@@ -235,9 +236,26 @@ class LiveWorld:
         world.restored_option_sets = records.option_sets
         world.restored_approvals = records.approvals
         world.restored_messages = records.family_messages
-        # Every family is watched: with no actors there is no per-family cost to
-        # cap, and a family the hospital entered should hear from it.
-        world.watched = tuple(p.id for p in records.patients)
+        # Watched means "write this family a message when their plan changes".
+        #
+        # That was every family, on the reasoning that without actors there is
+        # no per-family cost to cap. With a language layer configured there is:
+        # one model call each, and the account that runs this allows eight
+        # thousand tokens a minute. Twenty-four families turned a single press
+        # of "load the demo families" into fifty-five calls, fifty-five 429s
+        # and fifty-four messages nobody ever received.
+        #
+        # A family the hospital *entered* is still written to, named or not
+        # reachable yet — that is the contract. What is excluded is seed data:
+        # the synthetic cohort, which has no name because nobody entered one,
+        # and the showcase families, which exist to fill a screen. Neither is a
+        # family anyone is looking after, and writing Hindi to them spends the
+        # minute's tokens on messages with no reader.
+        world.watched = tuple(
+            p.id
+            for p in records.patients
+            if not is_seed_data(p.id, p.name)
+        )
         return world
 
     # ---------------- entering records (real world) ----------------
