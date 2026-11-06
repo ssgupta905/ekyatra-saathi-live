@@ -71,6 +71,13 @@ services:
       # run; only the wording falls back to templates.
       - key: GROQ_API_KEY
         sync: false
+      # Speech, in the languages this is for. Also not under the prefix: the
+      # settings field is aliased to the name the key is issued under.
+      # Without it a family can still type, but nothing can be read aloud —
+      # and no browser has an Odia voice, so an Odia family gets no audio at
+      # all rather than a worse voice.
+      - key: SARVAM_KEY
+        sync: false
 
   - type: web
     name: ekyatra-saathi-control-centre
