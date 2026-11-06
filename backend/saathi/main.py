@@ -15,6 +15,7 @@ from .api.family import router as family_router
 from .api.guide import router as guide_router
 from .api.live import router as live_router
 from .api.onboarding import router as onboarding_router
+from .api.partner import router as partner_router
 from .api.readiness import router as readiness_router
 from .api.records import router as records_router
 from .api.registry import router as registry_router
@@ -53,6 +54,7 @@ def create_app() -> FastAPI:
     app.include_router(reports_router, prefix="/api")
     app.include_router(family_router, prefix="/api")
     app.include_router(guide_router, prefix="/api")
+    app.include_router(partner_router, prefix="/api")
     return app
 
 

@@ -70,7 +70,8 @@ class FamilyMemberRow(Base):
 
 
 class UserRow(Base):
-    """A staff account. Families have none: they prove a phone number instead."""
+    """A staff or partner account. Families have none: they prove a phone or
+    an email instead, and a partner answers for exactly one organisation."""
 
     __tablename__ = "users"
 
@@ -80,6 +81,8 @@ class UserRow(Base):
     role: Mapped[str] = mapped_column(String(16))
     password_hash: Mapped[str] = mapped_column(String(255))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    #: Which organisation a partner account answers for. Null for staff.
+    organisation_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class HospitalRow(Base):

@@ -24,6 +24,9 @@ class Principal:
     role: Role
     #: For a caregiver: the families they may see. Empty for staff, who see all.
     patient_ids: tuple[str, ...] = ()
+    #: For a partner: the one organisation they answer for. A partner with no
+    #: organisation can see nothing, which is the safe way for this to fail.
+    organisation_id: str | None = None
 
     @property
     def is_staff(self) -> bool:

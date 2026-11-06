@@ -126,6 +126,10 @@ ROLE_BLURB: dict[Role, str] = {
     Role.DOCTOR: "Approves re-plans that touch treatment timing; may see the medical background.",
     Role.CAREGIVER: "A family member: sees only their own family's journey.",
     Role.PATIENT: "The patient: sees only their own journey.",
+    Role.PARTNER: (
+        "A cab firm, hotel, pharmacy or scheme desk: sees the jobs its own "
+        "organisation was asked to do, and nothing about anyone's care."
+    ),
 }
 
 

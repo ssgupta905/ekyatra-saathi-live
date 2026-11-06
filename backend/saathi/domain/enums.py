@@ -175,6 +175,11 @@ class Role(StrEnum):
     ADMIN = "admin"
     PATIENT = "patient"
     CAREGIVER = "caregiver"
+    #: A cab firm, a hotel desk, a pharmacy, a scheme desk. Signs in with a
+    #: password like staff, but is not staff: it sees the jobs its own
+    #: organisation has been asked to do and nothing else — no families, no
+    #: care steps, no plan. See `api/partner.py`.
+    PARTNER = "partner"
 
 
 class FamilyMemberRole(StrEnum):

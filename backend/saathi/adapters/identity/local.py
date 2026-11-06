@@ -124,8 +124,25 @@ class LocalIdentity:
 
     # ---------------- accounts ----------------
 
-    def add_user(self, username: str, name: str, role: Role, password: str) -> None:
-        if role not in STAFF_ROLES:
+    def add_user(
+        self,
+        username: str,
+        name: str,
+        role: Role,
+        password: str,
+        *,
+        organisation_id: str | None = None,
+    ) -> None:
+        """A staff account, or a partner account bound to one organisation.
+
+        A partner must name its organisation: an account that answers for
+        nobody would see every job or none depending on how the query was
+        written, and neither is something to leave to chance.
+        """
+        if role is Role.PARTNER:
+            if not organisation_id:
+                raise ValueError("a partner account must say which organisation it answers for")
+        elif role not in STAFF_ROLES:
             raise ValueError("accounts with passwords are for staff; families use a phone code")
         if len(password) < 8:
             raise ValueError("a password needs at least 8 characters")
@@ -138,13 +155,14 @@ class LocalIdentity:
             row.role = role.value
             row.password_hash = self._hasher.hash(password)
             row.active = True
+            row.organisation_id = organisation_id if role is Role.PARTNER else None
 
     def list_users(self) -> list[dict]:
         """Every staff account, without its password hash."""
         with self._sessions() as db:
             return [
                 {"id": r.id, "username": r.username, "name": r.name, "role": r.role,
-                 "active": r.active}  # fmt: skip
+                 "active": r.active, "organisation_id": r.organisation_id}  # fmt: skip
                 for r in db.scalars(select(UserRow).order_by(UserRow.username))
             ]
 
@@ -157,7 +175,7 @@ class LocalIdentity:
         active: bool | None = None,
         password: str | None = None,
     ) -> dict:
-        if role is not None and role not in STAFF_ROLES:
+        if role is not None and role is not Role.PARTNER and role not in STAFF_ROLES:
             raise ValueError("accounts with passwords are for staff; families use a phone code")
         if password is not None and len(password) < 8:
             raise ValueError("a password needs at least 8 characters")
@@ -174,7 +192,8 @@ class LocalIdentity:
             if password is not None:
                 row.password_hash = self._hasher.hash(password)
             return {"id": row.id, "username": row.username, "name": row.name,
-                    "role": row.role, "active": row.active}  # fmt: skip
+                    "role": row.role, "active": row.active,
+                    "organisation_id": row.organisation_id}  # fmt: skip
 
     def has_users(self) -> bool:
         with self._sessions() as db:
@@ -197,7 +216,12 @@ class LocalIdentity:
             return None
         with self._lock:
             self._failures.pop(key, None)
-        return Principal(id=row.id, name=row.name, role=Role(row.role))
+        return Principal(
+            id=row.id,
+            name=row.name,
+            role=Role(row.role),
+            organisation_id=row.organisation_id,
+        )
 
     def _check_not_locked(self, key: str) -> None:
         with self._lock:
@@ -305,6 +329,10 @@ class LocalIdentity:
                 "name": principal.name,
                 "role": principal.role.value,
                 "pids": list(principal.patient_ids),
+                # Which organisation a partner answers for. Without it the
+                # token says "partner" and nothing else, and every job query
+                # has to fail closed — a working account that can see nothing.
+                "org": principal.organisation_id,
                 "iat": issued,
                 "exp": issued + ttl,
             },
@@ -330,6 +358,7 @@ class LocalIdentity:
                 name=claims.get("name", ""),
                 role=Role(claims["role"]),
                 patient_ids=tuple(claims.get("pids") or ()),
+                organisation_id=claims.get("org"),
             )
         except (jwt.PyJWTError, ValueError):
             return None
