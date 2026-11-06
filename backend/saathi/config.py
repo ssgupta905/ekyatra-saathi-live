@@ -86,6 +86,15 @@ class Settings(BaseSettings):
     seed_demo_email: str | None = None
     #: Email for one-time codes, sent through Brevo over HTTPS. Without both of
     #: these the code is written to the log, as it is for a phone with no SMS.
+    #: Sarvam: speech in Indian languages. First choice for listening, and the
+    #: only way the family app can speak at all — no browser has an Odia voice.
+    #: Aliased because the key is handed out as SARVAM_KEY, not under our prefix.
+    sarvam_api_key: str | None = Field(default=None, alias="SARVAM_KEY")
+    #: Pinned, not inferred: every earlier version of either model answers a
+    #: request with a deprecation notice instead of audio.
+    sarvam_listen_model: str = "saarika:v2.5"
+    sarvam_speak_model: str = "bulbul:v3"
+
     brevo_api_key: str | None = None
     email_from: str | None = None
     email_from_name: str = "Saathi"

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import type { FamilyHome } from "@saathi/api-client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { speakMessage, type FamilyHome } from "@saathi/api-client";
 import { localDate, type Lang, type Strings } from "@saathi/i18n";
 import { Speaker } from "@saathi/ui-web";
 
@@ -17,38 +17,70 @@ import { Speaker } from "@saathi/ui-web";
 const WORD = (decision: string | null, s: Strings) =>
   decision === "go" ? s.come : decision === "wait" ? s.wait : s.notYet;
 
-/** Read it aloud. For a caregiver who cannot read their own script, this is
- *  not a convenience — it is the only way the message lands. Browser-native,
- *  so it costs nothing and works offline; absent voices simply do nothing. */
-function useSpeech(text: string | null, lang: Lang) {
+/** Read it aloud.
+ *
+ *  For a caregiver who cannot read their own script this is not a convenience
+ *  — it is the only way the message lands. It used to use the browser's own
+ *  voice, which costs nothing and works offline, and which **has no Odia voice
+ *  at all**: for an Odia family the button was a control that did nothing,
+ *  silently, which is the worst way for an accessibility feature to fail.
+ *
+ *  So the server speaks instead, through a service that covers all three
+ *  languages. The browser is still the fallback, because a working voice in
+ *  two languages beats none in three, and because it keeps working offline.
+ */
+function useSpeech(patientId: string | undefined, text: string | null, lang: Lang) {
   const [speaking, setSpeaking] = useState(false);
-  const voices = typeof window !== "undefined" && "speechSynthesis" in window;
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const browserVoices = typeof window !== "undefined" && "speechSynthesis" in window;
+
+  const stop = useCallback(() => {
+    if (browserVoices) window.speechSynthesis.cancel();
+    const playing = audioRef.current;
+    if (playing) {
+      playing.pause();
+      URL.revokeObjectURL(playing.src);
+      audioRef.current = null;
+    }
+    setSpeaking(false);
+  }, [browserVoices]);
 
   // Stop talking if the screen goes away mid-sentence.
-  useEffect(
-    () => () => {
-      if (voices) window.speechSynthesis.cancel();
-    },
-    [voices],
-  );
+  useEffect(() => stop, [stop]);
 
-  const speak = () => {
-    if (!voices || !text) return;
-    window.speechSynthesis.cancel();
-    if (speaking) {
-      setSpeaking(false);
-      return;
-    }
+  const speakInBrowser = () => {
+    if (!browserVoices || !text) return;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = { hi: "hi-IN", bn: "bn-IN", or: "or-IN", en: "en-IN" }[lang];
     utterance.rate = 0.9;
     utterance.onend = () => setSpeaking(false);
     utterance.onerror = () => setSpeaking(false);
-    setSpeaking(true);
     window.speechSynthesis.speak(utterance);
   };
 
-  return { canSpeak: voices && !!text, speaking, speak };
+  const speak = async () => {
+    if (!text) return;
+    if (speaking) return stop();
+    setSpeaking(true);
+    try {
+      const audio = patientId ? await speakMessage(patientId, text, lang) : null;
+      if (audio) {
+        const element = new Audio(URL.createObjectURL(audio));
+        audioRef.current = element;
+        element.onended = () => setSpeaking(false);
+        element.onerror = () => setSpeaking(false);
+        await element.play();
+        return;
+      }
+    } catch {
+      // Fall through: a voice that could not be fetched is not a reason to
+      // leave the family with nothing.
+    }
+    speakInBrowser();
+    if (!browserVoices) setSpeaking(false);
+  };
+
+  return { canSpeak: !!text, speaking, speak };
 }
 
 export function Verdict({
@@ -62,7 +94,7 @@ export function Verdict({
 }) {
   const held = home?.message?.held ?? false;
   const sentence = held ? s.personCalling : (home?.message?.body ?? null);
-  const { canSpeak, speaking, speak } = useSpeech(sentence, lang);
+  const { canSpeak, speaking, speak } = useSpeech(home?.patient.id, sentence, lang);
 
   if (!home || !home.decision) {
     return (

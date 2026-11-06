@@ -681,6 +681,23 @@ export interface Transcript {
 /** A recording: a browser Blob, or a file on a phone. */
 export type AudioUpload = Blob | { uri: string; name: string; type: string };
 
+/** Audio for a message already written and already passed by the guard.
+ *  Returns null when no voice is configured, so a caller can hide the control
+ *  rather than offer one that does nothing. */
+export async function speakMessage(
+  patientId: string,
+  text: string,
+  language?: string,
+): Promise<Blob | null> {
+  const response = await fetch(apiUrl(`/patients/${encodeURIComponent(patientId)}/voice/say`), {
+    method: "POST",
+    headers: { "content-type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({ text, language }),
+  });
+  if (!response.ok) return null;
+  return response.blob();
+}
+
 export const family = {
   home: (patientId: string) => request<FamilyHome>(`/patients/${patientId}/home`),
   thread: (patientId: string) => request<Thread>(`/patients/${patientId}/notifications`),

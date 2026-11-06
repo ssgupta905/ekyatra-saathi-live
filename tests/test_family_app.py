@@ -197,27 +197,30 @@ def test_a_phone_can_reach_the_api_from_the_dev_ports_it_uses(client):
         assert response.headers.get("access-control-allow-origin") == origin, origin
 
 
-def test_a_phone_recording_reaches_whisper_as_m4a(client, patient_id, monkeypatch):
-    # The Android app uploads AAC in an m4a container. Whisper reads the format
-    # from the file name, so the name must arrive intact — checked here with a
-    # stand-in for Groq, since the suite never touches the network.
-    import types
+def test_a_phone_recording_keeps_its_file_name_on_the_way_to_the_service(
+    client, patient_id, monkeypatch
+):
+    """The Android app uploads AAC in an m4a container.
 
+    Both services read the format from the file name, so the name has to arrive
+    intact — a recording renamed to `.webm` on the way is simply rejected, and
+    the family is told their voice could not be heard for a reason nobody can
+    see. Checked with a stand-in, since the suite never touches the network.
+    """
     from saathi.api import family
+    from saathi.ports.speech import Transcript
 
     seen: dict = {}
 
-    class Transcriptions:
-        async def create(self, **kwargs):
-            seen.update(kwargs)
-            return types.SimpleNamespace(text="कल की तारीख़ क्या है")
+    class Listener:
+        def describe(self) -> str:
+            return "stand-in"
 
-    class FakeGroq:
-        def __init__(self, api_key):
-            self.audio = types.SimpleNamespace(transcriptions=Transcriptions())
+        def transcribe(self, audio, filename, language):
+            seen.update(audio=audio, filename=filename, language=language)
+            return Transcript(text="कल की तारीख़ क्या है", language=language, heard_by="stand-in")
 
-    monkeypatch.setattr(family.groq, "AsyncGroq", FakeGroq)
-    monkeypatch.setattr(client.app.state.container.settings, "groq_api_key", "test-key")
+    monkeypatch.setattr(family, "_listeners", lambda settings: [Listener()])
 
     response = client.post(
         "/api/voice/transcribe",
@@ -229,5 +232,93 @@ def test_a_phone_recording_reaches_whisper_as_m4a(client, patient_id, monkeypatc
     body = response.json()
     assert body["text"] == "कल की तारीख़ क्या है"
     assert body["sent"] is False  # words handed back for the family to check, nothing sent
-    assert seen["file"][0] == "reply.m4a"
+    assert seen["filename"] == "reply.m4a"
     assert seen["language"] == "hi"
+
+
+def test_a_second_listener_is_asked_when_the_first_hears_nothing(
+    client, patient_id, monkeypatch
+):
+    """Sarvam leads; Whisper is behind it, not instead of it.
+
+    A service that returns nothing is not the same as a family that said
+    nothing, so the next one is asked before anyone gives up.
+    """
+    from saathi.api import family
+    from saathi.ports.speech import Transcript
+
+    asked: list[str] = []
+
+    class Deaf:
+        def describe(self) -> str:
+            return "deaf"
+
+        def transcribe(self, audio, filename, language):
+            asked.append("deaf")
+            return None
+
+    class Hears:
+        def describe(self) -> str:
+            return "hears"
+
+        def transcribe(self, audio, filename, language):
+            asked.append("hears")
+            return Transcript(text="सुन लिया", language=language, heard_by="hears")
+
+    monkeypatch.setattr(family, "_listeners", lambda settings: [Deaf(), Hears()])
+
+    response = client.post(
+        "/api/voice/transcribe",
+        files={"audio": ("reply.m4a", b"0" * 2000, "audio/m4a")},
+        data={"patient_id": patient_id, "language": "hi"},
+    )
+
+    assert asked == ["deaf", "hears"]
+    assert response.json()["text"] == "सुन लिया"
+    assert response.json()["model"] == "hears", "the screen should name who actually heard it"
+
+
+def test_reading_aloud_needs_a_voice_and_says_so_plainly(client, patient_id):
+    """No browser ships an Odia voice, so without Sarvam there is no voice at
+    all — and a button that does nothing is worse than one that is absent."""
+    response = client.post(
+        f"/api/patients/{patient_id}/voice/say",
+        json={"text": "अभी घर पर रहें।"},
+    )
+
+    assert response.status_code == 503
+    assert "SARVAM_KEY" in response.json()["detail"]
+
+
+def test_reading_aloud_hands_back_audio_in_the_family_s_language(
+    client, patient_id, monkeypatch
+):
+    from saathi.api import family
+    from saathi.ports.speech import Utterance
+
+    said: dict = {}
+
+    class Voice:
+        def describe(self) -> str:
+            return "stand-in voice"
+
+        def say(self, text, language):
+            said.update(text=text, language=language)
+            return Utterance(
+                audio=b"RIFF....", media_type="audio/wav", language=language,
+                spoken_by="stand-in voice",
+            )
+
+    monkeypatch.setattr(family, "_speaker", lambda settings: Voice())
+
+    response = client.post(
+        f"/api/patients/{patient_id}/voice/say",
+        json={"text": "अभी घर पर रहें।"},
+    )
+
+    assert response.status_code == 200
+    assert response.content == b"RIFF...."
+    assert response.headers["content-type"].startswith("audio/")
+    assert response.headers["x-spoken-by"] == "stand-in voice"
+    # The family's own language, taken from their record rather than a guess.
+    assert said["language"] == "hi"

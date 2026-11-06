@@ -19,7 +19,12 @@ import pytest
 
 # Environment variables beat `.env` in pydantic-settings' precedence, and an
 # empty string is falsy — which is exactly "not configured" to every call site.
-for _key in ("GROQ_API_KEY", "ANTHROPIC_API_KEY"):
+#
+# Every key, not just the model ones. SARVAM_KEY was added to `.env` and this
+# list was not, so the speech endpoints quietly started reaching the real
+# service during the suite: a test that had never made a network call began
+# making one, and said nothing about it.
+for _key in ("GROQ_API_KEY", "ANTHROPIC_API_KEY", "SARVAM_KEY", "BREVO_API_KEY"):
     os.environ[_key] = ""
 
 
@@ -33,5 +38,8 @@ def _settings_are_credential_free():
         "the test suite picked up real credentials — it must run credential-free"
     )
     assert not settings.actors_enabled
+    assert not settings.sarvam_api_key, (
+        "SARVAM_KEY reached the suite — speech tests would hit the real service"
+    )
     yield
     get_settings.cache_clear()

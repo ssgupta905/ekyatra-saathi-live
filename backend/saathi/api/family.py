@@ -18,14 +18,15 @@ person, and nothing here answers one.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import date
 from typing import Annotated
 
-import groq
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel, Field
 
+from ..adapters.speech import GroqWhisper, SarvamSpeech
 from ..domain.enums import Language, StepKind, StepStatus
 from .access import FamilyOrStaff, PrincipalDep, ensure_may_see
 from .deps import ContainerDep
@@ -62,6 +63,44 @@ _AUDIO_BY_CONTENT_TYPE = {
     "audio/ogg": "ogg",
     "audio/webm": "webm",
 }
+
+
+def _listeners(settings) -> list:
+    """Who gets asked to listen, best first.
+
+    Sarvam leads because these are Indian-language families with Indian
+    accents, and it is the service built for them. Whisper follows because it
+    is usually configured anyway, and a second opinion costs nothing when the
+    first one returns nothing.
+    """
+    listeners = []
+    if settings.sarvam_api_key:
+        listeners.append(
+            SarvamSpeech(
+                settings.sarvam_api_key,
+                listen_model=settings.sarvam_listen_model,
+                speak_model=settings.sarvam_speak_model,
+            )
+        )
+    if settings.groq_api_key:
+        listeners.append(GroqWhisper(settings.groq_api_key, settings.whisper_model))
+    return listeners
+
+
+def _speaker(settings):
+    """Who reads a message out.
+
+    Only Sarvam can. Whisper has no voice at all, and no browser ships an Odia
+    one — so without this configured, an Odia family's read-aloud button is a
+    control that does nothing.
+    """
+    if not settings.sarvam_api_key:
+        return None
+    return SarvamSpeech(
+        settings.sarvam_api_key,
+        listen_model=settings.sarvam_listen_model,
+        speak_model=settings.sarvam_speak_model,
+    )
 
 
 def audio_filename(name: str | None, content_type: str | None) -> str:
@@ -184,11 +223,12 @@ async def transcribe(
         raise HTTPException(404, "unknown patient")
 
     settings = state.settings
-    if not settings.groq_api_key:
+    listeners = _listeners(settings)
+    if not listeners:
         raise HTTPException(
             503,
-            "speech-to-text needs GROQ_API_KEY. Typing still works, and the "
-            "console says so rather than failing silently.",
+            "speech-to-text needs SARVAM_KEY or GROQ_API_KEY. Typing still "
+            "works, and the app says so rather than failing silently.",
         )
 
     payload = await audio.read()
@@ -197,33 +237,30 @@ async def transcribe(
     if len(payload) > MAX_AUDIO_BYTES:
         raise HTTPException(413, "that recording is too long")
 
-    # Whisper does better when told which language to expect, and we know it
-    # from the patient's record rather than having to guess from the audio.
+    # Both services do better when told which language to expect, and we know
+    # it from the patient's record rather than guessing from the audio.
     hint = language or patient.language.value
     try:
         hint = Language(hint).value
     except ValueError:
         hint = patient.language.value
 
-    client = groq.AsyncGroq(api_key=settings.groq_api_key)
-    try:
-        result = await client.audio.transcriptions.create(
-            file=(audio_filename(audio.filename, audio.content_type), payload),
-            model=settings.whisper_model,
-            language=hint,
-            temperature=0.0,
-        )
-    except groq.APIError as exc:
-        logger.warning("transcription failed: %s", exc)
+    filename = audio_filename(audio.filename, audio.content_type)
+    heard = None
+    for listener in listeners:
+        heard = await asyncio.to_thread(listener.transcribe, payload, filename, hint)
+        if heard is not None:
+            break
+        logger.info("%s heard nothing; trying the next listener", listener.describe())
+    if heard is None:
         # Fail closed and say so. A transcription that silently returns nothing
         # would read as "the family said nothing", which is a different claim.
-        raise HTTPException(502, "could not transcribe that recording") from exc
+        raise HTTPException(502, "could not transcribe that recording")
 
-    text = (getattr(result, "text", "") or "").strip()
     return {
-        "text": text,
-        "language": hint,
-        "model": settings.whisper_model,
+        "text": heard.text,
+        "language": heard.language,
+        "model": heard.heard_by,
         "bytes": len(payload),
         #: Nothing has been sent. The family confirms the words first.
         "sent": False,
@@ -375,3 +412,54 @@ async def choose_language(state: ContainerDep, patient_id: str, body: LanguageCh
         "rendered": bool(run and run.message and not run.message.routed_to_care_team),
         "message": {"body": message["body"], "held": message["held"]} if message else None,
     }
+
+
+class SayThis(BaseModel):
+    """Text to read out. Already written by the language layer and already
+    passed by the guard — this endpoint reads, it never composes."""
+
+    text: str = Field(min_length=1, max_length=1200)
+    language: str | None = None
+
+
+@router.post("/patients/{patient_id}/voice/say", dependencies=[FamilyOrStaff])
+async def say(state: ContainerDep, patient_id: str, body: SayThis) -> Response:
+    """Read a message out, in the family's own language.
+
+    The family app used the browser's own speech for this, which has no Odia
+    voice at all — the button existed and did nothing, silently, for every Odia
+    family. This hands back real audio instead.
+
+    It will only read text; it cannot be made to say something the guard has
+    not already passed, because it is given the message rather than the plan.
+    """
+    patient = state.world.patient(patient_id)
+    if patient is None:
+        raise HTTPException(404, "unknown patient")
+
+    speaker = _speaker(state.settings)
+    if speaker is None:
+        raise HTTPException(
+            503,
+            "reading aloud needs SARVAM_KEY. The message is still on screen, "
+            "and the app says so rather than offering a button that does nothing.",
+        )
+
+    language = body.language or patient.language.value
+    try:
+        language = Language(language).value
+    except ValueError:
+        language = patient.language.value
+
+    spoken = await asyncio.to_thread(speaker.say, body.text, language)
+    if spoken is None:
+        raise HTTPException(502, "could not read that out")
+    return Response(
+        content=spoken.audio,
+        media_type=spoken.media_type,
+        headers={
+            "Cache-Control": "no-store",
+            "X-Spoken-By": spoken.spoken_by,
+            "Content-Language": language,
+        },
+    )

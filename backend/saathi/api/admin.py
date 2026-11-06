@@ -153,7 +153,16 @@ async def integrations(state: ContainerDep) -> dict:
             getattr(layer, "describe", lambda: "on")() if layer is not None else None
         ),
         "actors": state.runner.actors is not None,
-        "speech_to_text": settings.whisper_model if settings.groq_api_key else None,
+        "speech_to_text": (
+            f"Sarvam · {settings.sarvam_listen_model}"
+            if settings.sarvam_api_key
+            else (settings.whisper_model if settings.groq_api_key else None)
+        ),
+        #: Only Sarvam can read a message out; without it the family app's
+        #: read-aloud falls back to a browser voice that does not exist in Odia.
+        "text_to_speech": (
+            f"Sarvam · {settings.sarvam_speak_model}" if settings.sarvam_api_key else None
+        ),
         "reference_cache": {
             "present": cache.exists(),
             "network_lookups": settings.tools_allow_network,
