@@ -100,7 +100,12 @@ class Decision(StrEnum):
 class ReadinessKind(StrEnum):
     """A party's contribution to a journey being ready, beyond the care steps."""
 
+    #: An appointment (or machine) slot the hospital has confirmed for this visit.
     SLOT = "slot"
+    #: A doctor who is actually on duty for it.
+    DOCTOR = "doctor"
+    #: A bed, for a stay in hospital.
+    BED = "bed"
     MEDICINE = "medicine"
     INSURANCE = "insurance"
     TRANSPORT = "transport"

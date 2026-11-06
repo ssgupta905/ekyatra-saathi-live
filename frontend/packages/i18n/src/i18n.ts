@@ -96,6 +96,9 @@ export interface Strings {
   stageReports: string;
   stageInsurance: string;
   stagePharmacy: string;
+  stageAppointment: string;
+  stageDoctor: string;
+  stageBed: string;
   stageRide: string;
   stageStay: string;
   stageDocuments: string;
@@ -173,6 +176,9 @@ export const STRINGS: Record<Lang, Strings> = {
     stageReports: "रिपोर्ट",
     stageInsurance: "योजना की मंज़ूरी",
     stagePharmacy: "फार्मेसी",
+    stageAppointment: "समय तय होना",
+    stageDoctor: "डॉक्टर का उपलब्ध होना",
+    stageBed: "बिस्तर",
     stageRide: "गाड़ी",
     stageStay: "ठहरने की जगह",
     stageDocuments: "कागज़ात",
@@ -243,6 +249,9 @@ export const STRINGS: Record<Lang, Strings> = {
     stageReports: "রিপোর্ট",
     stageInsurance: "প্রকল্পের অনুমোদন",
     stagePharmacy: "ফার্মেসি",
+    stageAppointment: "সময় ঠিক হওয়া",
+    stageDoctor: "ডাক্তার উপস্থিত থাকা",
+    stageBed: "বিছানা",
     stageRide: "গাড়ি",
     stageStay: "থাকার জায়গা",
     stageDocuments: "কাগজপত্র",
@@ -313,6 +322,9 @@ export const STRINGS: Record<Lang, Strings> = {
     stageReports: "ରିପୋର୍ଟ",
     stageInsurance: "ଯୋଜନା ଅନୁମୋଦନ",
     stagePharmacy: "ଫାର୍ମାସୀ",
+    stageAppointment: "ସମୟ ଠିକ୍ ହେବା",
+    stageDoctor: "ଡାକ୍ତର ଉପଲବ୍ଧ ହେବା",
+    stageBed: "ଶଯ୍ୟା",
     stageRide: "ଗାଡ଼ି",
     stageStay: "ରହିବା ସ୍ଥାନ",
     stageDocuments: "କାଗଜପତ୍ର",
@@ -383,6 +395,9 @@ export const STRINGS: Record<Lang, Strings> = {
     stageReports: "Reports",
     stageInsurance: "Scheme approval",
     stagePharmacy: "Pharmacy",
+    stageAppointment: "Appointment confirmed",
+    stageDoctor: "Doctor available",
+    stageBed: "Bed",
     stageRide: "Ride",
     stageStay: "Place to stay",
     stageDocuments: "Papers",

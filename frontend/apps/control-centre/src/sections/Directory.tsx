@@ -14,6 +14,7 @@ const TABS = [
 
 /** What each need on a journey is answered by, in words a navigator would say. */
 const TYPE_LABEL: Record<OrgType, string> = {
+  hospital: "Hospital",
   lab: "Lab or diagnostic centre",
   pharmacy: "Pharmacy",
   medicine_distributor: "Medicine distributor",

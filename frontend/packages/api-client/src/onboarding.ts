@@ -11,7 +11,7 @@ const send = <T>(method: string, path: string, body?: unknown) =>
 // ---------------------------------------------------------------- the directory
 
 export type OrgType =
-  | "lab" | "pharmacy" | "medicine_distributor" | "equipment_distributor" | "shop"
+  | "hospital" | "lab" | "pharmacy" | "medicine_distributor" | "equipment_distributor" | "shop"
   | "cab" | "travel" | "hotel" | "insurer" | "ambulance";
 
 export interface Organisation {

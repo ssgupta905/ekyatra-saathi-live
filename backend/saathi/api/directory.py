@@ -20,6 +20,7 @@ router = APIRouter()
 
 #: What each type is called on screen, and which need on a journey it answers.
 TYPE_LABELS: dict[OrgType, str] = {
+    OrgType.HOSPITAL: "Hospital",
     OrgType.LAB: "Lab or diagnostic centre",
     OrgType.PHARMACY: "Pharmacy",
     OrgType.MEDICINE_DISTRIBUTOR: "Medicine distributor",

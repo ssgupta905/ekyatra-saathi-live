@@ -17,7 +17,8 @@ export interface PathwayInfo {
   steps: string[];
 }
 
-export type ReadinessKind = "slot" | "medicine" | "insurance" | "transport" | "stay";
+export type ReadinessKind =
+  | "slot" | "doctor" | "bed" | "medicine" | "insurance" | "transport" | "stay";
 export type ReadinessStatus = "ready" | "pending" | "blocked" | "unknown";
 
 export interface ReadinessItem {

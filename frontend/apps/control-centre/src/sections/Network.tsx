@@ -12,8 +12,11 @@ const COLUMNS: { kind: StageKind; label: string }[] = [
   { kind: "reports", label: "Reports" },
   { kind: "insurance", label: "Scheme" },
   { kind: "pharmacy", label: "Pharmacy" },
+  { kind: "appointment", label: "Slot" },
+  { kind: "doctor", label: "Doctor" },
   { kind: "ride", label: "Ride" },
   { kind: "stay", label: "Stay" },
+  { kind: "bed", label: "Bed" },
   { kind: "documents", label: "Papers" },
   { kind: "visit", label: "Visit" },
 ];
@@ -46,6 +49,14 @@ export function Network({ onOpen }: { onOpen: (patientId: string) => void }) {
     return () => window.clearInterval(id);
   }, [load]);
 
+  // A column nobody's journey uses is noise: a bed shows only once someone has one.
+  const columns = useMemo(
+    () =>
+      COLUMNS.filter(
+        (c) => c.kind !== "bed" || (board?.families ?? []).some((f) => f.stages.some((s) => s.kind === "bed")),
+      ),
+    [board],
+  );
   const rows = useMemo(
     () => (board?.families ?? []).filter((f) => !onlyStuck || f.stuck),
     [board, onlyStuck],
@@ -95,7 +106,7 @@ export function Network({ onOpen }: { onOpen: (patientId: string) => void }) {
               <thead>
                 <tr>
                   <th>Family</th>
-                  {COLUMNS.map((c) => <th key={c.kind}>{c.label}</th>)}
+                  {columns.map((c) => <th key={c.kind}>{c.label}</th>)}
                   <th>Progress</th>
                 </tr>
               </thead>
@@ -108,7 +119,7 @@ export function Network({ onOpen }: { onOpen: (patientId: string) => void }) {
                       </button>
                       <div className="hint">{f.district}</div>
                     </td>
-                    {COLUMNS.map((c) => <td key={c.kind}>{cell(f, c.kind)}</td>)}
+                    {columns.map((c) => <td key={c.kind}>{cell(f, c.kind)}</td>)}
                     <td>{f.done} of {f.total}</td>
                   </tr>
                 ))}

@@ -32,6 +32,20 @@ def test_seeding_fills_an_empty_directory_once():
     assert len(store.organisations()) == len(DEMO_DIRECTORY)
 
 
+def test_seeding_adds_what_is_missing_and_never_touches_what_an_administrator_changed():
+    store = MemoryRegistryStore()
+    seed_directory(store)
+    edited = next(o for o in store.organisations() if o.id == "cab-uber")
+    store.save_organisation(edited.model_copy(update={"answer": "cannot"}))
+    first = DEMO_DIRECTORY[0]
+    store._organisations.pop(first.id)
+
+    assert seed_directory(store) is True
+
+    assert first.id in {o.id for o in store.organisations()}
+    assert next(o for o in store.organisations() if o.id == "cab-uber").answer == "cannot"
+
+
 @pytest.fixture
 def api(tmp_path, monkeypatch):
     monkeypatch.setenv("SAATHI_WORLD", "real")

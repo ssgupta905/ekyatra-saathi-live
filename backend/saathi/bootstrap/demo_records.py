@@ -156,6 +156,8 @@ def seed_showcase(store: RecordStore, today: date) -> bool:
     def others_ready(pid, *, but=()):
         """Everyone else a cancer journey leans on has said yes; the scripted one is the story."""
         for kind, who, org in (
+            (ReadinessKind.SLOT, "Tata Memorial Hospital, Mumbai", "hosp-tmh-mum"),
+            (ReadinessKind.DOCTOR, "Tata Memorial Hospital, Mumbai", "hosp-tmh-mum"),
             (ReadinessKind.INSURANCE, "PM-JAY help desk", "in-pmjay-desk"),
             (ReadinessKind.MEDICINE, "Day-care pharmacy, Mumbai", "ph-daycare-mum"),
             (ReadinessKind.TRANSPORT, "Uber", "cab-uber"),

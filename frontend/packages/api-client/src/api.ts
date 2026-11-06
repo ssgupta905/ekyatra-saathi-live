@@ -590,8 +590,8 @@ export interface FamilyHome {
 }
 
 export type StageKind =
-  | "tests" | "reports" | "insurance" | "pharmacy" | "ride" | "stay"
-  | "documents" | "visit" | "next_session";
+  | "tests" | "reports" | "insurance" | "pharmacy" | "appointment" | "doctor" | "ride"
+  | "stay" | "bed" | "documents" | "visit" | "next_session";
 export type StageState = "done" | "waiting" | "problem" | "upcoming";
 export type FamilyAction =
   | "nothing_yet" | "wait_for_team" | "keep_documents_ready"

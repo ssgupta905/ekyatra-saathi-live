@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class OrgType(StrEnum):
+    HOSPITAL = "hospital"
     LAB = "lab"
     PHARMACY = "pharmacy"
     MEDICINE_DISTRIBUTOR = "medicine_distributor"
@@ -64,5 +65,8 @@ NEED_FOR_TYPE: dict[str, tuple[OrgType, ...]] = {
     "stay": (OrgType.HOTEL,),
     "medicine": (OrgType.PHARMACY,),
     "insurance": (OrgType.INSURER,),
-    "slot": (OrgType.LAB,),
+    #: The hospital's own slot first; a diagnostic centre's when it has none.
+    "slot": (OrgType.HOSPITAL, OrgType.LAB),
+    "doctor": (OrgType.HOSPITAL,),
+    "bed": (OrgType.HOSPITAL,),
 }

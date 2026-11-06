@@ -28,6 +28,13 @@ def _org(id, name, type_, *, services=(), districts=(), hospitals=(), contact=""
 
 
 DEMO_DIRECTORY: tuple[Organisation, ...] = (
+    # ---- hospitals: the slot, the doctor and the bed a visit depends on
+    _org("hosp-tmh-mum", "Tata Memorial Hospital, Mumbai", OrgType.HOSPITAL,
+         services=("outpatient slots", "consultants", "day-care beds"), districts=("Mumbai",),
+         hospitals=_MUM, delay=20, hours="8am to 6pm"),
+    _org("hosp-hbch-mzp", "Homi Bhabha Cancer Hospital, Muzaffarpur", OrgType.HOSPITAL,
+         services=("outpatient slots", "consultants"), districts=("Muzaffarpur",),
+         hospitals=("HBCH-MZP",), delay=20),
     # ---- labs and diagnostic centres
     _org("lab-tmh-path", "Hospital pathology lab, Mumbai", OrgType.LAB,
          services=("pathology", "blood tests"), districts=("Mumbai",), hospitals=_MUM,
@@ -109,10 +116,16 @@ DEMO_DIRECTORY: tuple[Organisation, ...] = (
 
 
 def seed_directory(store: RegistryStore) -> bool:
-    """Fill an empty directory. True when it did, False when it left things alone."""
-    if store.organisations():
-        return False
-    for organisation in DEMO_DIRECTORY:
+    """Add any demonstration organisation the directory does not have yet.
+
+    Additive by id: an organisation that is already there is never touched, so an
+    administrator's edits stand, and a database seeded before an entry existed
+    picks it up. True when it added anything.
+    """
+    have = {o.id for o in store.organisations()}
+    missing = [o for o in DEMO_DIRECTORY if o.id not in have]
+    for organisation in missing:
         store.save_organisation(organisation)
-    logger.info("seeded %d organisations into an empty directory", len(DEMO_DIRECTORY))
-    return True
+    if missing:
+        logger.info("added %d demonstration organisations to the directory", len(missing))
+    return bool(missing)

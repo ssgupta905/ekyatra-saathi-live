@@ -21,7 +21,9 @@ staff.
 
 ## The script
 
-**Open the Network board** (control centre). Family 1 is waiting on a report, family 2's
+**Open the Network board** (control centre). The columns are every party a journey leans on,
+including the hospital's own promises: a confirmed **Slot** and an available **Doctor** (and a
+**Bed** when one is recorded). Family 1 is waiting on a report, family 2's
 care steps are all done, family 3 has a dialysis session tomorrow.
 
 ### 1. Anita: the chain fills in by itself

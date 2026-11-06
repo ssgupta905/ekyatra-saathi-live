@@ -28,7 +28,14 @@ logger = logging.getLogger(__name__)
 
 #: Needs met near the hospital rather than near home: a room, a pharmacy, a scheme desk.
 _AT_THE_HOSPITAL = frozenset(
-    {ReadinessKind.STAY, ReadinessKind.MEDICINE, ReadinessKind.INSURANCE}
+    {
+        ReadinessKind.STAY,
+        ReadinessKind.MEDICINE,
+        ReadinessKind.INSURANCE,
+        ReadinessKind.SLOT,
+        ReadinessKind.DOCTOR,
+        ReadinessKind.BED,
+    }
 )
 
 _CHOICE_KEYS = {

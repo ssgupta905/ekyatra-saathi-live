@@ -45,8 +45,11 @@ private fun label(kind: String, s: Strings): String = when (kind) {
     "reports" -> s.stageReports
     "insurance" -> s.stageInsurance
     "pharmacy" -> s.stagePharmacy
+    "appointment" -> s.stageAppointment
+    "doctor" -> s.stageDoctor
     "ride" -> s.stageRide
     "stay" -> s.stageStay
+    "bed" -> s.stageBed
     "documents" -> s.stageDocuments
     "visit" -> s.stageVisit
     "next_session" -> s.stageNextSession

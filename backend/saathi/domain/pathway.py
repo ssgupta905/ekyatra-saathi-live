@@ -72,6 +72,8 @@ class Pathway(BaseModel):
 
 #: Who a cancer journey leans on beyond the hospital: scheme, pharmacy, ride, a room.
 _ONCOLOGY_PARTIES = (
+    ReadinessKind.SLOT,
+    ReadinessKind.DOCTOR,
     ReadinessKind.INSURANCE,
     ReadinessKind.MEDICINE,
     ReadinessKind.TRANSPORT,
@@ -182,7 +184,13 @@ DIALYSIS = Pathway(
         StepKind.NEPHROLOGY_REVIEW: "OPD registration counter",
     },
     default_target=StepKind.DIALYSIS_SESSION,
-    partner_needs={StepKind.DIALYSIS_SESSION: (ReadinessKind.TRANSPORT, ReadinessKind.STAY)},
+    partner_needs={
+        StepKind.DIALYSIS_SESSION: (
+            ReadinessKind.SLOT,
+            ReadinessKind.TRANSPORT,
+            ReadinessKind.STAY,
+        )
+    },
     recurrence=Recurrence(kind=StepKind.DIALYSIS_SESSION, interval_days=2),
 )
 
@@ -212,7 +220,11 @@ POST_DISCHARGE = Pathway(
     },
     default_target=StepKind.DISCHARGE_REVIEW,
     partner_needs={
-        StepKind.DISCHARGE_REVIEW: (ReadinessKind.MEDICINE, ReadinessKind.TRANSPORT),
+        StepKind.DISCHARGE_REVIEW: (
+            ReadinessKind.DOCTOR,
+            ReadinessKind.MEDICINE,
+            ReadinessKind.TRANSPORT,
+        ),
     },
 )
 

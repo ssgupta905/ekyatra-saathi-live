@@ -29,8 +29,12 @@ _DONE = frozenset({StepStatus.COMPLETED, StepStatus.RESULT_AVAILABLE})
 _PARTNER_STAGES: tuple[tuple[ReadinessKind, StageKind], ...] = (
     (ReadinessKind.INSURANCE, StageKind.INSURANCE),
     (ReadinessKind.MEDICINE, StageKind.PHARMACY),
+    # The hospital's own promises come before the family is asked to travel.
+    (ReadinessKind.SLOT, StageKind.APPOINTMENT),
+    (ReadinessKind.DOCTOR, StageKind.DOCTOR),
     (ReadinessKind.TRANSPORT, StageKind.RIDE),
     (ReadinessKind.STAY, StageKind.STAY),
+    (ReadinessKind.BED, StageKind.BED),
 )
 
 

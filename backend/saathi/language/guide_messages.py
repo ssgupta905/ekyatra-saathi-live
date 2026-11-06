@@ -19,6 +19,8 @@ _LABELS: dict[Language, dict[StageKind, str]] = {
         StageKind.RIDE: "Ride", StageKind.STAY: "Place to stay",
         StageKind.DOCUMENTS: "Papers", StageKind.VISIT: "Doctor visit",
         StageKind.NEXT_SESSION: "Next session",
+        StageKind.APPOINTMENT: "Appointment", StageKind.DOCTOR: "Doctor available",
+        StageKind.BED: "Bed",
     },
     Language.HINDI: {
         StageKind.TESTS: "जाँच", StageKind.REPORTS: "रिपोर्ट",
@@ -26,6 +28,8 @@ _LABELS: dict[Language, dict[StageKind, str]] = {
         StageKind.RIDE: "गाड़ी", StageKind.STAY: "ठहरने की जगह",
         StageKind.DOCUMENTS: "कागज़ात", StageKind.VISIT: "डॉक्टर से मिलना",
         StageKind.NEXT_SESSION: "अगली बार",
+        StageKind.APPOINTMENT: "समय तय होना", StageKind.DOCTOR: "डॉक्टर का उपलब्ध होना",
+        StageKind.BED: "बिस्तर",
     },
     Language.BENGALI: {
         StageKind.TESTS: "পরীক্ষা", StageKind.REPORTS: "রিপোর্ট",
@@ -33,6 +37,8 @@ _LABELS: dict[Language, dict[StageKind, str]] = {
         StageKind.RIDE: "গাড়ি", StageKind.STAY: "থাকার জায়গা",
         StageKind.DOCUMENTS: "কাগজপত্র", StageKind.VISIT: "ডাক্তারের সঙ্গে দেখা",
         StageKind.NEXT_SESSION: "পরের বার",
+        StageKind.APPOINTMENT: "সময় ঠিক হওয়া", StageKind.DOCTOR: "ডাক্তার উপস্থিত থাকা",
+        StageKind.BED: "বিছানা",
     },
     Language.ODIA: {
         StageKind.TESTS: "ପରୀକ୍ଷା", StageKind.REPORTS: "ରିପୋର୍ଟ",
@@ -40,6 +46,8 @@ _LABELS: dict[Language, dict[StageKind, str]] = {
         StageKind.RIDE: "ଗାଡ଼ି", StageKind.STAY: "ରହିବା ସ୍ଥାନ",
         StageKind.DOCUMENTS: "କାଗଜପତ୍ର", StageKind.VISIT: "ଡାକ୍ତରଙ୍କ ସହ ଭେଟ",
         StageKind.NEXT_SESSION: "ପରବର୍ତ୍ତୀ ଥର",
+        StageKind.APPOINTMENT: "ସମୟ ଠିକ୍ ହେବା", StageKind.DOCTOR: "ଡାକ୍ତର ଉପଲବ୍ଧ ହେବା",
+        StageKind.BED: "ଶଯ୍ୟା",
     },
 }  # fmt: skip
 

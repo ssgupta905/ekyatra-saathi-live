@@ -16,7 +16,9 @@ const KIND: Record<ReadinessKind, string> = {
   stay: "Stay",
   medicine: "Medicine",
   insurance: "Insurer / scheme",
-  slot: "Booked slot",
+  slot: "Hospital slot",
+  doctor: "Doctor available",
+  bed: "Bed",
 };
 
 /** Which kinds of organisation can answer each need. */
@@ -25,7 +27,9 @@ const ORG_TYPES: Record<ReadinessKind, OrgType[]> = {
   stay: ["hotel"],
   medicine: ["pharmacy"],
   insurance: ["insurer"],
-  slot: ["lab"],
+  slot: ["hospital", "lab"],
+  doctor: ["hospital"],
+  bed: ["hospital"],
 };
 
 const STATUS: Record<ReadinessStatus, { label: string; tone: Tone }> = {

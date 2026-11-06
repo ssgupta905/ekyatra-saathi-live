@@ -24,6 +24,10 @@ class StageKind(StrEnum):
     REPORTS = "reports"
     INSURANCE = "insurance"
     PHARMACY = "pharmacy"
+    #: What the hospital owes the visit: a confirmed slot, a doctor, a bed.
+    APPOINTMENT = "appointment"
+    DOCTOR = "doctor"
+    BED = "bed"
     RIDE = "ride"
     STAY = "stay"
     DOCUMENTS = "documents"

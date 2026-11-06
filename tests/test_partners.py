@@ -32,6 +32,7 @@ def test_a_journey_needs_what_its_pathway_says_and_a_stay_only_when_far():
     assert ReadinessKind.STAY in far and ReadinessKind.STAY not in near
     assert ReadinessKind.STAY in unknown, "when the journey is unknown, leave nobody without a bed"
     assert set(near) == {
+        ReadinessKind.SLOT, ReadinessKind.DOCTOR,
         ReadinessKind.INSURANCE, ReadinessKind.MEDICINE, TRANSPORT,
     }
 
@@ -41,7 +42,7 @@ def test_another_condition_needs_other_parties():
         DIALYSIS, StepKind.DIALYSIS_SESSION, round_trip_hours=2, stay_threshold_hours=12
     )
 
-    assert needs == (TRANSPORT,)
+    assert needs == (ReadinessKind.SLOT, TRANSPORT)
 
 
 def test_a_target_the_pathway_has_no_needs_for_asks_nobody():
@@ -106,7 +107,10 @@ def test_nobody_in_the_directory_means_nobody_is_asked():
 
 
 def test_the_demo_directory_can_serve_every_need_at_the_demo_hospital():
-    for kind in (TRANSPORT, ReadinessKind.STAY, ReadinessKind.MEDICINE, ReadinessKind.INSURANCE):
+    for kind in (
+        TRANSPORT, ReadinessKind.STAY, ReadinessKind.MEDICINE, ReadinessKind.INSURANCE,
+        ReadinessKind.SLOT, ReadinessKind.DOCTOR,
+    ):
         place = "Mumbai" if kind is not TRANSPORT else "Patna"
         assert choose_organisation(
             kind, district=place, hospital_id="TMH-MUM", organisations=DEMO_DIRECTORY
@@ -275,3 +279,50 @@ def test_a_family_is_told_in_the_thread_when_their_journey_moves(net):
     assert updates, "the family heard that their journey moved"
     assert updates[-1]["rendered_by"] == "template"
     assert updates[-1]["language"] == "hi"
+
+
+
+# ---------------------------------------------------------------- the hospital as a party
+
+
+def test_the_hospital_is_asked_for_a_slot_and_a_doctor_like_any_other_party(net):
+    asked = _items(net, "SHOW-DIA-1")
+    assert asked[ReadinessKind.SLOT].party == "Tata Memorial Hospital, Mumbai"
+    assert asked[ReadinessKind.SLOT].partner_id == "hosp-tmh-mum"
+
+    onco = _items(net, "DEMO-1") or {}
+    assert onco == {}, "the lab report is still to come, so nobody is asked yet"
+
+
+def test_a_doctor_who_is_not_available_puts_the_journey_in_a_replan(net):
+    net.patch(
+        "/api/directory/hosp-tmh-mum",
+        json={"answer": "cannot", "alternate_id": "hosp-hbch-mzp"},
+    )
+    net.post("/api/demo/cast", json={"emails": ["a@example.com", "b@example.com"]})
+
+    _let_time_pass(net)
+
+    doctor = _items(net, "DEMO-2")[ReadinessKind.DOCTOR]
+    assert doctor.status is ReadinessStatus.BLOCKED and doctor.party.startswith("Tata Memorial")
+    guide = net.get("/api/patients/DEMO-2/guide").json()
+    assert next(s for s in guide["stages"] if s["kind"] == "doctor")["state"] == "problem"
+
+
+def test_the_hospital_stages_come_before_the_family_is_asked_to_travel(net):
+    guide = net.get("/api/patients/SHOW-GO-1/guide").json()
+
+    order = [s["kind"] for s in guide["stages"]]
+    assert order.index("appointment") < order.index("doctor") < order.index("ride")
+    assert order.index("ride") < order.index("documents") < order.index("visit")
+
+
+def test_a_bed_appears_once_the_hospital_records_one(net):
+    net.put(
+        "/api/patients/SHOW-GO-1/readiness",
+        json={"kind": "bed", "party": "Tata Memorial Hospital, Mumbai", "status": "pending"},
+    )
+
+    kinds = [s["kind"] for s in net.get("/api/patients/SHOW-GO-1/guide").json()["stages"]]
+
+    assert "bed" in kinds
