@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
+  directory,
   registry,
   type Clinician,
   type Hospital,
   type NetworkCentre,
+  type Organisation,
   type ResourceRecord,
   type StaffAccount,
 } from "@saathi/api-client";
@@ -43,6 +45,7 @@ export function Registries({ tab, onTab }: { tab: string | null; onTab: (tab: st
   const [clinicians, setClinicians] = useState<Clinician[]>([]);
   const [resources, setResources] = useState<ResourceRecord[]>([]);
   const [accounts, setAccounts] = useState<StaffAccount[] | null>(null);
+  const [organisations, setOrganisations] = useState<Organisation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ record: Record<string, unknown> | null } | null>(null);
 
@@ -57,6 +60,7 @@ export function Registries({ tab, onTab }: { tab: string | null; onTab: (tab: st
       })
       .catch((e) => setError(errorText(e)));
     if (canEdit && real) registry.users().then(setAccounts).catch(() => setAccounts(null));
+    if (canEdit) directory.list().then(setOrganisations).catch(() => undefined);
   }, [canEdit, real]);
 
   useEffect(load, [load]);
@@ -126,11 +130,18 @@ export function Registries({ tab, onTab }: { tab: string | null; onTab: (tab: st
     accounts: {
       title: "Staff account",
       idKey: "username",
-      empty: { username: "", name: "", role: "navigator", password: "", active: true },
+      empty: { username: "", name: "", role: "navigator", password: "", organisation_id: null, active: true },
       fields: [
         { key: "username", label: "Username", lockedWhenEditing: true },
         { key: "name", label: "Name" },
-        { key: "role", label: "Role", type: "select", options: ["navigator", "desk", "doctor", "admin"].map((r) => ({ value: r, label: r })) },
+        { key: "role", label: "Role", type: "select", lockedWhenEditing: false, options: ["navigator", "desk", "doctor", "admin", "partner"].map((r) => ({ value: r, label: r === "partner" ? "partner (a vendor)" : r })) },
+        {
+          key: "organisation_id",
+          label: "Organisation it answers for (partners only)",
+          type: "select",
+          lockedWhenEditing: true,
+          options: [{ value: "", label: "—" }, ...organisations.filter((o) => o.active).map((o) => ({ value: o.id, label: o.name }))],
+        },
         { key: "password", label: "Password (blank keeps it)", type: "password" },
         { key: "active", label: "Can sign in", type: "checkbox" },
       ],
