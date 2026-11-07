@@ -49,9 +49,16 @@ import org.ekyatra.saathi.voice.Speaker
  * and nothing on screen that does not help with "do we get on the bus".
  */
 @Composable
-fun TodayTab(home: FamilyHome?, lang: Lang, s: Strings, speaker: Speaker, patientId: String) {
+fun TodayTab(
+    home: FamilyHome?,
+    lang: Lang,
+    s: Strings,
+    speaker: Speaker,
+    patientId: String,
+    fetchAudio: suspend (String, Lang) -> ByteArray?,
+) {
     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        AnswerCard(home, lang, s, speaker)
+        AnswerCard(home, lang, s, speaker, fetchAudio)
         if (home == null || home.decision == null) return@Column
 
         DoNowCard(home.guide, lang, s)
@@ -135,7 +142,13 @@ private fun mood(decision: String?): Mood = when (decision) {
 
 /** One word, one date, one sentence, and a way to hear it. */
 @Composable
-fun AnswerCard(home: FamilyHome?, lang: Lang, s: Strings, speaker: Speaker) {
+fun AnswerCard(
+    home: FamilyHome?,
+    lang: Lang,
+    s: Strings,
+    speaker: Speaker,
+    fetchAudio: suspend (String, Lang) -> ByteArray?,
+) {
     val decision = home?.decision
     val m = mood(decision)
     val top by animateColorAsState(m.top, label = "mood")
@@ -194,7 +207,7 @@ fun AnswerCard(home: FamilyHome?, lang: Lang, s: Strings, speaker: Speaker) {
                     fontStyle = if (held) FontStyle.Italic else FontStyle.Normal,
                     textAlign = TextAlign.Center,
                 )
-                ReadAloud(sentence, lang, s, speaker)
+                ReadAloud(sentence, lang, s, speaker, fetchAudio)
             }
         }
     }

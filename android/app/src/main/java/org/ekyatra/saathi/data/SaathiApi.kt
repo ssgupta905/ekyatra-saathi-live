@@ -118,6 +118,37 @@ class SaathiApi(
     }
 
     /** Speech to text. Returns the words for the family to check; nothing is sent. */
+    /**
+     * Audio of a message, read out by the service in the family's own language.
+     *
+     * Bytes rather than JSON, so it does not go through [execute]. Returns null
+     * when the service has no voice configured or could not produce one; the
+     * caller then falls back to the phone's own engine, which is worse but
+     * better than silence.
+     *
+     * The text is one the language layer already wrote and the guard already
+     * passed — this reads a message, it never composes one.
+     */
+    suspend fun say(patientId: String, text: String, language: String): ByteArray? =
+        withContext(Dispatchers.IO) {
+            val body = json {
+                put("text", text)
+                put("language", language)
+            }
+            val request = Request.Builder()
+                .url(url("/patients/$patientId/voice/say"))
+                .post(body)
+                .build()
+            val signed = tokens.get()?.let {
+                request.newBuilder().header("Authorization", "Bearer $it").build()
+            } ?: request
+            runCatching {
+                client.newCall(signed).execute().use { response ->
+                    if (response.isSuccessful) response.body.bytes() else null
+                }
+            }.getOrNull()
+        }
+
     suspend fun transcribe(patientId: String, audio: File, language: String): Transcript {
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)

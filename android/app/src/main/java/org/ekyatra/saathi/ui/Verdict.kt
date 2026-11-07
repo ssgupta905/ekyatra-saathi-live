@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.ekyatra.saathi.data.FamilyHome
+import kotlinx.coroutines.launch
 import org.ekyatra.saathi.i18n.Lang
 import org.ekyatra.saathi.i18n.Strings
 import org.ekyatra.saathi.i18n.localDate
@@ -60,7 +62,13 @@ private fun band(decision: String?): Band = when (decision) {
 }
 
 @Composable
-fun Verdict(home: FamilyHome?, lang: Lang, s: Strings, speaker: Speaker) {
+fun Verdict(
+    home: FamilyHome?,
+    lang: Lang,
+    s: Strings,
+    speaker: Speaker,
+    fetchAudio: suspend (String, Lang) -> ByteArray?,
+) {
     val decision = home?.decision
     if (home == null || decision == null) {
         Column(
@@ -115,16 +123,31 @@ fun Verdict(home: FamilyHome?, lang: Lang, s: Strings, speaker: Speaker) {
                 fontStyle = if (held) FontStyle.Italic else FontStyle.Normal,
                 textAlign = TextAlign.Center,
             )
-            ReadAloud(sentence, lang, s, speaker)
+            ReadAloud(sentence, lang, s, speaker, fetchAudio)
         }
     }
 }
 
-/** Read it aloud. Same prominence as the text, because for a caregiver who cannot read this script it *is* the text. */
+/**
+ * Read it aloud. Same prominence as the text, because for a caregiver who
+ * cannot read this script it *is* the text.
+ *
+ * The service is asked first: it has a voice for all three languages, and most
+ * phones have none for Odia, so without it an Odia family's button simply
+ * reports that there is no voice. The phone's own engine is the fallback —
+ * worse, but free and it works with no signal.
+ */
 @Composable
-internal fun ReadAloud(text: String, lang: Lang, s: Strings, speaker: Speaker) {
+internal fun ReadAloud(
+    text: String,
+    lang: Lang,
+    s: Strings,
+    speaker: Speaker,
+    fetchAudio: suspend (String, Lang) -> ByteArray?,
+) {
     var speaking by remember { mutableStateOf(false) }
     var noVoice by remember(lang) { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val border = if (speaking) Tokens.blue500 else Tokens.line
     Surface(
@@ -138,10 +161,20 @@ internal fun ReadAloud(text: String, lang: Lang, s: Strings, speaker: Speaker) {
                     speaker.stop()
                     speaking = false
                 } else {
-                    when (speaker.speak(text, lang) { speaking = false }) {
-                        Speaker.Result.Started -> { speaking = true; noVoice = false }
-                        Speaker.Result.NoVoice -> noVoice = true
-                        Speaker.Result.NotReady -> Unit
+                    speaking = true
+                    noVoice = false
+                    scope.launch {
+                        val audio = fetchAudio(text, lang)
+                        val result = if (audio != null) {
+                            speaker.play(audio) { speaking = false }
+                        } else {
+                            speaker.speak(text, lang) { speaking = false }
+                        }
+                        when (result) {
+                            is Speaker.Result.Started -> Unit
+                            Speaker.Result.NoVoice -> { speaking = false; noVoice = true }
+                            Speaker.Result.NotReady -> speaking = false
+                        }
                     }
                 }
             },

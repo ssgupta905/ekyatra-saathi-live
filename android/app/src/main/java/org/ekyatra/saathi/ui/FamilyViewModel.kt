@@ -129,6 +129,17 @@ class FamilyViewModel(
     suspend fun transcribe(recording: File, language: Lang): Transcript =
         api.transcribe(patientId, recording, language.code)
 
+    /**
+     * Audio of a message, spoken by the service.
+     *
+     * Null when it has no voice configured or could not produce one, and the
+     * screen then falls back to the phone's own engine. Most phones have no
+     * Odia voice, so for an Odia family this is the difference between hearing
+     * the message and being told there is no voice for it.
+     */
+    suspend fun speak(text: String, language: Lang): ByteArray? =
+        api.say(patientId, text, language.code)
+
     private companion object {
         const val RECONNECT_MS = 2_000L
     }

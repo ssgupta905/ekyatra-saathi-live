@@ -110,7 +110,7 @@ fun FamilyScreen(vm: FamilyViewModel, onBack: () -> Unit) {
             AnimatedContent(ui.tab, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "tab") { tab ->
                 when (tab) {
                     Tab.TODAY -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                        TodayTab(ui.home, lang, s, speaker, vm.patientId)
+                        TodayTab(ui.home, lang, s, speaker, vm.patientId, vm::speak)
                         Boundary(lang, s)
                     }
                     Tab.PLAN -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
