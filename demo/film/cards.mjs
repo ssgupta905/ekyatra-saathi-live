@@ -133,7 +133,50 @@ function stackHtml({ heading, rows }) {
   ${rows.map(([k, v]) => `<div class="row"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("")}`;
 }
 
-const LAYOUT = { people: peopleHtml, turn: turnHtml, stack: stackHtml };
+/**
+ * Where Saathi sits.
+ *
+ * The single most misread thing about this product is that it looks like a
+ * hospital system. It is not one, and it does not want to be: it reads status
+ * out of whatever the hospital already runs, decides, and tells people. This
+ * diagram exists to say that before anybody sees a screen.
+ */
+function archHtml({ heading, sub, above, core, below }) {
+  const chip = (c) => `<div class="chip"><b>${c[0]}</b><span>${c[1]}</span></div>`;
+  return `<style>${BASE}
+    body { width: ${CANVAS.w}px; height: ${CANVAS.h}px; padding: 70px 110px;
+           display: flex; flex-direction: column; justify-content: center; }
+    h1 { font-size: 54px; font-weight: 700; letter-spacing: -0.03em; }
+    .sub { font-size: 23px; color: #7f8ea3; margin-top: 8px; }
+    .band { font-size: 15px; letter-spacing: 0.16em; text-transform: uppercase;
+            color: #64748b; margin: 32px 0 14px; }
+    .row { display: flex; gap: 18px; }
+    .chip { flex: 1; background: #141d2e; border: 1px solid #223049; border-radius: 13px;
+            padding: 17px 19px; }
+    .chip b { display: block; font-size: 23px; font-weight: 600; }
+    .chip span { display: block; font-size: 17px; color: #8a97ab; margin-top: 5px;
+                 line-height: 1.35; }
+    .flow { display: flex; justify-content: center; gap: 190px; color: #2563eb;
+            font-size: 26px; margin: 12px 0; letter-spacing: 0.3em; }
+    .core { border: 2px solid #2563eb; background: #11203f; border-radius: 17px;
+            padding: 24px 30px; }
+    .core .t { font-size: 31px; font-weight: 700; }
+    .core .d { font-size: 19px; color: #9fb4d4; margin-top: 7px; }
+    .core .steps { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+        .core .steps span { background: #0d1b36; border: 1px solid #2d4a7a;
+            border-radius: 99px; padding: 7px 15px; font-size: 17px; color: #cfe0ff; }
+  </style>
+  <h1>${heading}</h1><div class="sub">${sub}</div>
+  <div class="band">What the hospital already runs</div>
+  <div class="row">${above.map(chip).join("")}</div>
+  <div class="flow">↓ ↓ ↓</div>
+  <div class="core"><div class="t">${core.title}</div><div class="d">${core.detail}</div>
+    <div class="steps">${core.steps.map((s) => `<span>${s}</span>`).join("")}</div></div>
+  <div class="flow">↓ ↓ ↓</div>
+  <div class="row">${below.map(chip).join("")}</div>`;
+}
+
+const LAYOUT = { people: peopleHtml, turn: turnHtml, stack: stackHtml, arch: archHtml };
 
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({ headless: true });

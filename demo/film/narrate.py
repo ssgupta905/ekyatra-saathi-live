@@ -41,10 +41,22 @@ sys.path.insert(0, str(ROOT / "backend"))
 #: not attribute the voice to the phone on screen reads it as badly timed,
 #: however well it is timed.
 #:
-#: Measured by autocorrelation on a sample of each: roughly 175 Hz against
-#: 248 Hz, about a fifth apart, which no listener will mistake.
-NARRATOR = "ashutosh"
-PHONE = "shreya"
+#: The narrator was `ashutosh` and read flat. Sampling ten voices on the same
+#: sentence and measuring the spread of their fundamental frequency — a drone
+#: has little, a delivery has more — put `anand` half again as varied (46 Hz
+#: against 31) while staying clear of the phone's voice. The three most varied
+#: overall were female and would have sat on top of `shreya` at 223 Hz, which
+#: is the one thing the narrator must not do.
+#:
+#: Override either without touching this file: SAATHI_NARRATOR, SAATHI_PHONE.
+#: Slightly quicker than default, because it measurably stops the reading
+#: flattening out. Synthesising the same passage as one long sentence and as
+#: several short ones, then measuring the spread of the fundamental frequency:
+#: long 21.5 Hz, short 26.7 Hz, short at this pace 34.0 Hz. Slowing it down
+#: made it flatter still, which is the opposite of what you would guess.
+NARRATION_PACE = float(os.environ.get("SAATHI_NARRATION_PACE", "1.1"))
+NARRATOR = os.environ.get("SAATHI_NARRATOR", "anand")
+PHONE = os.environ.get("SAATHI_PHONE", "shreya")
 
 
 def plan() -> list[dict]:
@@ -61,10 +73,16 @@ def plan() -> list[dict]:
 
 
 def _speak(
-    speech, text: str, language: str, path: pathlib.Path, *, speaker: str | None = None
+    speech,
+    text: str,
+    language: str,
+    path: pathlib.Path,
+    *,
+    speaker: str | None = None,
+    pace: float | None = None,
 ) -> float | None:
     """Say one line and write it down. Returns its length, or None if refused."""
-    utterance = speech.say(text, language, speaker=speaker)
+    utterance = speech.say(text, language, speaker=speaker, pace=pace)
     if utterance is None:
         return None
     path.write_bytes(utterance.audio)
@@ -102,7 +120,10 @@ def main() -> int:
         line = (seg["vo"] or "").strip()
         if not line:
             continue
-        seconds = _speak(speech, line, "en", OUT / f"{seg['id']}.wav", speaker=NARRATOR)
+        seconds = _speak(
+            speech, line, "en", OUT / f"{seg['id']}.wav",
+            speaker=NARRATOR, pace=NARRATION_PACE,
+        )
         if seconds is None:
             failed.append(seg["id"])
             print(f"  {seg['id']:14s} SILENT - sarvam refused")

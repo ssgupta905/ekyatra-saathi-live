@@ -32,7 +32,10 @@ const PLAN_FILE = `./${process.env.SAATHI_FILM ?? "plan"}.mjs`;
 const { CANVAS, INK, PLAN, FILM } = await import(PLAN_FILE);
 
 //: Card layouts that render to a single still, like a plain card.
-const STILLS = new Set(["people", "turn", "stack"]);
+//: Card layouts that render to a single still, like a plain card. A kind
+//: missing from here falls through to the phone branch and asks for a
+//: source file it does not have.
+const STILLS = new Set(["people", "turn", "stack", "arch"]);
 
 const run = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -88,12 +91,34 @@ function videoFilter(seg) {
  *
  * Length is an output option, applied once at the end, for the same reason.
  */
+/**
+ * How far before the cut to start decoding a quoted excerpt.
+ *
+ * A plain `-ss` before `-i` seeks each stream independently, and on this file
+ * the audio came back about a second later than the picture — so an excerpt
+ * chosen to end in silence ended on a half-spoken word instead. Decoding from
+ * a couple of seconds early and then trimming *inside the filter graph* keeps
+ * video and audio on one timeline, because they are cut by the same filter at
+ * the same timestamps.
+ */
+const LEAD = 2;
+
 function seek(seg) {
   //: A `film` segment quotes the finished end-to-end cut rather than the raw
   //: clips, so it arrives already composited, already narrated, and carrying
   //: the phone's Hindi read-aloud. Its own audio is kept.
   const source = seg.kind === "film" ? FILM : resolve(CLIPS, seg.file);
+  if (seg.kind === "film") {
+    const coarse = Math.max(0, seg.in - LEAD);
+    return ["-ss", String(coarse), "-i", source];
+  }
   return seg.in > 0 ? ["-ss", String(seg.in), "-i", source] : ["-i", source];
+}
+
+/** The in-graph trim that actually defines a quoted excerpt. */
+function quoteTrim(seg) {
+  const from = seg.in - Math.max(0, seg.in - LEAD);
+  return { from: from.toFixed(3), secs: seg.seconds.toFixed(3) };
 }
 
 /**
@@ -146,7 +171,13 @@ function args(seg, hindiSeconds = 0) {
   if (seg.kind === "card" || STILLS.has(seg.kind)) {
     input.push("-loop", "1", "-i", resolve(ART, `${seg.id}.png`));
     filter = `[0:v]${videoFilter(seg)}[v]`;
-  } else if (seg.kind === "browser" || seg.kind === "film") {
+  } else if (seg.kind === "film") {
+    input.push(...seek(seg));
+    const { from, secs: dur } = quoteTrim(seg);
+    filter =
+      `[0:v]trim=start=${from}:duration=${dur},setpts=PTS-STARTPTS,` +
+      `${videoFilter(seg)}[v]`;
+  } else if (seg.kind === "browser") {
     input.push(...seek(seg));
     filter = `[0:v]${videoFilter(seg)}[v]`;
   } else {
@@ -174,7 +205,10 @@ function args(seg, hindiSeconds = 0) {
   filter += `;${silence}:d=${secs}[sil]`;
 
   if (quoted) {
-    filter += `;${quoted}aresample=48000,aformat=channel_layouts=stereo[src]`;
+    const { from, secs: dur } = quoteTrim(seg);
+    filter +=
+      `;${quoted}atrim=start=${from}:duration=${dur},asetpts=PTS-STARTPTS,` +
+      `aresample=48000,aformat=channel_layouts=stereo[src]`;
     mixed.push("[src]");
   }
 
