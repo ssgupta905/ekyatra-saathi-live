@@ -55,7 +55,10 @@ export interface Integrations {
   records_database: string | null;
   language_layer: string | null;
   actors: boolean;
-  speech_to_text: string | null;
+  /** Who is asked to listen, best first. Empty means nobody can. */
+  speech_to_text: string[];
+  /** Who can read a message out. Empty means an Odia family hears nothing. */
+  text_to_speech: string[];
   reference_cache: { present: boolean; network_lookups: boolean };
   geocoder: string | null;
   router: string | null;

@@ -125,6 +125,25 @@ async def put_policy(
             "note": _note(True)}  # fmt: skip
 
 
+def _listens(settings) -> list[str]:
+    """Every service that would be asked to listen, best first."""
+    asked = []
+    if settings.sarvam_api_key:
+        asked.append(f"Sarvam · {settings.sarvam_listen_model}")
+    if settings.groq_api_key:
+        asked.append(f"Groq · {settings.whisper_model}")
+    return asked
+
+
+def _speaks(settings) -> list[str]:
+    """Every service that could read a message out.
+
+    Empty is meaningful: no browser and few phones have an Odia voice, so an
+    empty list here means an Odia family hears nothing at all.
+    """
+    return [f"Sarvam · {settings.sarvam_speak_model}"] if settings.sarvam_api_key else []
+
+
 def _scheme_and_host(url: str | None) -> str | None:
     """A URL without credentials or path: enough to recognise, nothing to leak."""
     if not url:
@@ -153,16 +172,16 @@ async def integrations(state: ContainerDep) -> dict:
             getattr(layer, "describe", lambda: "on")() if layer is not None else None
         ),
         "actors": state.runner.actors is not None,
-        "speech_to_text": (
-            f"Sarvam · {settings.sarvam_listen_model}"
-            if settings.sarvam_api_key
-            else (settings.whisper_model if settings.groq_api_key else None)
-        ),
-        #: Only Sarvam can read a message out; without it the family app's
-        #: read-aloud falls back to a browser voice that does not exist in Odia.
-        "text_to_speech": (
-            f"Sarvam · {settings.sarvam_speak_model}" if settings.sarvam_api_key else None
-        ),
+        #: Who is *asked*, in order — not who answers.
+        #:
+        #: This used to read "Sarvam · saarika:v2.5" whenever a key was present,
+        #: which is how a deployment ran for hours with a key the service
+        #: rejected: listening quietly fell through to Whisper and looked fine,
+        #: speaking had nothing to fall through to and returned 502, and this
+        #: page said Sarvam was doing both. A key being set is not the same as
+        #: a key that works, and the screen should not blur the two.
+        "speech_to_text": _listens(settings),
+        "text_to_speech": _speaks(settings),
         "reference_cache": {
             "present": cache.exists(),
             "network_lookups": settings.tools_allow_network,

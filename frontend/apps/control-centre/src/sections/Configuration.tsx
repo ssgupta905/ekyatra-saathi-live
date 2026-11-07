@@ -13,6 +13,22 @@ import { RulesEditor } from "../components/RulesEditor";
 import { usePersona } from "../session";
 import { useToast } from "../ui/kit";
 
+/** Services in the order they are asked — not proof that any of them answers.
+ *  Listing them in order is the honest shape: when the first fails, the second
+ *  takes over silently, and a single name would hide that it ever happened. */
+const asked = (names: string[] | null | undefined, none: string) =>
+  names && names.length > 0 ? (
+    <>
+      {names.map((name, i) => (
+        <Chip key={name} tone={i === 0 ? "go" : "neutral"}>
+          {i === 0 ? name : `then ${name}`}
+        </Chip>
+      ))}
+    </>
+  ) : (
+    <Chip tone="neutral">{none}</Chip>
+  );
+
 const on = (value: boolean | string | null | undefined, off = "off") =>
   value ? <Chip tone="go">{typeof value === "string" ? value : "on"}</Chip> : <Chip tone="neutral">{off}</Chip>;
 
@@ -177,7 +193,8 @@ export function Configuration() {
               <tr><td>Records database</td><td>{integrations.world === "real" ? on(integrations.records_database) : <span className="hint">in memory (demo)</span>}</td></tr>
               <tr><td>Language layer</td><td>{on(integrations.language_layer, "off: no GROQ_API_KEY / ANTHROPIC_API_KEY")}</td></tr>
               <tr><td>Actors</td><td>{on(integrations.actors)}</td></tr>
-              <tr><td>Speech to text</td><td>{on(integrations.speech_to_text)}</td></tr>
+              <tr><td>Speech to text</td><td>{asked(integrations.speech_to_text, "nobody can listen")}</td></tr>
+              <tr><td>Reading aloud</td><td>{asked(integrations.text_to_speech, "no voice: a family who cannot read hears nothing")}</td></tr>
               <tr><td>Journey lookups</td><td>{on(integrations.reference_cache.present && "cached")}{integrations.reference_cache.network_lookups && <span className="hint"> · live calls allowed</span>} <span className="hint">{integrations.geocoder} · {integrations.router}</span></td></tr>
               <tr><td>Hospital feed</td><td>{on(integrations.feeds.hospital, "not connected")}</td></tr>
               <tr><td>Scheme feed</td><td>{on(integrations.feeds.schemes, "not connected")}</td></tr>

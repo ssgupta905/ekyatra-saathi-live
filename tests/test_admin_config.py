@@ -3,8 +3,11 @@ what is switched on, and the audit log's filters."""
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 from fastapi.testclient import TestClient
+from saathi.api.admin import _listens, _speaks
 from saathi.config import get_settings
 from saathi.domain.enums import Role
 from saathi.main import create_app
@@ -125,3 +128,38 @@ def test_the_audit_log_filters_searches_and_pages_newest_first(real):
     assert [e["source_record_id"] for e in page["entries"]] == ["hospital/H2", "hospital/H1"]
     assert [e["source_record_id"] for e in rest["entries"]] == ["hospital/H0"]
     assert page["entries"][0]["metadata"]["by"] == "Neha"
+
+
+def test_speech_lists_who_is_asked_rather_than_who_answers(real, monkeypatch):
+    """A key that is *set* is not a key that *works*.
+
+    A deployment once ran for hours with a Sarvam key the service rejected.
+    Listening fell through to Whisper and looked fine; speaking had nothing to
+    fall through to and returned 502; and this page said "Sarvam" for both. The
+    screen cannot know who answers, so it names everyone it would ask, in order,
+    and says plainly when the list is empty.
+    """
+    body = real.get("/api/admin/integrations", headers=as_(real, "neha")).json()
+
+    #: The suite runs with no credentials, so both lists are empty here — and an
+    #: empty list is the honest answer, not a missing field.
+    assert body["speech_to_text"] == []
+    assert body["text_to_speech"] == []
+
+    #: The order is the fallback order. Sarvam is asked first because it is the
+    #: one that knows Odia; Groq is the second ear and has no mouth at all.
+    both = SimpleNamespace(
+        sarvam_api_key="s", groq_api_key="g",
+        sarvam_listen_model="saarika:v2.5", sarvam_speak_model="bulbul:v3",
+        whisper_model="whisper-large-v3-turbo",
+    )  # fmt: skip
+    assert [n.split(" ·")[0] for n in _listens(both)] == ["Sarvam", "Groq"]
+    assert [n.split(" ·")[0] for n in _speaks(both)] == ["Sarvam"]
+
+    #: With Groq alone the system can still listen but cannot speak, and an Odia
+    #: family — whose language no browser voice has — hears nothing.
+    ear_only = SimpleNamespace(**{**vars(both), "sarvam_api_key": ""})
+    assert _listens(ear_only) and _speaks(ear_only) == []
+
+    #: Model names, never the key itself.
+    assert "s" not in str(_speaks(both)).replace("bulbul", "").replace("Sarvam", "")
