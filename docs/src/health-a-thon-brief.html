@@ -1,0 +1,288 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Bits2026 | EKYATRA Saathi — Two-page Solution Brief</title>
+<style>
+  /* Landscape 16:9, to match the Health-a-thon template's slide geometry
+     rather than reflowing it onto A4 portrait. */
+  @page { size: 338.7mm 190.5mm; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Aptos, Calibri, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: #0f172a;
+    font-size: 7.5pt;
+    line-height: 1.33;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .page {
+    width: 338.7mm; height: 190.5mm;
+    padding: 7mm 9mm 6mm;
+    display: flex; flex-direction: column;
+    page-break-after: always;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 4.5mm;
+  }
+  h1 { font-size: 16pt; font-weight: 700; letter-spacing: -0.01em; }
+  h1 .team { color: #3b7dd8; }
+  h1 .bar { color: #3b7dd8; font-weight: 400; margin: 0 2px; }
+  .brand { font-size: 18pt; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; }
+  .brand .a { color: #0a7d3c; }
+  .brand .b { color: #15357f; }
+  .brand .y { color: #15357f; font-weight: 700; }
+
+  .cols { flex: 1 1 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; min-height: 0; }
+  .box {
+    border: 1.1px solid #1f5fa8;
+    padding: 3.8mm 4.2mm 4mm;
+    display: flex; flex-direction: column; gap: 2.4mm;
+    min-height: 0;
+  }
+  h2 {
+    font-size: 8.8pt; font-weight: 700; color: #1f5fa8;
+    text-decoration: underline; text-underline-offset: 2.5px;
+  }
+  h2:not(:first-child) { margin-top: 1.2mm; }
+  p { margin-bottom: 1.2mm; }
+  p:last-child { margin-bottom: 0; }
+  ul { list-style: none; }
+  li { position: relative; padding-left: 3.2mm; margin-bottom: 0.9mm; }
+  li::before { content: "▪"; position: absolute; left: 0; color: #1f5fa8; }
+  ol { padding-left: 4.6mm; }
+  ol li { padding-left: 0.6mm; margin-bottom: 1.3mm; }
+  ol li::before { content: none; }
+  b, strong { font-weight: 700; }
+  .q { color: #4b5563; }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 7.6pt; }
+  a { color: #1f5fa8; }
+  .flag {
+    border-left: 2.2px solid #c2410c; padding-left: 2.6mm;
+    color: #9a3412; font-style: italic;
+  }
+  table.m { border-collapse: collapse; width: 100%; font-size: 7.9pt; margin: 0.6mm 0 1mm; }
+  table.m td { padding: 0.9mm 0; border-bottom: 0.6px solid #dbe3ec; vertical-align: top; }
+  table.m td.n { text-align: right; font-weight: 700; white-space: nowrap; padding-left: 3mm; }
+  table.m tr:last-child td { border-bottom: 0; }
+</style>
+
+<!-- ───────────────────────────── PAGE 1 ───────────────────────────── -->
+<section class="page">
+  <header>
+    <h1><span class="team">Bits2026</span><span class="bar">|</span>EKYATRA Saathi</h1>
+    <div class="brand"><span class="a">Health-a-</span><span class="b">thon</span> <span class="y">2026</span></div>
+  </header>
+
+  <div class="cols">
+    <!-- left column -->
+    <div style="display:flex; flex-direction:column; gap:5mm; min-height:0;">
+      <div class="box" style="flex:1 1 auto;">
+        <h2>About the Team / Organisation</h2>
+        <p><b>A.</b> Two independent engineers, not a registered organisation.
+        <b>Siddhartha Sengupta</b> and <b>Ankshuk Ray</b> built Saathi over the sprint as a
+        working system rather than a prototype shell: 160 Python modules, a React monorepo of
+        four apps, a Kotlin/Compose Android app, and <b>631 automated tests that run with no
+        credentials at all</b>. Both come from production software engineering, which is why
+        every safety property below is enforced by a test rather than by convention.</p>
+        <p><b>B. Doctor background and role in the solution.</b></p>
+        <p class="flag">The team has no clinician member, and we would rather say so than
+        imply otherwise. Saathi is deliberately a <b>non-clinical logistics</b> tool, and the
+        clinician role is designed into the system rather than performed by the team: a
+        re-plan touching treatment or dose timing can be approved only by a doctor (a
+        server-side check, not a UI rule); any message reading as a clinical question is
+        routed to a human and never answered; the family's self-reported medical background
+        is visible to doctors and administrators only. Clinical validation is the explicit
+        next step — a draft inquiry to ICMR-NCDIR sits in the repository, unsent.
+        <b>If the team has a clinical advisor, their background and role belong here.</b></p>
+      </div>
+
+      <div class="box" style="flex:0 0 auto;">
+        <h2>Problem Statement (use case specific)</h2>
+        <p>A family travels hundreds of kilometres for a hospital appointment and arrives to
+        find the report is not back, the doctor is not free, or the cab never came. The visit
+        is wasted; the journey is not.</p>
+        <table class="m">
+          <tr><td>Tata Memorial Hospital patients from outside Maharashtra</td><td class="n">60%</td></tr>
+          <tr><td>Patients studied who travelled over 500 km</td><td class="n">75%+</td></tr>
+          <tr><td>Facing catastrophic non-medical costs (mean ₹88,433)</td><td class="n">83%</td></tr>
+          <tr><td>Borrowing or selling assets to cope, over 500 km</td><td class="n">53%</td></tr>
+        </table>
+        <p class="q">Sources: Tata Memorial Centre annual figures; IIPS / TMC study,
+        <i>Journal of Cancer Policy</i>, 2025.</p>
+        <p><b>Target user:</b> the caregiver — usually the one family member holding the whole
+        journey together, often reading Hindi, Bengali or Odia rather than English, on a basic
+        Android phone. <b>Secondary user:</b> the hospital's patient navigator, holding thirty
+        such families at once. Every department optimises its own queue; nobody counts the
+        family's trips.</p>
+      </div>
+    </div>
+
+    <!-- right column -->
+    <div class="box">
+      <h2>AI Solution Description</h2>
+      <p>Saathi answers one question, every day, for every family: <b>is this trip worth
+      making?</b> It reads appointment and report <i>status</i> from ABDM and hospital feeds —
+      never report content — resolves a dependency graph of the care pathway, forecasts when
+      each pending step will be ready, and returns one of four verdicts: <b>Come, Wait,
+      Re-plan</b> or <b>Uncertain</b>. A date appears only when every prerequisite is
+      satisfied, so the app never promises a day it does not have.</p>
+      <p>Two surfaces share a backend and nothing else. The caregiver gets one word, one date,
+      what to bring and where to go first, in their own language and read aloud on request.
+      The navigator gets a board of every journey against every party holding it up — lab,
+      insurer, pharmacy, cab, hotel — and acts on the stuck ones.</p>
+      <p><b>The decision is not made by a model.</b> A deterministic planner decides; the model
+      only renders that decision into the family's language, bound by a schema whose verdict
+      enum is derived from the <code>Decision</code> type so it cannot drift. A guard screens
+      every message in both directions.</p>
+
+      <h2>Technology and Tools Used</h2>
+      <p><b>Decision core (no model):</b> dependency-graph resolution over the care pathway;
+      <b>split conformal prediction</b> for readiness intervals with a stated coverage level
+      (90%, n=120 per queue) that refuses to answer on thin calibration; <b>PELT
+      change-point detection</b> for engagement drop-off; a hash-chained ledger.</p>
+      <p><b>Language &amp; speech:</b> Groq <code>gpt-oss-20b</code> (rendering) and
+      <code>gpt-oss-120b</code> (simulated counterparties); <b>Sarvam</b>
+      <code>bulbul:v3</code> TTS and <code>saarika:v2.5</code> STT for Hindi, Bengali, Odia
+      and English, with <code>whisper-large-v3-turbo</code> as a fallback ear. Sarvam was
+      chosen for a concrete reason: almost no phone ships an Odia voice, so read-aloud
+      silently did nothing for Odia families.</p>
+      <p><b>Platform:</b> Python 3.12 / FastAPI / Pydantic v2 / LangGraph, PostgreSQL +
+      Alembic, React 19 + Vite (four apps), Kotlin + Jetpack Compose, SSE, Docker on Render.</p>
+
+      <h2>Key Features of the solution</h2>
+      <ol>
+        <li><b>A readiness verdict, not a reminder.</b> Come / Wait / Re-plan / Uncertain,
+        with a date only when the chain is clear, and a forecast carrying its own coverage
+        level instead of a confident guess.</li>
+        <li><b>The whole network, asked automatically.</b> Scheme desk, pharmacy, cab firm,
+        hotel and lab each answer for themselves; a vendor signs in to its own screen and sees
+        only its own jobs — a first name, a district, and a phone number only if the family
+        agreed to share it.</li>
+        <li><b>Affordability built into the plan.</b> A railway patient-quota berth and a
+        dharamshala for one household, an app cab and a hotel for another — and Saathi
+        <i>asks</i> the family to confirm, with "I cannot manage any of these" always on the
+        list, routed to a social worker rather than a cheaper booking.</li>
+        <li><b>Four languages, and a voice.</b> A plan a caregiver cannot read is not a plan.</li>
+        <li><b>An audit trail that cannot be quietly edited.</b> A hash-chained ledger that
+        grows only when a fact actually changes.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────────── PAGE 2 ───────────────────────────── -->
+<section class="page">
+  <header>
+    <h1><span class="team">Bits2026</span><span class="bar">|</span>EKYATRA Saathi</h1>
+    <div class="brand"><span class="a">Health-a-</span><span class="b">thon</span> <span class="y">2026</span></div>
+  </header>
+
+  <div class="cols">
+    <!-- left column -->
+    <div style="display:flex; flex-direction:column; gap:5mm; min-height:0;">
+      <div class="box" style="flex:1 1 auto;">
+        <h2>Build Sprint Progress</h2>
+        <p>The concept began as a reminder app: tell the family their appointment is coming.
+        It became clear within the first week that the useful question is the opposite one —
+        <i>should they come at all</i> — and the system was rebuilt around a readiness
+        verdict. What shipped over the four weeks:</p>
+        <ul>
+          <li><b>Weeks 1–2 — the decision core.</b> Care-pathway dependency graph, conformal
+          readiness intervals, the four-verdict planner, and the hash-chained ledger. The
+          model was taken off the decision path entirely and given the single job of
+          rendering.</li>
+          <li><b>Week 3 — the two products split.</b> One screen serving both a navigator and
+          a caregiver served neither, so the console and the family app became separate
+          applications on separate devices. Four languages, read-aloud, and the guard on both
+          directions of every message.</li>
+          <li><b>Week 4 — the network and the vendors.</b> A directory of labs, pharmacies,
+          cab firms, hotels and scheme desks that answer for themselves; a partner app so a
+          vendor sees its own jobs and nothing about anybody's care; onboarding in seven
+          stages; Sarvam speech on web and Android; deployment to Render.</li>
+          <li><b>Late addition — affordability.</b> Onboarding had collected a ration card and
+          an income band since the first commit and nothing read either, so every family was
+          offered the same app cab and the same hotel. Cost tiers, means-aware selection and
+          the family-facing budget conversation were built once that was noticed.</li>
+        </ul>
+      </div>
+
+      <div class="box" style="flex:0 0 auto;">
+        <h2>User Validation and AI Evaluation</h2>
+        <p class="flag"><b>No real patient data has been used anywhere, and there has been no
+        clinical user testing.</b> Saying otherwise would be the easiest thing in this
+        document to get wrong.</p>
+        <p><b>Evaluation method.</b> 50 synthetic families are generated with <i>planted
+        ground truth</i> — the true date each pending report actually lands — and Saathi's
+        verdicts are scored against the date the hospital's default policy would have given.
+        Reproducible via <code>python -m saathi.demo</code>:</p>
+        <table class="m">
+          <tr><td>Wasted trips under the hospital default</td><td class="n">30 / 50 (60%)</td></tr>
+          <tr><td>Wasted trips with Saathi</td><td class="n">0 / 50 (0%)</td></tr>
+          <tr><td>Non-medical cost avoided (₹8,500 per trip)</td><td class="n">₹255,000</td></tr>
+          <tr><td>Evidence ledger intact</td><td class="n">yes</td></tr>
+        </table>
+        <p><b>Limitations.</b> Synthetic turnaround distributions are drawn from published
+        queue behaviour, not from one hospital's real data; the per-trip cost is a share of a
+        published mean, not measured spend. A pilot replaces both. <b>Improvements made from
+        findings:</b> driving the real deployment rather than the test suite found a rendering
+        enum that had silently diverted every re-plan message, a rate-limit stall that took
+        the first answer from 226s to 43s, and a confirmation endpoint that returned 500 on
+        the exact configuration the demo runs. Each is now pinned by a test.</p>
+      </div>
+    </div>
+
+    <!-- right column -->
+    <div class="box">
+      <h2>Safety and Responsible AI</h2>
+      <ul>
+        <li><b>The model never decides whether a family travels.</b> A deterministic planner
+        decides; the model renders. The response schema's verdict enum is derived from the
+        <code>Decision</code> type, so a new verdict cannot silently fall outside it.</li>
+        <li><b>Report content never enters the system.</b> The ABDM ingest drops
+        <code>conclusion</code>, <code>result</code> and <code>presentedForm</code>, and the
+        pointer type has no field that could hold a finding. Saathi cannot leak what it does
+        not store.</li>
+        <li><b>Clinical questions go to a human, always.</b> A guard screens every inbound
+        message and every outgoing one; a diverted message reaches the family as "a person is
+        calling you", never as empty words.</li>
+        <li><b>Human oversight at the points that matter.</b> A re-plan touching treatment or
+        dose timing requires a doctor; a vendor is chosen by a person, not the system; a
+        family's budget answer is a proposal until a navigator confirms it.</li>
+        <li><b>Privacy and consent.</b> Consent per purpose, withdrawable, checked at every
+        read and logged with refusals; a vendor sees a first name and a district, and a phone
+        number only if the family agreed to share it. DPDP Act 2023 / ABDM consent model.</li>
+        <li><b>Honest uncertainty.</b> No score anywhere. A forecast carries its coverage
+        level and refuses to answer on thin calibration; when the system does not know, the
+        verdict is Uncertain and a person is told.</li>
+        <li><b>Credential-free tests.</b> All 631 tests run with every API key blanked, so no
+        suite run can quietly depend on a live service or send real traffic.</li>
+      </ul>
+
+      <h2>Deployment and Sustainability Plan</h2>
+      <p><b>Setting.</b> A tertiary cancer centre's patient-navigation desk, alongside the
+      existing HMIS rather than replacing it. Saathi reads status and writes nothing clinical,
+      so it integrates at the thinnest possible seam: ABDM-linked status, a hospital
+      appointment/report feed, and a directory of the vendors a journey already uses.</p>
+      <p><b>Integration requirements.</b> ABDM OAuth and consent-manager routing (specified,
+      not yet live); one hospital feed; an Institutional Ethics Committee approval and a named
+      hospital partner before any real-data pilot.</p>
+      <p><b>Sustainability.</b> The marginal cost per family is a handful of model calls and
+      SMS; the saved cost is a ₹8,500 journey. Cheapest-adequate models are used deliberately
+      (a 20B model for rendering), rate-limited and serialised. Running today on a container
+      and a managed Postgres, deployable inside a hospital's own network with no change to the
+      decision core.</p>
+
+      <h2>Supporting Links</h2>
+      <ul>
+        <li><b>MVP (live):</b> control centre, family app and partner app on Render —
+        <i>links shared with the organisers; private repository access on request</i></li>
+        <li><b>Video demo walkthrough:</b> 12-minute end-to-end film, narrated, recorded
+        against the deployed service</li>
+        <li><b>Other:</b> README with the nine invariants and their enforcing tests; ABDM /
+        NCDIR feasibility note; draft validation inquiry to ICMR-NCDIR</li>
+      </ul>
+    </div>
+  </div>
+</section>
