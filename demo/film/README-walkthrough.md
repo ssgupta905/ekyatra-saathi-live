@@ -59,9 +59,17 @@ second behind the picture, so two passages chosen to end in silence ended on a
 half-spoken word instead. `trim` and `atrim` at matching timestamps keep them
 locked.
 
-**The narration is read at pace 1.1 in short sentences.** Synthesising the same
-passage as one long sentence and as several short ones, then measuring the
-spread of the fundamental frequency: long 21.5 Hz, short 26.7 Hz, short at
-this pace 34.0 Hz. Slowing it down made it flatter, which is the opposite of
-what you would guess. Voice samples for picking a different narrator are in
-`~/Documents/voice-samples/`; `SAATHI_NARRATOR` swaps it.
+**The narrator is a US English voice from the operating system; the family's
+phone is still Sarvam.** Two reasons, and the second is the hard one: the film
+wants a narrator who is audibly not the product, and Sarvam only ships Indian
+voices — every one of its speakers reads Indian English, which is right for
+the phone and wrong for a voice-over sitting next to it. There is no other
+text-to-speech credential in this project, and the one hosted option on the
+existing key was retired by its provider, so this is `say` with Samantha.
+`SAATHI_NARRATOR_VOICE` and `SAATHI_NARRATOR_WPM` change it.
+
+**Everything is levelled to one target.** The narration is synthesised locally
+and the excerpts were mixed elsewhere; they arrived nine decibels apart, which
+is loud enough that every cut between a card and the product jumped. Both ends
+go through `loudnorm` now, and the sections sit within four decibels of each
+other.

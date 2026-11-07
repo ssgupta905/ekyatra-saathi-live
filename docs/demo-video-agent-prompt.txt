@@ -114,8 +114,9 @@ requires an image, use a plain typographic card.
    review, not a clinical trial. No real patient data has been used anywhere in
    this build.
 
-   On the technology side we built on Groq for language, Sarvam for Indian
-   language speech, and the ABDM consent model for how data is asked for. We
+   On the technology side we built on an agentic AI layer for language, Sarvam
+   for Indian language speech, and the ABDM consent model for how data is
+   asked for. We
    started from a reminder app. Within a week we realised the useful question
    was the opposite one — should they come at all — and rebuilt around it."
 

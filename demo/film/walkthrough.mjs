@@ -33,7 +33,7 @@ export const PLAN = [
 
   // ── what it actually is, before anything else ─────────────────────────────
   {
-    id: "w02-whatitis", kind: "turn", seconds: 22,
+    id: "w02-whatitis", kind: "turn", seconds: 23,
     card: {
       heading: "What this is",
       before: "Another hospital\nmanagement\nsystem",
@@ -43,7 +43,7 @@ export const PLAN = [
     vo: "First, what this is not. It is not a hospital management system. It stores no clinical record, and it replaces nothing. Saathi is an orchestration layer. It reads status out of the systems a hospital already runs. It works out whether a family's next visit can actually happen. And it tells the people who need to know.",
   },
   {
-    id: "w03-problem", kind: "card", seconds: 23,
+    id: "w03-problem", kind: "card", seconds: 25,
     card: {
       heading: "Why that layer is missing",
       sub: "Every department optimises its own queue. Nobody counts the family's trips.",
@@ -54,7 +54,7 @@ export const PLAN = [
 
   // ── the architecture, before any screen ───────────────────────────────────
   {
-    id: "w04-arch", kind: "arch", seconds: 41,
+    id: "w04-arch", kind: "arch", seconds: 46,
     card: {
       heading: "Where it sits",
       sub: "Read status · decide · tell everyone who needs to know. No clinical write, anywhere.",
@@ -77,17 +77,17 @@ export const PLAN = [
     vo: "This is where it sits. Above the line, what the hospital already runs — its own system for appointments and report status, A B D M for linked status under India's consent model, and the directory of labs, cabs, hotels and scheme desks it already uses. Saathi reads from those. It never writes anything clinical. In the middle it resolves the care pathway as a dependency graph, forecasts when each pending step will be ready, asks every party the journey leans on, and reaches a verdict. Below the line, three audiences. The navigator sees every journey against whatever is holding it up. The family sees one word and one date, in their own language. And each vendor sees one job, and nothing about anybody's care.",
   },
   {
-    id: "w05-tech", kind: "stack", seconds: 30,
+    id: "w05-tech", kind: "stack", seconds: 35,
     card: {
       heading: "What it is built from",
       rows: [
         ["The decision — no model", "Dependency-graph resolution · split conformal prediction for readiness, with a stated coverage level · PELT change-point detection for drop-off · a hash-chained ledger"],
-        ["Groq", "gpt-oss-20b puts a decided plan into the family's language. It never makes the decision."],
+        ["Agentic AI", "A language model puts a decided plan into the family's language — and simulated counterparties stand in for vendors in the demo. Neither ever makes the decision."],
         ["Sarvam AI", "bulbul:v3 and saarika:v2.5 — Hindi, Bengali, Odia, English. Chosen because almost no phone ships an Odia voice."],
         ["Platform", "FastAPI · PostgreSQL · React · Kotlin/Compose · server-sent events · 631 credential-free tests"],
       ],
     },
-    vo: "What it is built from. The decision itself uses no model at all — a dependency graph, split conformal prediction for the readiness forecast with a stated coverage level, change-point detection for drop-off, and a hash-chained ledger. Groq runs the language model that puts a decided plan into the family's words, and only that. Sarvam gives us speech in four languages, chosen because almost no phone ships an Odia voice. Underneath: FastAPI, Postgres, React, Kotlin, and six hundred and thirty-one tests that run with no credentials at all.",
+    vo: "What it is built from. The decision itself uses no model at all — a dependency graph, split conformal prediction for the readiness forecast with a stated coverage level, change-point detection for drop-off, and a hash-chained ledger. The A I layer puts a decided plan into the family's words, and only that. Sarvam gives us speech in four languages, chosen because almost no phone ships an Odia voice. Underneath: FastAPI, Postgres, React, Kotlin, and six hundred and thirty-one tests that run with no credentials at all.",
   },
 
   // ── who built it, and with whom ───────────────────────────────────────────
@@ -106,7 +106,7 @@ export const PLAN = [
     vo: "Four of us built it. Siddhartha Sengupta, technical architect, on the decision core. Ankshuk Ray on the two web products, the Android app and the speech layer. Abhik Sengupta, a PhD scholar in the biological sciences, on the evidence. And Srinivas Pavan on delivery and scope.",
   },
   {
-    id: "w07-doctor", kind: "card", seconds: 27,
+    id: "w07-doctor", kind: "card", seconds: 28,
     card: {
       heading: "Dr Arani Chakraborty",
       sub: "MBBS · Reg. 93698 · our doctor partner",
@@ -144,7 +144,7 @@ export const PLAN = [
 
   // ── what it does about the problem ────────────────────────────────────────
   {
-    id: "w15-result", kind: "stack", seconds: 33,
+    id: "w15-result", kind: "stack", seconds: 36,
     card: {
       heading: "Does it address the problem?",
       rows: [

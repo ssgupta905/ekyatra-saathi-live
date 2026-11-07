@@ -133,6 +133,17 @@ function quoteTrim(seg) {
  * the same acoustic space as the narration — and a voice in the narrator's
  * space is heard as the narrator, whatever language it is speaking.
  */
+/**
+ * One loudness for every section.
+ *
+ * The narration is synthesised locally and the quoted excerpts were mixed
+ * elsewhere, and they arrived about nine decibels apart — loud enough that
+ * every cut between a card and the product jumped. Normalising both to the
+ * same target is the fix; the alternative is a viewer reaching for the volume
+ * twice a minute.
+ */
+const LEVEL = "loudnorm=I=-20:TP=-1.5:LRA=11";
+
 const PHONE_SPEAKER =
   //: Telephone band. A first attempt at 400-3600 Hz measured almost the same
   //: as the narration, because this text-to-speech has little energy up there
@@ -208,7 +219,7 @@ function args(seg, hindiSeconds = 0) {
     const { from, secs: dur } = quoteTrim(seg);
     filter +=
       `;${quoted}atrim=start=${from}:duration=${dur},asetpts=PTS-STARTPTS,` +
-      `aresample=48000,aformat=channel_layouts=stereo[src]`;
+      `${LEVEL},aresample=48000,aformat=channel_layouts=stereo[src]`;
     mixed.push("[src]");
   }
 
@@ -226,7 +237,7 @@ function args(seg, hindiSeconds = 0) {
     const start = Math.round(voiceStart(seg, hindiSeconds) * 1000);
     const delay = start > 0 ? `,adelay=${start}|${start}` : "";
     filter +=
-      `;[${next}:a]aresample=48000,aformat=channel_layouts=stereo,` +
+      `;[${next}:a]${LEVEL},aresample=48000,aformat=channel_layouts=stereo,` +
       `afade=t=in:st=0:d=0.12${delay}[vo]`;
     mixed.push("[vo]");
     next += 1;

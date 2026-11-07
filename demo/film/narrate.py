@@ -49,13 +49,18 @@ sys.path.insert(0, str(ROOT / "backend"))
 #: is the one thing the narrator must not do.
 #:
 #: Override either without touching this file: SAATHI_NARRATOR, SAATHI_PHONE.
-#: Slightly quicker than default, because it measurably stops the reading
-#: flattening out. Synthesising the same passage as one long sentence and as
-#: several short ones, then measuring the spread of the fundamental frequency:
-#: long 21.5 Hz, short 26.7 Hz, short at this pace 34.0 Hz. Slowing it down
-#: made it flatter still, which is the opposite of what you would guess.
-NARRATION_PACE = float(os.environ.get("SAATHI_NARRATION_PACE", "1.1"))
-NARRATOR = os.environ.get("SAATHI_NARRATOR", "anand")
+#: The narrator is a US English voice from the operating system, and the
+#: family's phone is still Sarvam. That split is deliberate twice over: the
+#: film wants a narrator who is clearly not the product, and Sarvam only ships
+#: Indian voices — every one of its speakers reads Indian English, which is
+#: right for the phone and wrong for a voice-over sitting beside it.
+#:
+#: `say` rather than a hosted service because there is no other text-to-speech
+#: credential in this project: the one hosted option on the existing key was
+#: retired by its provider. Samantha is the only US female voice installed.
+NARRATOR_VOICE = os.environ.get("SAATHI_NARRATOR_VOICE", "Samantha")
+NARRATOR_WPM = os.environ.get("SAATHI_NARRATOR_WPM", "178")
+PHONE = os.environ.get("SAATHI_PHONE", "shreya")
 PHONE = os.environ.get("SAATHI_PHONE", "shreya")
 
 
@@ -70,6 +75,28 @@ def plan() -> list[dict]:
         ["node", "-e", script], cwd=HERE, capture_output=True, text=True, check=True
     ).stdout
     return json.loads(raw)
+
+
+def _narrate(text: str, path: pathlib.Path) -> float | None:
+    """The English voice-over, spoken by the operating system.
+
+    Written straight to a 22 kHz mono WAV because that is what the assembler
+    resamples from anyway, and because an AIFF left lying around is one more
+    intermediate nobody cleans up.
+    """
+    aiff = path.with_suffix(".aiff")
+    subprocess.run(
+        ["say", "-v", NARRATOR_VOICE, "-r", NARRATOR_WPM, "-o", str(aiff), text],
+        check=True,
+    )
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-y", "-i", str(aiff),
+         "-ar", "22050", "-ac", "1", str(path)],
+        check=True,
+    )
+    aiff.unlink(missing_ok=True)
+    with wave.open(str(path)) as handle:
+        return handle.getnframes() / handle.getframerate()
 
 
 def _speak(
@@ -120,10 +147,7 @@ def main() -> int:
         line = (seg["vo"] or "").strip()
         if not line:
             continue
-        seconds = _speak(
-            speech, line, "en", OUT / f"{seg['id']}.wav",
-            speaker=NARRATOR, pace=NARRATION_PACE,
-        )
+        seconds = _narrate(line, OUT / f"{seg['id']}.wav")
         if seconds is None:
             failed.append(seg["id"])
             print(f"  {seg['id']:14s} SILENT - sarvam refused")
