@@ -37,7 +37,7 @@
   .cols { flex: 1 1 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; min-height: 0; }
   .box {
     border: 1.1px solid #1f5fa8;
-    padding: 3.8mm 4.2mm 4mm;
+    padding: 3.4mm 4.2mm 3.4mm;
     display: flex; flex-direction: column; gap: 2.4mm;
     min-height: 0;
   }
@@ -49,7 +49,7 @@
   p { margin-bottom: 1.2mm; }
   p:last-child { margin-bottom: 0; }
   ul { list-style: none; }
-  li { position: relative; padding-left: 3.2mm; margin-bottom: 0.9mm; }
+  li { position: relative; padding-left: 3.2mm; margin-bottom: 0.6mm; }
   li::before { content: "▪"; position: absolute; left: 0; color: #1f5fa8; }
   ol { padding-left: 4.6mm; }
   ol li { padding-left: 0.6mm; margin-bottom: 1.3mm; }
@@ -80,22 +80,31 @@
     <div style="display:flex; flex-direction:column; gap:5mm; min-height:0;">
       <div class="box" style="flex:1 1 auto;">
         <h2>About the Team / Organisation</h2>
-        <p><b>A.</b> Two independent engineers, not a registered organisation.
-        <b>Siddhartha Sengupta</b> and <b>Ankshuk Ray</b> built Saathi over the sprint as a
-        working system rather than a prototype shell: 160 Python modules, a React monorepo of
-        four apps, a Kotlin/Compose Android app, and <b>631 automated tests that run with no
-        credentials at all</b>. Both come from production software engineering, which is why
-        every safety property below is enforced by a test rather than by convention.</p>
-        <p><b>B. Doctor background and role in the solution.</b></p>
-        <p class="flag">The team has no clinician member, and we would rather say so than
-        imply otherwise. Saathi is deliberately a <b>non-clinical logistics</b> tool, and the
-        clinician role is designed into the system rather than performed by the team: a
-        re-plan touching treatment or dose timing can be approved only by a doctor (a
-        server-side check, not a UI rule); any message reading as a clinical question is
-        routed to a human and never answered; the family's self-reported medical background
-        is visible to doctors and administrators only. Clinical validation is the explicit
-        next step — a draft inquiry to ICMR-NCDIR sits in the repository, unsent.
-        <b>If the team has a clinical advisor, their background and role belong here.</b></p>
+        <p><b>A.</b> Five people, working as an independent team rather than a registered
+        organisation. Built in the sprint: 160 Python modules, a React monorepo of four
+        applications, a Kotlin/Compose Android app, and <b>631 automated tests that run with
+        no credentials at all</b>.</p>
+        <ul>
+          <li><b>Siddhartha Sengupta</b> — Technical Architect. System design, the decision
+          core, and the safety properties enforced by tests.</li>
+          <li><b>Ankshuk Ray</b> — Full-stack and AI engineer. Two web products, the Android
+          app, the language and speech layer, deployment.</li>
+          <li><b>Abhik Sengupta</b> — PhD scholar, biological sciences. Evidence review and
+          the published cost-of-care data this is built against.</li>
+          <li><b>Srinivas Pavan</b> — Delivery Manager. Four-week sprint planning and the
+          scope calls that kept the build shippable.</li>
+        </ul>
+        <p><b>B. Doctor partner.</b> <b>Dr Arani Chakraborty, MBBS</b> (Reg. 93698). Formerly
+        Resident, Neurosurgery, AIIMS Kalyani; presently Department of Neurology, Manipal
+        Hospital, EM Bypass.</p>
+        <p>He mapped the sequence a patient actually moves through — presentation,
+        evaluation, the wait for a result, follow-up — and named where it breaks: the points
+        at which a patient is sent away and does not come back. That is why Saathi models a
+        journey as a <i>dependency chain with a blocking step</i> rather than a calendar of
+        appointments, and why a date is withheld until the chain clears.</p>
+        <p class="flag">Clinical process review, not a clinical trial. He has reviewed the
+        pathway logic and the boundary the product keeps; no patient outcomes have been
+        validated and no real patient data has been used.</p>
       </div>
 
       <div class="box" style="flex:0 0 auto;">
@@ -184,10 +193,9 @@
     <div style="display:flex; flex-direction:column; gap:5mm; min-height:0;">
       <div class="box" style="flex:1 1 auto;">
         <h2>Build Sprint Progress</h2>
-        <p>The concept began as a reminder app: tell the family their appointment is coming.
-        It became clear within the first week that the useful question is the opposite one —
-        <i>should they come at all</i> — and the system was rebuilt around a readiness
-        verdict. What shipped over the four weeks:</p>
+        <p>The concept began as a reminder app. Within the first week it was clear the
+        useful question is the opposite one — <i>should they come at all</i> — and the
+        system was rebuilt around a readiness verdict. What shipped:</p>
         <ul>
           <li><b>Weeks 1–2 — the decision core.</b> Care-pathway dependency graph, conformal
           readiness intervals, the four-verdict planner, and the hash-chained ledger. The
@@ -199,8 +207,8 @@
           directions of every message.</li>
           <li><b>Week 4 — the network and the vendors.</b> A directory of labs, pharmacies,
           cab firms, hotels and scheme desks that answer for themselves; a partner app so a
-          vendor sees its own jobs and nothing about anybody's care; onboarding in seven
-          stages; Sarvam speech on web and Android; deployment to Render.</li>
+          vendor sees its own jobs and nothing about anybody's care; seven-stage onboarding;
+          Sarvam speech on web and Android; deployment.</li>
           <li><b>Late addition — affordability.</b> Onboarding had collected a ration card and
           an income band since the first commit and nothing read either, so every family was
           offered the same app cab and the same hotel. Cost tiers, means-aware selection and
@@ -210,9 +218,14 @@
 
       <div class="box" style="flex:0 0 auto;">
         <h2>User Validation and AI Evaluation</h2>
-        <p class="flag"><b>No real patient data has been used anywhere, and there has been no
-        clinical user testing.</b> Saying otherwise would be the easiest thing in this
-        document to get wrong.</p>
+        <p class="flag"><b>No real patient data has been used anywhere, and there has been
+        no patient-facing user testing.</b> Saying otherwise would be the easiest thing in
+        this document to get wrong.</p>
+        <p><b>Clinical review.</b> Dr Chakraborty walked the pathway model against how
+        evaluation and follow-up actually run, and against the boundary the product keeps —
+        status only, never findings. Two changes came out of it: a visit is withheld until
+        its blocking step clears rather than offered on a calendar date, and follow-up loss
+        became a signal a navigator is told about.</p>
         <p><b>Evaluation method.</b> 50 synthetic families are generated with <i>planted
         ground truth</i> — the true date each pending report actually lands — and Saathi's
         verdicts are scored against the date the hospital's default policy would have given.
@@ -276,13 +289,14 @@
 
       <h2>Supporting Links</h2>
       <ul>
-        <li><b>MVP (live):</b> control centre, family app and partner app on Render —
-        <i>links shared with the organisers; private repository access on request</i></li>
-        <li><b>Video demo walkthrough:</b> 12-minute end-to-end film, narrated, recorded
-        against the deployed service</li>
-        <li><b>Other:</b> README with the nine invariants and their enforcing tests; ABDM /
-        NCDIR feasibility note; draft validation inquiry to ICMR-NCDIR</li>
+        <li><b>MVP (live):</b> hospital control centre, family web app, partner app.
+        <span class="flag">[three URLs + the demo sign-in]</span></li>
+        <li><b>Android app (APK):</b> <span class="flag">[public download link]</span></li>
+        <li><b>Demo walkthrough video:</b> <span class="flag">[public video link]</span></li>
+        <li><b>Code repository:</b> <span class="flag">[link, or "access on request"]</span></li>
       </ul>
+      <p class="q">Each link must open for the panel, not only for the team. Check every one
+      in a signed-out browser before submitting.</p>
     </div>
   </div>
 </section>

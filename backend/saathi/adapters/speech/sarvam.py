@@ -110,7 +110,14 @@ class SarvamSpeech:
 
     # ---------------- speaking ----------------
 
-    def say(self, text: str, language: str) -> Utterance | None:
+    def say(self, text: str, language: str, speaker: str | None = None) -> Utterance | None:
+        """Speak one line, optionally in a named voice.
+
+        `speaker` is passed through untouched when given. The service keeps its
+        own list and refuses an unknown name with a 400 that *names the valid
+        ones*, which is far more useful than a list copied into this file that
+        would rot the next time they add a voice.
+        """
         code = LANGUAGE_CODES.get(language)
         if code is None or not text.strip():
             return None
@@ -121,6 +128,7 @@ class SarvamSpeech:
                 "text": text,
                 "target_language_code": code,
                 "model": self._speak_model,
+                **({"speaker": speaker} if speaker else {}),
             },
         )
         if body is None:

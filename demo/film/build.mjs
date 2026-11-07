@@ -74,6 +74,30 @@ function seek(seg) {
 }
 
 /**
+ * Making the Hindi sound like it is coming out of the phone on screen.
+ *
+ * A different voice was the first half of this (see `narrate.py`); this is the
+ * second. A small device speaker has almost no bass and no air, and squashes
+ * its dynamics, so the band is cut to roughly what one reproduces and the
+ * result is compressed and set slightly back in the mix.
+ *
+ * Without it the Hindi arrives at full studio bandwidth, sitting in exactly
+ * the same acoustic space as the narration — and a voice in the narrator's
+ * space is heard as the narrator, whatever language it is speaking.
+ */
+const PHONE_SPEAKER =
+  //: Telephone band. A first attempt at 400-3600 Hz measured almost the same
+  //: as the narration, because this text-to-speech has little energy up there
+  //: to remove — so the band is narrowed to what a small speaker actually
+  //: reproduces and the mids are pushed, which is what gives a phone its
+  //: boxy sound. Verified by comparing band energy against the narration
+  //: rather than by ear.
+  "highpass=f=500,lowpass=f=3200," +
+  "equalizer=f=2000:width_type=q:width=1.0:g=5," +
+  "acompressor=threshold=-20dB:ratio=6:attack=3:release=80," +
+  "volume=0.95";
+
+/**
  * How long the Hindi runs, and therefore when the narrator may start.
  *
  * The English waits rather than ducking under it. Ducking would have been less
@@ -128,7 +152,7 @@ function args(seg, hindiSeconds = 0) {
     const at = Math.round(seg.hindi.at * 1000);
     filter +=
       `;[${next}:a]aresample=48000,aformat=channel_layouts=stereo,` +
-      `adelay=${at}|${at}[hi]`;
+      `${PHONE_SPEAKER},adelay=${at}|${at}[hi]`;
     mixed.push("[hi]");
     next += 1;
   }

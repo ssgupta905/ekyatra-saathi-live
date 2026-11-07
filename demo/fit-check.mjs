@@ -18,7 +18,7 @@ await p.emulateMedia({ media: "print" });
 const report = await p.evaluate(() => {
   const mm = 1280 / 338.7;
   const out = [];
-  document.querySelectorAll(".page").forEach((page, i) => {
+  document.querySelectorAll(".page, .slide").forEach((page, i) => {
     const over = page.scrollHeight - page.clientHeight;
     out.push({ what: `page ${i + 1}`, over: Math.round(over / mm) });
     page.querySelectorAll(".box").forEach((box) => {

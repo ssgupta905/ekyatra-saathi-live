@@ -33,6 +33,19 @@ ROOT = HERE.parents[1]
 
 sys.path.insert(0, str(ROOT / "backend"))
 
+#: Two different people, and the difference is the point.
+#:
+#: The first cut used the service's default voice for both the narration and
+#: the phone's read-aloud, so the Hindi sounded like the narrator switching
+#: language rather than like a device speaking in the room. A viewer who does
+#: not attribute the voice to the phone on screen reads it as badly timed,
+#: however well it is timed.
+#:
+#: Measured by autocorrelation on a sample of each: roughly 175 Hz against
+#: 248 Hz, about a fifth apart, which no listener will mistake.
+NARRATOR = "ashutosh"
+PHONE = "shreya"
+
 
 def plan() -> list[dict]:
     """Read the plan from its one home rather than restating it here."""
@@ -47,9 +60,11 @@ def plan() -> list[dict]:
     return json.loads(raw)
 
 
-def _speak(speech, text: str, language: str, path: pathlib.Path) -> float | None:
+def _speak(
+    speech, text: str, language: str, path: pathlib.Path, *, speaker: str | None = None
+) -> float | None:
     """Say one line and write it down. Returns its length, or None if refused."""
-    utterance = speech.say(text, language)
+    utterance = speech.say(text, language, speaker=speaker)
     if utterance is None:
         return None
     path.write_bytes(utterance.audio)
@@ -75,7 +90,9 @@ def main() -> int:
     for seg in plan():
         hindi = seg.get("hindi")
         if hindi:
-            said = _speak(speech, hindi["text"], "hi", OUT / f"{seg['id']}.hi.wav")
+            said = _speak(
+                speech, hindi["text"], "hi", OUT / f"{seg['id']}.hi.wav", speaker=PHONE
+            )
             if said is None:
                 failed.append(f"{seg['id']} (hi)")
                 print(f"  {seg['id']:14s} SILENT - sarvam refused the Hindi")
@@ -85,7 +102,7 @@ def main() -> int:
         line = (seg["vo"] or "").strip()
         if not line:
             continue
-        seconds = _speak(speech, line, "en", OUT / f"{seg['id']}.wav")
+        seconds = _speak(speech, line, "en", OUT / f"{seg['id']}.wav", speaker=NARRATOR)
         if seconds is None:
             failed.append(seg["id"])
             print(f"  {seg['id']:14s} SILENT - sarvam refused")

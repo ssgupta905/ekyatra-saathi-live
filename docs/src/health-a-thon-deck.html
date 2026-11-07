@@ -1,0 +1,700 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Bits2026 | EKYATRA Saathi — Health-a-thon 2026 Final Submission</title>
+<style>
+  /* 16:9 slides at the template's geometry. */
+  @page { size: 338.7mm 190.5mm; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Aptos, Calibri, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: #1f2937; font-size: 11pt; line-height: 1.38;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .slide {
+    position: relative; width: 338.7mm; height: 190.5mm;
+    padding: 11mm 15mm 13mm; display: flex; flex-direction: column;
+    page-break-after: always; background: #fff;
+  }
+  .slide:last-child { page-break-after: auto; }
+
+  h1 { font-size: 22pt; font-weight: 700; color: #15357f; letter-spacing: -0.015em;
+       margin-bottom: 5.5mm; }
+  .brand { position: absolute; top: 11mm; right: 17mm;
+           font-size: 13pt; font-weight: 800; letter-spacing: -0.02em; }
+  .brand .g { color: #0a7d3c; } .brand .b { color: #15357f; }
+  footer { position: absolute; left: 17mm; right: 17mm; bottom: 7mm;
+           display: flex; justify-content: space-between;
+           font-size: 7.5pt; font-weight: 700; color: #6b7280;
+           letter-spacing: 0.04em; border-top: 0.8px solid #e5e7eb; padding-top: 2.5mm; }
+  .body { flex: 1 1 auto; min-height: 0; }
+
+  ul { list-style: none; }
+  li { position: relative; padding-left: 4.4mm; margin-bottom: 1.7mm; }
+  li::before { content: "▪"; position: absolute; left: 0; color: #0a7d3c; }
+  li li::before { content: "–"; color: #9ca3af; }
+  ul ul { margin-top: 1.4mm; }
+  ul ul li { font-size: 9.6pt; color: #4b5563; margin-bottom: 0.8mm; }
+  p { margin-bottom: 2.1mm; }
+  b { color: #111827; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 9mm; }
+  .three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7mm; }
+  h2 { font-size: 11.5pt; color: #15357f; margin-bottom: 2.6mm; }
+  .card { border: 1px solid #d7dfea; border-left: 3px solid #15357f;
+          padding: 3.2mm 4mm; background: #fafbfd; }
+  .card.green { border-left-color: #0a7d3c; }
+  .q { color: #6b7280; font-size: 9.4pt; }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 10pt; }
+  table { width: 100%; border-collapse: collapse; font-size: 9.8pt; }
+  td, th { padding: 1.5mm 2mm; border-bottom: 0.8px solid #e5e7eb; text-align: left;
+           vertical-align: top; }
+  th { font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280;
+       font-weight: 700; }
+  td.n { text-align: right; font-weight: 700; white-space: nowrap; }
+  .fill { color: #b45309; font-style: italic; }
+  .big { font-size: 20pt; font-weight: 700; color: #0a7d3c; line-height: 1.15; }
+
+  /* title + closing */
+  .centre { display: flex; flex-direction: column; align-items: center;
+            justify-content: center; text-align: center; height: 100%; gap: 4mm; }
+  .wordmark { font-size: 40pt; font-weight: 800; letter-spacing: -0.025em; }
+  .kicker { font-size: 12pt; font-weight: 700; color: #15357f; letter-spacing: 0.08em; }
+  .sol { font-size: 36pt; font-weight: 700; color: #1f2937; letter-spacing: -0.02em; }
+  .sub { font-size: 15pt; color: #6b7280; }
+  .meta { display: flex; gap: 22mm; margin-top: 9mm; font-size: 12pt; font-weight: 700;
+          color: #0a7d3c; }
+
+  /* timeline */
+  .gantt { display: grid; grid-template-columns: 34mm repeat(4, 1fr); gap: 1.6mm 0;
+           font-size: 9.5pt; align-items: center; }
+  .gantt .head { font-size: 8pt; font-weight: 700; color: #6b7280; text-align: center;
+                 text-transform: uppercase; letter-spacing: 0.05em; }
+  .gantt .lab { font-weight: 700; color: #111827; padding-right: 3mm; }
+  .bar { height: 6.5mm; border-radius: 3mm; background: #15357f; color: #fff;
+         font-size: 8.5pt; display: flex; align-items: center; padding: 0 3mm;
+         white-space: nowrap; overflow: hidden; }
+  .bar.g { background: #0a7d3c; }
+  .bar.l { background: #cbd5e1; color: #475569; }
+</style>
+
+<!-- 1 ───────────────────────────────── TITLE -->
+<section class="slide">
+  <div class="centre">
+    <div class="wordmark"><span style="color:#0a7d3c">Health-a-</span><span style="color:#15357f">thon</span> <span style="color:#15357f">2026</span></div>
+    <div class="kicker">FINAL SUBMISSION</div>
+    <div class="sol">EKYATRA Saathi</div>
+    <div class="sub">Tells a family travelling hundreds of kilometres for cancer care whether today's hospital trip is worth making</div>
+    <div class="meta">
+      <span>TEAM NAME&nbsp; Bits2026</span>
+      <span>TEAM CODE&nbsp; <span class="fill">[insert team code]</span></span>
+    </div>
+  </div>
+  <footer><span>HEALTH-A-THON 2026 · TITLE</span><span>1</span></footer>
+</section>
+
+<!-- 2 ───────────────────────────────── TEAM -->
+<section class="slide">
+  <div class="brand"><span class="g">Health-a-</span><span class="b">thon 2026</span></div>
+  <h1>Team Overview &amp; Background</h1>
+  <div class="body">
+    <div class="two">
+      <div>
+        <h2>The team</h2>
+        <ul>
+          <li><b>Siddhartha Sengupta</b> — Technical Architect
+            <ul><li>System design and the decision core; the nine invariants and the tests that enforce them</li></ul></li>
+          <li><b>Ankshuk Ray</b> — Full-stack &amp; AI engineer
+            <ul><li>Two web products, the Android app, the language and speech layer, deployment</li></ul></li>
+          <li><b>Abhik Sengupta</b> — PhD scholar, biological sciences
+            <ul><li>Evidence review; the published cost-of-care data this is built against</li></ul></li>
+          <li><b>Srinivas Pavan</b> — Delivery Manager
+            <ul><li>Four-week sprint planning and the scope calls that kept the build shippable</li></ul></li>
+        </ul>
+        <p class="q">An independent team, not a registered organisation.</p>
+      </div>
+      <div>
+        <h2>Doctor partner</h2>
+        <div class="card green">
+          <p><b>Dr Arani Chakraborty, MBBS</b> &nbsp;·&nbsp; Reg. no. 93698<br>
+          <span class="q">Formerly Resident, Department of Neurosurgery, AIIMS Kalyani.
+          Presently attached to the Department of Neurology, Manipal Hospital, EM Bypass.</span></p>
+          <p><b>Role in the solution.</b> He mapped the sequence a patient actually moves
+          through — presentation, evaluation, the wait for a result, follow-up — and named
+          where it breaks: the points at which a patient is sent away and does not come back.</p>
+          <p><b>What changed because of it.</b> Saathi models a journey as a dependency chain
+          with a blocking step rather than a calendar of appointments; a date is withheld
+          until that chain clears; and follow-up loss became a signal a navigator is told
+          about rather than a number on a dashboard.</p>
+          <p class="q"><b>Scope, stated plainly:</b> clinical process review, not a clinical
+          trial. He has reviewed the pathway logic and the boundary the product keeps. No
+          patient outcomes have been validated and no real patient data has been used.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <footer><span>HEALTH-A-THON 2026 · FINAL SUBMISSION</span><span>2</span></footer>
+</section>
+
+<!-- 3 ───────────────────────────────── PROBLEM -->
+<section class="slide">
+  <div class="brand"><span class="g">Health-a-</span><span class="b">thon 2026</span></div>
+  <h1>Problem Statement and Supporting Evidence</h1>
+  <div class="body">
+    <div class="two">
+      <div>
+        <p class="big">A family travels 600 km for an appointment and arrives to find the report is not back.</p>
+        <p>The visit is wasted. The journey is not — it is paid for in fares, lodging, and
+        days not earning. Then they go home and do it again.</p>
+        <h2>Why it matters</h2>
+        <table>
+          <tr><td>Tata Memorial Hospital patients from outside Maharashtra</td><td class="n">60%</td></tr>
+          <tr><td>Patients studied who travelled over 500 km</td><td class="n">75%+</td></tr>
+          <tr><td>Facing catastrophic non-medical costs (mean ₹88,433)</td><td class="n">83%</td></tr>
+          <tr><td>Borrowing or selling assets to cope, over 500 km</td><td class="n">53%</td></tr>
+          <tr><td>Share of that cost that is travel and accommodation</td><td class="n">76%</td></tr>
+        </table>
+        <p class="q">Tata Memorial Centre annual figures; IIPS / TMC study,
+        <i>Journal of Cancer Policy</i>, 2025.</p>
+      </div>
+      <div>
+        <h2>What is wrong today</h2>
+        <ul>
+          <li><b>Every department optimises its own queue.</b> Pathology, radiology, the
+          scheme desk and the pharmacy each run their own backlog. Nobody counts the
+          family's trips.</li>
+          <li><b>The return date is a policy, not a fact.</b> "Come back in a week" is issued
+          before anyone knows when the report lands — and pathology is both slower and far
+          more variable than radiology, so one rule strands people.</li>
+          <li><b>The caregiver carries the integration.</b> One family member chases the lab,
+          the insurer, the cab and the room, usually by phone, often in a language the
+          hospital does not use.</li>
+          <li><b>Nothing is told to the family between visits.</b> A delay inside the
+          hospital is invisible until they have already travelled.</li>
+          <li><b>Follow-up loss is discovered late.</b> By the time a patient is noticed
+          missing, the window has often closed.</li>
+        </ul>
+        <h2>What needs to improve</h2>
+        <p>Replace a fixed return date with a <b>readiness decision</b>: do not ask a family
+        to travel for a step that is not ready, and tell them, in their own language, the
+        moment it is.</p>
+      </div>
+    </div>
+  </div>
+  <footer><span>HEALTH-A-THON 2026 · FINAL SUBMISSION</span><span>3</span></footer>
+</section>
+
+<!-- 4 ───────────────────────────────── USERS -->
+<section class="slide">
+  <div class="brand"><span class="g">Health-a-</span><span class="b">thon 2026</span></div>
+  <h1>Target Users and Use Case</h1>
+  <div class="body">
+    <div class="three">
+      <div class="card">
+        <h2>The caregiver</h2>
+        <p class="q">Primary user</p>
+        <p>Usually the one family member holding the whole journey together. Reads Hindi,
+        Bengali or Odia more comfortably than English; may not read at all. A basic Android
+        phone on an intermittent connection.</p>
+        <p><b>Needs:</b> one word — come or wait — one date, what to carry, and which desk to
+        reach first. Nothing else.</p>
+        <p><b>Fits their workflow by replacing a phone call</b> they would otherwise make to
+        the hospital, and by arriving before they set out rather than after.</p>
+      </div>
+      <div class="card">
+        <h2>The patient navigator</h2>
+        <p class="q">Primary user, hospital side</p>
+        <p>Holds around thirty families at once at a tertiary centre's navigation desk.
+        Today works from a list sorted by date.</p>
+        <p><b>Needs:</b> to see which journeys are blocked and by whom, not which are due.</p>
+        <p><b>Fits their workflow</b> as one board replacing thirty phone calls: every family
+        against every party that holds them up, worst first. They still make every decision —
+        the system only asks the questions.</p>
+      </div>
+      <div class="card">
+        <h2>The desks and vendors</h2>
+        <p class="q">Secondary users</p>
+        <p>The lab release desk, the scheme desk, a cab firm, a hotel, a pharmacy.</p>
+        <p><b>Needs:</b> to answer one question about one job, without seeing a patient
+        record.</p>
+        <p><b>Fits their workflow</b> as a single screen showing only their own organisation's
+        jobs — a first name, a district, a day — and a phone number only when the family has
+        agreed to share it.</p>
+      </div>
+    </div>
+    <p style="margin-top:6mm"><b>Setting:</b> a tertiary cancer centre's patient-navigation
+    desk and the homes of the families it serves, typically 400–1,900 km away.
+    <b>The task:</b> decide, every day, for every family, whether the next hospital visit is
+    worth making — and act on the answer.</p>
+  </div>
+  <footer><span>HEALTH-A-THON 2026 · FINAL SUBMISSION</span><span>4</span></footer>
+</section>
+
+<!-- 5 ───────────────────────────────── SOLUTION (1 of 2) -->
+<section class="slide">
+  <div class="brand"><span class="g">Health-a-</span><span class="b">thon 2026</span></div>
+  <h1>Solution Overview, Key Features &amp; Impact <span class="q" style="font-size:13pt">(1 of 2)</span></h1>
+  <div class="body">
+    <p class="big">Saathi answers one question, every day, for every family: is this trip worth making?</p>
+    <p>It reads appointment and report <b>status</b> from ABDM and hospital feeds — never
+    report content — resolves the care pathway's dependency graph, forecasts when each
+    pending step will be ready, and returns one of four verdicts. A date appears only when
+    every prerequisite is satisfied, so the app never promises a day it does not have.</p>
+    <div class="three" style="margin-top:5mm">
+      <div class="card green"><h2>आइए &nbsp;Come</h2><p>The chain is clear. A date, what to
+        bring, and the first desk to reach.</p></div>
+      <div class="card"><h2>रुकिए &nbsp;Wait</h2><p>Something is still blocking it. Who has
+        it, and the forecast window — never a promised date.</p></div>
+      <div class="card"><h2>Re-plan</h2><p>Something broke. Options are ranked for a person
+        to choose; treatment timing needs a doctor.</p></div>
+    </div>
+    <p style="margin-top:5mm"><b>Uncertain</b> is the fourth, and the one most systems leave
+    out. When calibration is too thin to forecast honestly, Saathi says so and tells a
+    navigator, rather than guessing.</p>
+    <h2 style="margin-top:5mm">End-to-end journey</h2>
+    <table>
+      <tr>
+        <th style="width:21%">Input</th>
+        <th style="width:42%">What Saathi does</th>
+        <th>Output</th>
+      </tr>
+      <tr>
+        <td>Appointment and report <b>status</b>; care steps; the family's language,
+        district and declared circumstances</td>
+        <td>Resolves the dependency chain → forecasts readiness with a stated coverage level
+        → asks every party the journey leans on → when a family can go, asks what they can
+        afford → renders the decision into their language</td>
+        <td>A verdict and, when earned, a date, a bring-list and a first stop — on the
+        family's phone, read aloud on request; and a board of blocked journeys for the
+        navigator</td>
+      </tr>
+    </table>
+  </div>
+  <footer><span>HEALTH-A-THON 2026 · FINAL SUBMISSION</span><span>5</span></footer>
+</section>
+
+<!-- 6 ───────────────────────────────── SOLUTION (2 of 2) -->
+<section class="slide">
+  <div class="brand"><span class="g">Health-a-</span><span class="b">thon 2026</span></div>
+  <h1>Solution Overview, Key Features &amp; Impact <span class="q" style="font-size:13pt">(2 of 2)</span></h1>
+  <div class="body">
+    <div class="two">
+      <div>
+        <h2>Key features</h2>
+        <ul>
+          <li><b>A readiness verdict, not a reminder.</b> Four answers, a date only when the
+          chain is clear, and a forecast that carries its own coverage level instead of a
+          confident guess.</li>
+          <li><b>The whole network, asked automatically.</b> Scheme desk, pharmacy, cab firm,
+          hotel and lab each answer for themselves. A vendor signs in to its own screen and
+          sees only its own jobs.</li>
+          <li><b>Affordability built into the plan.</b> A railway patient-quota berth and a
+          dharamshala for one household, an app cab and a hotel for another — and Saathi
+          <i>asks</i> the family to confirm, with "I cannot manage any of these" always on
+          the list, routed to a social worker rather than a cheaper booking.</li>
+          <li><b>Four languages, and a voice.</b> Hindi, Bengali, Odia, English, each read
+          aloud on request. A plan a caregiver cannot read is not a plan.</li>
+          <li><b>An audit trail that cannot be quietly edited.</b> A hash-chained ledger that
+          grows only when a fact actually changes.</li>
+        </ul>
+      </div>
+      <div>
+        <h2>Expected impact</h2>
+        <p>Measured against planted ground truth on 50 synthetic families
+        (<code>python -m saathi.demo</code>):</p>
+        <table>
+          <tr><td>Wasted trips under the hospital's default policy</td><td class="n">30 / 50 &nbsp;(60%)</td></tr>
+          <tr><td>Wasted trips with Saathi</td><td class="n">0 / 50 &nbsp;(0%)</td></tr>
+          <tr><td>Non-medical cost avoided, at ₹8,500 per trip</td><td class="n">₹2,55,000</td></tr>
+        </table>
+        <p class="q" style="margin-top:3mm">Synthetic, not clinical. The point of the number
+        is the mechanism it demonstrates, not the magnitude.</p>
+        <p style="margin-top:4mm"><b>If it held at a single tertiary centre</b> with ~45,000
+        new patients a year, of whom 60% travel from outside the state, each avoided return
+        journey is roughly a month's income for a household in the lowest band — alongside a
+        clinical gain that is harder to count: a family who is not exhausted by a wasted trip
+        is a family more likely to come back for the next one.</p>
+        <p><b>And for the hospital:</b> fewer patients arriving for a step that cannot happen
+        means fewer wasted slots in queues that are already the bottleneck.</p>
+      </div>
+    </div>
+  </div>
+  <footer><span>HEALTH-A-THON 2026 · FINAL SUBMISSION</span><span>6</span></footer>
+</section>
+
+<!-- 7 ───────────────────────────────── TECH -->
+<section class="slide">
+  <div class="brand"><span class="g">Health-a-</span><span class="b">thon 2026</span></div>
+  <h1>Technology, Tools and AI Approach</h1>
+  <div class="body">
+    <div class="card green" style="margin-bottom:5mm">
+      <p style="margin:0"><b>The model never decides whether a family travels.</b> A
+      deterministic planner decides. The language model is given one job — putting that
+      decision into the family's own language — and is bound by a response schema whose
+      verdict enum is derived from the <code>Decision</code> type itself, so a new verdict
+      cannot silently fall outside it.</p>
+    </div>
+    <div class="three">
+      <div>
+        <h2>Decision core — no model</h2>
+        <ul>
+          <li>Dependency-graph resolution over the care pathway</li>
+          <li><b>Split conformal prediction</b> for readiness intervals, with a stated
+          coverage level (90%, n=120 per queue) that refuses to answer on thin calibration</li>
+          <li><b>PELT change-point detection</b> for engagement drop-off</li>
+          <li>Hash-chained evidence ledger</li>
+        </ul>
+      </div>
+      <div>
+        <h2>Where AI is used</h2>
+        <ul>
+          <li><b>Rendering</b> — Groq <code>gpt-oss-20b</code> turns a decided plan into a
+          sentence in the family's language</li>
+          <li><b>Reading a reply</b> — an inbound message becomes a <i>proposal</i> a
+          navigator confirms, never an instruction</li>
+          <li><b>Speech</b> — Sarvam <code>bulbul:v3</code> and <code>saarika:v2.5</code>
+          for Hindi, Bengali, Odia, English; Groq <code>whisper-large-v3-turbo</code> as a
+          fallback ear</li>
+          <li><b>Simulated counterparties</b> — <code>gpt-oss-120b</code> stands in for
+          vendors in the demo, never in a decision</li>
+        </ul>
+      </div>
+      <div>
+        <h2>Platform &amp; integrations</h2>
+        <ul>
+          <li>Python 3.12 · FastAPI · Pydantic v2 · LangGraph</li>
+          <li>PostgreSQL with Alembic migrations</li>
+          <li>React 19 + Vite — four applications</li>
+          <li>Kotlin + Jetpack Compose — Android</li>
+          <li>Server-sent events; Docker on Render</li>
+          <li><b>ABDM</b> status + consent model; hospital appointment/report feed; a
+          directory of the vendors a journey already uses</li>
+        </ul>
+        <p class="q">Sarvam was chosen for a concrete reason: almost no phone ships an Odia
+        voice, so read-aloud silently did nothing for Odia families.</p>
+      </div>
+    </div>
+  </div>
+  <footer><span>HEALTH-A-THON 2026 · FINAL SUBMISSION</span><span>7</span></footer>
+</section>
+
+<!-- 8 ───────────────────────────────── SPRINT -->
+<section class="slide">
+  <div class="brand"><span class="g">Health-a-</span><span class="b">thon 2026</span></div>
+  <h1>Build Sprint Journey and Progress</h1>
+  <div class="body">
+    <div class="gantt" style="margin-bottom:5mm">
+      <div></div><div class="head">Week 1</div><div class="head">Week 2</div><div class="head">Week 3</div><div class="head">Week 4</div>
+      <div class="lab">Decision core</div>
+      <div class="bar" style="grid-column:2/4">Dependency graph · conformal readiness · four verdicts · ledger</div><div></div><div></div>
+      <div class="lab">Language &amp; guard</div>
+      <div></div><div class="bar g" style="grid-column:3/5">Model off the decision path · four languages · guard both ways</div><div></div>
+      <div class="lab">Two products split</div>
+      <div></div><div></div><div class="bar" style="grid-column:4/6">Console and family app separated · read-aloud · Android</div>
+      <div class="lab">Network &amp; vendors</div>
+      <div></div><div></div><div></div><div class="bar g">Directory · partner app · onboarding · deploy</div>
+      <div class="lab">Affordability</div>
+      <div></div><div></div><div></div><div class="bar">Cost tiers · budget conversation</div>
+      <div class="lab">ABDM OAuth</div>
+      <div></div><div></div><div></div><div class="bar l">specified, not built</div>
+    </div>
+    <div class="two">
+      <div>
+        <h2>How it evolved from the idea submission</h2>
+        <p>The idea was a <b>reminder app</b>: tell the family their appointment is coming.
+        Within the first week it was clear the useful question is the opposite one — <i>should
+        they come at all</i> — and the system was rebuilt around a readiness verdict. The
+        second change came from the clinical review: model the journey as a dependency chain
+        with a blocking step, not a calendar.</p>
+        <h2>Now functional</h2>
+        <p>Four-verdict planner with calibrated forecasts · hospital control centre (15
+        sections) · family web and Android apps in four languages with Sarvam speech ·
+        partner app for vendors · seven-stage onboarding · consent · hash-chained audit ·
+        means-aware planning and the budget conversation · deployed and running.</p>
+      </div>
+      <div>
+        <h2>Major challenges, and what changed</h2>
+        <ul>
+          <li><b>One screen for two audiences served neither.</b> Split into separate
+          applications in week 3 — the single largest rework of the sprint.</li>
+          <li><b>A rendering enum had rotted</b> and was silently diverting every re-plan
+          message. Found by driving the deployment, not the test suite; the enum is now
+          derived from the type and pinned by a test.</li>
+          <li><b>110 model calls and a 226-second stall</b> on first load. Reduced to 9 calls
+          and 43 seconds by skipping a first-pass render, excluding seed data and serialising
+          under the rate limit.</li>
+          <li><b>Means data collected and never read</b> — found in week 4, fixed in week 4.</li>
+        </ul>
+        <h2>Deliberately incomplete</h2>
+        <p class="q"><b>ABDM OAuth and consent-manager routing</b> — the consent model is
+        built and enforced; the live ABDM handshake is specified and not wired.
+        <b>The budget conversation on Android</b> — built for web, strings generated for
+        Android, screen not yet built. <b>Nearer-treatment-centre option</b> — modelled, not
+        surfaced. Each is named in the README rather than left to be discovered.</p>
+      </div>
+    </div>
+  </div>
+  <footer><span>HEALTH-A-THON 2026 · FINAL SUBMISSION</span><span>8</span></footer>
+</section>
+
+<!-- 9 ───────────────────────────────── EVALUATION -->
+<section class="slide">
+  <div class="brand"><span class="g">Health-a-</span><span class="b">thon 2026</span></div>
+  <h1>Evaluation and User Validation</h1>
+  <div class="body">
+    <div class="card" style="border-left-color:#b45309; margin-bottom:5mm">
+      <p style="margin:0"><b>No real patient data has been used anywhere, and there has been
+      no patient-facing user testing.</b> Everything below is measured on synthetic data or
+      on the running system. Saying otherwise would be the easiest claim in this deck to get
+      wrong.</p>
+    </div>
+    <div class="two">
+      <div>
+        <h2>How it was tested</h2>
+        <p><b>Planted ground truth.</b> 50 synthetic families are generated together with the
+        <i>true</i> date each pending report actually lands. That lets us ask the only
+        question that matters: if the family had travelled on the date they were given, would
+        the step have been possible?</p>
+        <table>
+          <tr><th>Metric</th><th style="text-align:right">Result</th></tr>
+          <tr><td>Wasted trips, hospital default policy</td><td class="n">30 / 50 (60%)</td></tr>
+          <tr><td>Wasted trips, with Saathi</td><td class="n">0 / 50 (0%)</td></tr>
+          <tr><td>Non-medical cost avoided (₹8,500/trip)</td><td class="n">₹2,55,000</td></tr>
+          <tr><td>Evidence ledger intact after the run</td><td class="n">yes</td></tr>
+          <tr><td>Automated tests, all credential-free</td><td class="n">631 passing</td></tr>
+        </table>
+        <h2 style="margin-top:4mm">Model performance</h2>
+        <p>The forecast is a <b>split conformal interval</b> with a guaranteed coverage level
+        rather than a point estimate: at α=0.1 the true readiness date falls inside the
+        quoted window at least 90% of the time under exchangeability, and below 120
+        calibration observations the predictor <b>declines to answer</b> and the verdict
+        becomes Uncertain. Rendering is checked not for fluency but for obedience — the
+        verdict in the message must equal the planner's verdict, enforced by schema and test.</p>
+      </div>
+      <div>
+        <h2>Review, findings and what changed</h2>
+        <ul>
+          <li><b>Clinical process review</b> (Dr Chakraborty). <i>Finding:</i> patients drop
+          out at the wait-for-result and follow-up steps, not at booking.
+          <i>Change:</i> the verdict is withheld until the blocking step clears, and
+          follow-up loss became an alert a navigator receives.</li>
+          <li><b>Driving the live deployment</b> rather than the test suite. <i>Findings:</i>
+          a rotted enum diverting every re-plan message; a 226-second cold start; a
+          confirmation endpoint returning 500 on the exact configuration the demo uses.
+          <i>Change:</i> all three fixed and each pinned by a regression test.</li>
+          <li><b>Reading the recordings frame by frame.</b> <i>Finding:</i> a walkthrough
+          showed an empty-state screen that was no longer true. <i>Change:</i> cut, and the
+          real screen recorded.</li>
+          <li><b>Language check.</b> <i>Finding:</i> read-aloud did nothing at all, silently,
+          for Odia. <i>Change:</i> Sarvam replaced the browser voice on web and Android.</li>
+        </ul>
+        <h2>Limitations — what still needs validating</h2>
+        <p class="q">Synthetic turnaround distributions are drawn from published queue
+        behaviour, not one hospital's real data. The per-trip cost is a share of a published
+        mean, not measured spend. No caregiver has used this. No clinician has used the
+        console in a live clinic. <b>All four need a hospital partner and an IEC approval —
+        that is the next step, not a footnote.</b></p>
+      </div>
+    </div>
+  </div>
+  <footer><span>HEALTH-A-THON 2026 · FINAL SUBMISSION</span><span>9</span></footer>
+</section>
+
+<!-- 10 ──────────────────────────────── SAFETY -->
+<section class="slide">
+  <div class="brand"><span class="g">Health-a-</span><span class="b">thon 2026</span></div>
+  <h1>Safety and Responsible AI</h1>
+  <div class="body">
+    <div class="two">
+      <div>
+        <h2>Data privacy, consent and security</h2>
+        <ul>
+          <li><b>Report content never enters the system.</b> The ABDM ingest drops
+          <code>conclusion</code>, <code>result</code> and <code>presentedForm</code>, and
+          the pointer type has <i>no field</i> that could hold a finding. Saathi cannot leak
+          what it is structurally unable to store.</li>
+          <li><b>Consent per purpose, withdrawable, checked at every read</b> and logged with
+          refusals (withdrawn, expired, outside what was agreed, never asked). Saathi is the
+          requester, never the consent manager. DPDP Act 2023 / ABDM model.</li>
+          <li><b>Need-to-know by role.</b> A vendor sees a first name, a district and a day —
+          and a phone number only if the family agreed. A navigator sees a record's category,
+          not the test name. Self-reported medical background is visible to doctors and
+          administrators only.</li>
+          <li><b>Tamper-evident audit.</b> Every fact and decision is a row in a hash-chained
+          ledger that grows only when something actually changes.</li>
+        </ul>
+      </div>
+      <div>
+        <h2>AI limitations and how failure is handled</h2>
+        <ul>
+          <li><b>The model cannot decide.</b> It renders a decision already made. The schema
+          binds it to the planner's verdict.</li>
+          <li><b>Thin data ⇒ no answer.</b> Below 120 calibration observations the forecaster
+          declines; the verdict becomes <b>Uncertain</b> and a person is told. "We don't know
+          yet" costs a family nothing; a date we invented costs them a journey.</li>
+          <li><b>A clinical question is never answered.</b> The guard routes it to a human; a
+          diverted message reaches the family as "a person is calling you", never as blank
+          words.</li>
+          <li><b>A refusal is a result.</b> A speech or routing service that fails returns
+          nothing rather than a plausible guess, and the fallback is visible on the health
+          page — which now lists <i>who is asked</i>, because a key that is set is not a key
+          that works.</li>
+        </ul>
+        <h2>Oversight, bias, accessibility</h2>
+        <ul>
+          <li><b>Human in the loop where it matters:</b> a doctor for treatment timing, a
+          person for vendor choice, a navigator before a family's budget answer takes effect.</li>
+          <li><b>No scores anywhere.</b> No composite number that could be sorted by — and
+          deliberately no stored field for how poor a family is.</li>
+          <li><b>Rationing is protected.</b> Only a household whose own papers say so is
+          offered a subsidised bed first; a charity bed taken by someone who could pay is one
+          a destitute family did not get.</li>
+          <li><b>Accessibility is the premise.</b> Four languages, read aloud, on a basic
+          phone, over 2G — because the families least able to absorb a wasted trip are
+          exactly the ones least served by English-only software.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <footer><span>HEALTH-A-THON 2026 · FINAL SUBMISSION</span><span>10</span></footer>
+</section>
+
+<!-- 11 ──────────────────────────────── DEPLOYMENT & COST -->
+<section class="slide">
+  <div class="brand"><span class="g">Health-a-</span><span class="b">thon 2026</span></div>
+  <h1>Deployment, Cost and Sustainability Plan</h1>
+  <div class="body">
+    <div class="two">
+      <div>
+        <h2>What a pilot requires</h2>
+        <ul>
+          <li>A named hospital partner and an <b>Institutional Ethics Committee approval</b>
+          — before any real-data pilot, not after</li>
+          <li>One navigation desk and its existing vendor relationships</li>
+          <li>Read access to appointment and report <b>status</b>; no write access to
+          anything clinical</li>
+        </ul>
+        <h2>Integration — yes, at three seams</h2>
+        <ul>
+          <li><b>ABDM</b> — OAuth and consent-manager routing for linked status
+          <span class="q">(specified; the consent model is built and enforced, the live
+          handshake is not yet wired)</span></li>
+          <li><b>Hospital HMIS / LIS</b> — one read-only feed of appointment and report
+          status. Saathi reads status and writes nothing clinical, which is the thinnest
+          seam available and the reason this can be piloted without an HMIS project.</li>
+          <li><b>Directory</b> — the labs, pharmacies, cab firms, hotels and scheme desks the
+          hospital already uses; each answers for itself through its own screen</li>
+        </ul>
+        <h2>Scaling and sustaining</h2>
+        <p>The decision core is stateless per family and the cost grows linearly with
+        families, not with hospitals. A second centre is configuration — its own pathway
+        rules, its own directory — not a fork. Deployable inside a hospital's own network
+        with no change to the decision core.</p>
+        <p><b>Sustaining it:</b> the natural payer is the hospital or the scheme that already
+        absorbs the cost of a wasted slot, not the family. The cheapest-adequate models are
+        used deliberately (a 20B model for rendering), rate-limited and serialised.</p>
+      </div>
+      <div>
+        <h2>Cost — with the assumptions stated</h2>
+        <table>
+          <tr><th>One-time deployment</th><th style="text-align:right">Estimate</th></tr>
+          <tr><td>ABDM OAuth + consent-manager wiring</td><td class="n">3–4 person-weeks</td></tr>
+          <tr><td>HMIS/LIS status feed adapter (one hospital)</td><td class="n">2–3 person-weeks</td></tr>
+          <tr><td>Pathway + directory configuration, staff onboarding</td><td class="n">1–2 person-weeks</td></tr>
+          <tr><td><b>Total</b></td><td class="n"><b>6–9 person-weeks<br>≈ ₹1.8–2.7 lakh</b></td></tr>
+        </table>
+        <p class="q"><b>Assumption:</b> a blended ₹1.2 lakh per person-month. No licence fees
+        — the stack is open-source apart from the model APIs.</p>
+        <table style="margin-top:4mm">
+          <tr><th>Ongoing, per month</th><th style="text-align:right">Estimate</th></tr>
+          <tr><td>Infrastructure — one container, managed Postgres, storage</td><td class="n">₹2,000–5,000</td></tr>
+          <tr><td>Model + speech, per active family</td><td class="n">₹3–8</td></tr>
+          <tr><td><b>One desk, 500 active families</b></td><td class="n"><b>≈ ₹4,000–9,000</b></td></tr>
+          <tr><td>Per facility (one navigation desk)</td><td class="n">₹4,000–9,000</td></tr>
+          <tr><td>Per decision rendered ("transaction")</td><td class="n">under ₹1</td></tr>
+        </table>
+        <p class="q"><b>Assumptions:</b> ~16 rendered messages per family per month; speech
+        used by roughly a third of families; current list pricing for a 20B-class model and
+        Sarvam speech; Indian cloud region. Vendor list prices move — these are indicative
+        and to be confirmed at procurement.</p>
+        <div class="card green" style="margin-top:4mm">
+          <p style="margin:0"><b>The comparison that matters.</b> The marginal cost of
+          planning one family for a month is in the order of a few rupees. One avoided
+          journey is ₹8,500. The conclusion survives being wrong about the first number by
+          two orders of magnitude.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <footer><span>HEALTH-A-THON 2026 · FINAL SUBMISSION</span><span>11</span></footer>
+</section>
+
+<!-- 12 ──────────────────────────────── WHAT NEXT -->
+<section class="slide">
+  <div class="brand"><span class="g">Health-a-</span><span class="b">thon 2026</span></div>
+  <h1>What Next? Plans to take the initiative forward</h1>
+  <div class="body">
+    <div class="two">
+      <div>
+        <h2>The plan, in order</h2>
+        <ul>
+          <li><b>1 · A named hospital partner and an IEC approval.</b> Everything else waits
+          on this. A draft validation inquiry to ICMR-NCDIR is written and unsent; the
+          realistic route is through a partner hospital's own registry and research office
+          rather than a cold approach.</li>
+          <li><b>2 · Finish the ABDM handshake.</b> OAuth and consent-manager routing, so
+          status arrives under real consent rather than a configured feed.</li>
+          <li><b>3 · A single-desk pilot, 50–100 families, one quarter.</b> The primary
+          endpoint is the one this was built for: <b>wasted journeys per family per quarter</b>,
+          against the desk's own prior practice. Secondary: follow-up loss, and time the
+          navigator spends on the phone.</li>
+          <li><b>4 · Replace the synthetic calibration with the hospital's own</b> turnaround
+          data, and the published per-trip cost with measured spend.</li>
+          <li><b>5 · Close the known gaps</b> — the budget conversation on Android, the
+          nearer-treatment-centre option, IVR for families without a smartphone.</li>
+        </ul>
+      </div>
+      <div>
+        <h2>Funding</h2>
+        <p>Not raised and not currently sought. The pilot above is small enough to run on
+        grant or institutional support; the sensible long-term payer is the hospital or
+        scheme that already absorbs the cost of a wasted slot, not the family.</p>
+        <h2>Make the solution information publicly available?</h2>
+        <div class="card green">
+          <p style="margin:0"><b>Yes</b> — we are willing for the solution information to be
+          shared on Health-a-thon or other websites.</p>
+          <p class="q" style="margin:2mm 0 0">The architecture, the nine invariants and the
+          evaluation method are all things we would rather see copied than kept. Two
+          caveats: the code repository is private today and would need a licence decision
+          before opening, and nothing about a real patient exists to share — the demo runs
+          on synthetic families.</p>
+        </div>
+        <p class="q" style="margin-top:4mm"><span class="fill">[Confirm this answer with the
+        team before submitting — it is the one box here that is a decision rather than a
+        fact.]</span></p>
+      </div>
+    </div>
+  </div>
+  <footer><span>HEALTH-A-THON 2026 · FINAL SUBMISSION</span><span>12</span></footer>
+</section>
+
+<!-- 13 ──────────────────────────────── THANK YOU -->
+<section class="slide">
+  <div class="centre">
+    <div class="wordmark"><span style="color:#0a7d3c">Health-a-</span><span style="color:#15357f">thon</span> <span style="color:#15357f">2026</span></div>
+    <div style="font-size:30pt; font-weight:700; color:#15357f; margin-top:4mm">Thank you</div>
+    <div style="font-size:13pt; font-weight:700; color:#0a7d3c; margin-top:2mm">
+      Bits2026 &nbsp;·&nbsp; <span class="fill">[team code]</span>
+    </div>
+    <div class="q" style="margin-top:5mm; font-size:11pt; line-height:2">
+      ssgupta905@gmail.com &nbsp;|&nbsp;
+      <span class="fill">[MVP link]</span> &nbsp;|&nbsp;
+      <span class="fill">[Demo video link]</span> &nbsp;|&nbsp;
+      <span class="fill">[Code repository link]</span><br>
+      <span class="fill">[Android APK — public download link]</span>
+    </div>
+    <p class="q" style="margin-top:6mm; max-width:170mm; font-size:10pt">
+      Every link above must open for the evaluation panel, not only for the team. Access
+      instructions and demo sign-in details are included with the submission.
+    </p>
+  </div>
+  <footer><span>HEALTH-A-THON 2026</span><span>13</span></footer>
+</section>

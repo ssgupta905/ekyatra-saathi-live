@@ -1,0 +1,271 @@
+================================================================================
+VIDEO AGENT PROMPT — EKYATRA Saathi demo walkthrough
+Team Bits2026 · Health-a-thon 2026 · Final submission
+================================================================================
+
+HOW TO USE THIS FILE
+--------------------
+1. Upload the source film as the input video:
+       EKYATRA-Saathi-end-to-end.mp4   (12:15, 1920x1080, in this same folder)
+2. Paste everything below the line marked "PROMPT BEGINS" into the agent's
+   prompt box (HeyGen, Synthesia, Argil, Creatify — this is written to be
+   tool-agnostic).
+
+Two things to know before you do.
+
+* USE THE SOURCE AUDIO. The film already carries two voices that matter: an
+  English narration, and the Hindi that the family's phone itself speaks. The
+  Hindi is not decoration — it is the product working — and it must survive
+  into the final cut. A generator that mutes the source and replaces everything
+  with an avatar track will delete the single most persuasive thing in the
+  recording. Specific instructions for this are in section 4.
+
+* THE BRIEF SAYS "NOT MERELY A SCREEN RECORDING." That is the bar this prompt
+  is written against: a presenter who introduces the team, explains how the
+  problem was approached, credits the doctor and technology partners, and then
+  shows the working product. Section 2 is therefore as important as section 3.
+
+================================ PROMPT BEGINS =================================
+
+ROLE
+----
+You are producing a recorded, narrated DEMO WALKTHROUGH for EKYATRA Saathi, an
+entry in Health-a-thon 2026 by team Bits2026. You are given a 12-minute
+narrated screen recording of the working product. Turn it into a tighter,
+presenter-led film that a judging panel will watch end to end.
+
+You are re-cutting and re-presenting real footage. Do not generate product
+screens, invent numbers, fabricate logos, or add testimonials.
+
+AUDIENCE
+--------
+Clinicians, health-system people and technical judges watching many
+submissions in one sitting. They decide in the first forty seconds whether to
+keep watching.
+
+The one idea they must leave with:
+  A family travelling 600 km for cancer care is told whether today's trip is
+  worth making — and the thing that decides is not a chatbot.
+
+OUTPUT
+------
+  Length     5:30 to 6:30
+  Aspect     16:9, 1920x1080, H.264
+  Presenter  One avatar. Indian English, warm and plain-spoken — a colleague
+             explaining their work, not a product launch. Full frame for
+             sections 1, 2 and 6; picture-in-picture lower-left over the screen
+             recording for the rest.
+  Captions   Burned-in English subtitles throughout. Many judges watch muted.
+  Pace       Let the recording breathe. When a verdict changes on screen, stop
+             talking and let it change.
+
+Also export, if supported:
+  - a clean version with no burned-in captions
+  - a 60-second vertical (9:16) cut, built from section 1 and the Wait-to-Come
+    moment at 10:18-10:48
+  - the final narration script as a text file, so it can be checked line by
+    line against the ACCURACY section below
+
+
+--------------------------------------------------------------------------------
+1. OPEN — THE PROBLEM                                            0:00 - 0:45
+--------------------------------------------------------------------------------
+Presenter full frame for the first two sentences, then over footage from
+00:09-00:28 and 02:49-03:06.
+
+  "Sixty per cent of the patients at India's biggest cancer hospital come from
+   outside the state. Most travel more than five hundred kilometres. They
+   arrive, and the report isn't back — so they go home, and they come again.
+   Eighty-three per cent of those families hit catastrophic non-medical costs.
+   More than half borrow or sell something to cope.
+   Saathi asks one question, every day, for every family: is this trip worth
+   making?"
+
+
+--------------------------------------------------------------------------------
+2. THE TEAM AND HOW WE WORKED                                    0:45 - 1:40
+--------------------------------------------------------------------------------
+Presenter full frame. Build a simple name-and-role card for each person as they
+are introduced — no stock photos of people, no invented headshots. If the tool
+requires an image, use a plain typographic card.
+
+  "We are Bits2026. Five people, working as an independent team.
+
+   Siddhartha Sengupta, our technical architect, designed the decision core and
+   the rules the system is not allowed to break. Ankshuk Ray, a full-stack and
+   AI engineer, built the two web products, the Android app, and the language
+   and speech layer. Abhik Sengupta, a PhD scholar in the biological sciences,
+   did the evidence review this is built against. Srinivas Pavan managed
+   delivery across the four weeks and made the scope calls that kept it
+   shippable.
+
+   And our doctor partner, Dr Arani Chakraborty — MBBS, formerly a resident in
+   neurosurgery at AIIMS Kalyani, now with the department of neurology at
+   Manipal Hospital, EM Bypass.
+
+   His contribution changed the shape of the product. He mapped the sequence a
+   patient actually moves through — presentation, evaluation, the wait for a
+   result, follow-up — and told us where it breaks: the points at which a
+   patient is sent away and does not come back. That is why Saathi models a
+   journey as a chain with a blocking step, rather than a calendar of
+   appointments, and why it refuses to give a date until that chain is clear.
+
+   We should be precise about the limits of that. It is clinical process
+   review, not a clinical trial. No real patient data has been used anywhere in
+   this build.
+
+   On the technology side we built on Groq for language, Sarvam for Indian
+   language speech, and the ABDM consent model for how data is asked for. We
+   started from a reminder app. Within a week we realised the useful question
+   was the opposite one — should they come at all — and rebuilt around it."
+
+
+--------------------------------------------------------------------------------
+3. THE WORKING SOLUTION                                          1:40 - 4:30
+--------------------------------------------------------------------------------
+Presenter in picture-in-picture over the footage.
+
+3a. The navigator's board                      use 02:49-03:30 and 04:30-05:30
+  "This is a hospital navigator's board: every family against every party
+   holding them up — the lab, the insurer, the pharmacy, the cab, the hotel.
+   Watch Meena. Her cab firm answers for itself, and the moment the last party
+   is ready, Wait becomes Come and a date appears. The date is a consequence of
+   readiness. It is never a guess."
+
+3b. When something fails                                   use 03:30-04:30
+  "Ravi's cab firm says it cannot. The journey stops. No date is promised,
+   because there is nothing to promise — and a person, not the system, chooses
+   who to ask next."
+
+3c. The vendor's own screen                                use 06:01-06:22
+  "Everyone the journey leans on gets a screen. The cab firm sees only its own
+   jobs — a first name, a district, a day — and a phone number only if the
+   family agreed to share it."
+
+3d. The family's phone                            use 07:13-07:28, 10:18-10:48
+  "The family has none of that complexity. One word, one date, what to bring,
+   in their own language. And when the lab four hundred kilometres away
+   releases the report, nobody touches the phone. Wait becomes Come, and the
+   list of papers to carry appears with it."
+  HOLD on the Hindi screen flipping. Do not cut during the flip.
+
+3e. Affordability — the differentiator                     use 07:31-08:35
+  "Not every family can absorb an app cab and a hotel. So Saathi asks — and
+   every option is a real organisation from the hospital's own directory: a
+   railway patient-quota berth, a shared jeep, a taxi. This family's ration
+   card is AAY, so the concession is offered first. There is no price on the
+   screen, because the system has none to give. And last on every list,
+   deliberately not one of the things to buy: I cannot manage any of these —
+   which doesn't book a cheaper cab. It raises a social worker."
+
+
+--------------------------------------------------------------------------------
+4. THE VOICE — USE THE SOURCE AUDIO HERE                         4:30 - 5:00
+--------------------------------------------------------------------------------
+THIS SECTION HAS A HARD AUDIO REQUIREMENT.
+
+Use 08:38 - 09:00 of the source. At 08:38.5 the phone begins reading the plan
+aloud in Hindi, and you can see the button on screen change to "padh rahe hain"
+— reading. KEEP THE SOURCE AUDIO FOR THIS PASSAGE AT FULL LEVEL. Do not mute
+it, do not duck it under the avatar, and do not replace it with a synthesised
+voice. Let it run for at least eight seconds with the presenter silent.
+
+The same applies to two other passages if you use them:
+  09:29.6 - 09:35   (Ravi's phone, Hindi)
+  10:48.5 - 11:01   (Anita's phone, Hindi)
+
+After the Hindi finishes, the presenter resumes:
+
+  "That is the app reading Meena's own plan back to her, in Hindi. We chose an
+   Indian-language speech service for one specific reason: almost no phone
+   ships an Odia voice, so the read-aloud button used to do nothing at all,
+   silently, for an Odia family. That is the kind of failure nobody reports."
+
+
+--------------------------------------------------------------------------------
+5. WHY IT IS SAFE TO PUT IN FRONT OF A FAMILY                    5:00 - 5:40
+--------------------------------------------------------------------------------
+Use 11:38-11:58.
+
+  "Three things make this safe. The model never decides whether a family
+   travels — a deterministic planner decides, and the model only puts that
+   decision into their language. No report content ever enters the system;
+   there is no field that could hold a diagnosis. And every decision sits in a
+   hash-chained log that cannot be quietly edited. When the system does not
+   know, it says Uncertain and tells a person, instead of guessing."
+
+
+--------------------------------------------------------------------------------
+6. RESULT AND THE ASK                                            5:40 - 6:15
+--------------------------------------------------------------------------------
+Presenter full frame.
+
+  "Scored against planted ground truth on fifty synthetic families, the
+   hospital's default policy would have sent thirty of them on a wasted
+   journey. With Saathi, none.
+
+   We have not touched real patient data, and that is deliberately the next
+   step: a hospital partner and an ethics approval, so this can be measured on
+   real families instead of simulated ones.
+
+   Thank you."
+
+
+--------------------------------------------------------------------------------
+STYLE
+--------------------------------------------------------------------------------
+* Verbs over adjectives. "The cab firm answers for itself" beats "a powerful
+  AI-driven orchestration layer."
+* NO stock footage of hospitals, doctors, patients or families. The product
+  footage is the proof; stock imagery makes it look like there is nothing to
+  show.
+* Keep the Hindi on screen untranslated, with the presenter saying what it
+  means. Seeing the family's own language is the point; subtitling it away
+  removes it.
+* Music sparse and low, and out entirely under the verdict changes and under
+  the Hindi in section 4.
+* No countdown timers, swooshes or neon. The product is a calm, light
+  interface. Match it.
+* Do not speed-ramp the screen recording. A verdict changing at real speed is
+  the evidence.
+
+
+--------------------------------------------------------------------------------
+ACCURACY — DO NOT DEVIATE
+--------------------------------------------------------------------------------
+Everything below was measured or cited. Do not round it, dramatise it, or
+extend it.
+
+SAY EXACTLY:
+  - "60% of patients at Tata Memorial Hospital come from outside Maharashtra"
+  - "83% faced catastrophic non-medical costs" (mean Rs 88,433)
+  - "53% of those travelling over 500 km borrowed or sold assets"
+  - "On fifty synthetic families with planted ground truth, the hospital's
+     default policy would have produced thirty wasted trips. Saathi produced
+     none."
+  - "No real patient data has been used."
+
+NEVER SAY:
+  - Any claim of clinical validation, hospital deployment, patient outcomes,
+    or lives saved.
+  - "Diagnoses", "detects", "predicts cancer", or anything implying the system
+    reads results. It reads STATUS — ready or not ready — never content.
+  - A number that is not in this prompt. If a figure is needed and is not
+    here, drop the sentence.
+  - That the AI makes the travel decision. It renders a decision the planner
+    already made.
+
+ALSO:
+  - Dr Chakraborty's role is clinical process review. Do not describe him as
+    having validated, trialled, approved or endorsed the product, and do not
+    place him at a hospital that is deploying it.
+  - Do not add a company name, funding claim, user count or partner logo.
+    There are none.
+  - Do not generate an avatar that is presented as a doctor or a patient.
+  - One section of the source (07:31-08:35, affordability) was recorded against
+    a local build rather than the live deployment. If you state that the demo
+    runs on a live deployment, add: "apart from the affordability feature,
+    which is new and not yet deployed."
+  - The team has five members. Name all five. Do not invent a sixth.
+
+================================= PROMPT ENDS ==================================

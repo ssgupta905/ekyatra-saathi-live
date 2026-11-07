@@ -34,7 +34,7 @@ export const PLAN = [
     vo: "EKYATRA Saathi. A readiness driven visit planner, for families who travel a long way for cancer care. This is the whole system, end to end.",
   },
   {
-    id: "b-question", kind: "card", seconds: 16,
+    id: "b-question", kind: "card", seconds: 19,
     card: { heading: "One question", sub: "Is this trip worth making?", kicker: "Asked every day, for every family" },
     vo: "A family in Gaya is six hundred kilometres from the hospital. They travel, and the report is not ready. Or the doctor is not free. Or the cab never came. Saathi asks one question every day, for every family: is this trip worth making?",
   },
@@ -70,8 +70,8 @@ export const PLAN = [
     vo: "The network board. Every journey, laid against every party that holds it up. Green is ready. Amber means asked, but not yet answered. A dash means that party has not been asked at all." },
   { id: "f3", kind: "browser", seconds: 36, file: "09-live-demo-control-centre.mp4", in: 36,
     vo: "Meena is on dialysis. Her verdict is Wait, because the visit depends on something that is not settled yet. Saathi asks the cab firm, and the cab firm answers by itself. Nothing here was typed by a person. Watch the verdict: when the last party answers, Wait becomes Go, and only then does a date appear. The date is a consequence of readiness. It is never a guess, and it is never shown early." },
-  { id: "f4", kind: "browser", seconds: 18, file: "09-live-demo-control-centre.mp4", in: 91,
-    vo: "Ravi's cab firm says it cannot do the journey. Look at what happens next: the journey stops. No date is promised, because there is nothing to promise. The system does not quietly substitute another vendor, and it does not pretend the problem away. It says so, and it waits for a person." },
+  { id: "f4", kind: "browser", seconds: 19, file: "09-live-demo-control-centre.mp4", in: 91,
+    vo: "Ravi's cab firm says it cannot do the journey. The journey stops. No date is promised, because there is nothing to promise. The system does not quietly substitute another vendor, and it does not pretend the problem away. It waits for a person." },
   { id: "f5", kind: "browser", seconds: 30, file: "09-live-demo-control-centre.mp4", in: 110,
     vo: "A navigator presses Book another. A second firm, Ola, is asked, and the journey now waits on Ola. This is the important part. The system did not choose that vendor. A person did, from the directory, and the ledger recorded who asked, which firm, and when. Saathi puts the question; a human makes the call." },
   { id: "f6", kind: "browser", seconds: 15, file: "09-live-demo-control-centre.mp4", in: 170,
@@ -87,7 +87,7 @@ export const PLAN = [
   //: Same again: a loading screen and a burned-in "The vendor's own screen"
   //: title, both already covered by the chapter card before it.
   { id: "i-partner", kind: "browser", seconds: 20.8, file: "12-partner-app.webm", in: 10.5,
-    vo: "Everyone a journey leans on gets a screen of their own, and this is the cab firm's. It is not hospital staff. Ola sees only the jobs its own organisation was asked to do: a first name, a district, and a day, but only when the plan promises one. The phone number is missing on purpose. This family has not agreed to share it." },
+    vo: "Everyone a journey leans on gets a screen of their own, and this is the cab firm's. Ola sees only the jobs its own organisation was asked to do: a first name, a district, and a day when the plan promises one. The phone number is missing on purpose — this family has not agreed to share it." },
 
   { id: "j-chapter", kind: "card", seconds: 3, card: { chapter: "5", heading: "The family's phone" }, vo: "" },
   { id: "j1", kind: "phone", seconds: 5.5, file: "01-sign-in-email-otp.mp4", in: 0,
@@ -95,7 +95,7 @@ export const PLAN = [
     vo: "Now the other side of the same system: the phone in the family's hand." },
   //: 5.5-15 is the emulator's own Gboard contacts prompt, and 30-44 is a
   //: second attempt after the first code lapsed. Neither is the product.
-  { id: "j2", kind: "phone", seconds: 15, file: "01-sign-in-email-otp.mp4", in: 15,
+  { id: "j2", kind: "phone", seconds: 18, file: "01-sign-in-email-otp.mp4", in: 15,
     panel: { heading: "Signing in", lines: ["An email address, not a password", "A code arrives; nothing to remember"] },
     vo: "The family has an Android app, and they sign in with the email address the hospital already holds. A code arrives. There is no password to remember, which matters when the person holding the phone is a carer who may not use apps often." },
   { id: "j3", kind: "phone", seconds: 24, file: "01-sign-in-email-otp.mp4", in: 44,
@@ -113,20 +113,26 @@ export const PLAN = [
     //: otherwise would be the single dishonest thing in it.
     id: "r-budget", kind: "browser", seconds: 64.1,
     file: "17-what-the-family-can-manage.webm", in: 0,
-    vo: "One thing the planner cannot work out on its own. It knows this journey needs a ride and a bed. It does not know whether this household can pay for the ones it picked, and guessing is how a family ends up with a confirmed app cab they quietly cannot afford, and a visit they therefore do not make. So Saathi asks. Three real organisations from the directory, one of each kind: a railway patient quota, a shared jeep, a taxi. This family's ration card is AAY, so the concession is offered first and marked, and it is not ticked, because a default nobody changed is not an answer. There is no price on this screen. Saathi has none to give, and a number invented for a screen would be worse than silence. Last on every list, and deliberately not one of the things to buy: we cannot manage any of this. That one does not rebook anything. It raises a person, because the answer to a family with no fare is a scheme and a social worker. The family chooses, a navigator agrees it is what they meant, and only then does the ride move from a taxi to the railway desk, on the family's own screen.",
+    vo: "One thing the planner cannot work out on its own. It knows this journey needs a ride and a bed. It does not know whether this household can pay for the ones it picked, and guessing is how a family ends up with a confirmed app cab they quietly cannot afford. So Saathi asks. Three real organisations from the directory, one of each kind: a railway patient quota, a shared jeep, a taxi. This family's ration card is AAY, so the concession is offered first and marked — and not ticked, because a default nobody changed is not an answer. There is no price here. Saathi has none to give. Last on every list, and deliberately not one of the things to buy: we cannot manage any of this. That one rebooks nothing. It raises a person, because the answer to a family with no fare is a scheme and a social worker. The family chooses, a navigator agrees it is what they meant, and only then does the ride move from a taxi to the railway desk.",
   },
 
   { id: "l-chapter", kind: "card", seconds: 3, card: { chapter: "7", heading: "A voice, because reading is not universal" }, vo: "" },
-  { id: "l-meena", kind: "phone", seconds: 48, file: "13-meena-phone-sarvam.mp4", in: 3,
+  { id: "l-meena", kind: "phone", seconds: 48, file: "13-meena-phone-sarvam.mp4", in: 0,
     panel: { heading: "Meena · Varanasi", lines: ["आइए — Come, with a date", "बोलिए reads it aloud", "The voice is Sarvam"] },
-    //: The button on screen reads "पढ़ रहे हैं…" from 4s to past 26s of the
-    //: clip, so the voice has room to finish before the narrator starts.
-    hindi: { at: 2, text: "8 नवंबर को डायलिसिस यूनिट रिसेप्शन जाएँ। अस्पताल फ़ाइल, रोगी आईडी कार्ड, ABHA नंबर या आयुष्मान कार्ड, पिछले अपॉइंटमेंट स्लिप, डायलिसिस कार्ड, भुगतान या योजना दस्तावेज़ साथ लाएँ।" },
+    //: Starts at the clip's first frame, because that is where the tap is.
+    //: Measured at a tenth of a second: the button reads "बोलिए" on frame one
+    //: and "पढ़ रहे हैं…" from 0.1s, holding past 26s. Beginning this segment
+    //: three seconds in — as it first did — cut the tap out entirely and left
+    //: a voice arriving with nothing on screen to have caused it.
+    hindi: { at: 0.5, text: "8 नवंबर को डायलिसिस यूनिट रिसेप्शन जाएँ। अस्पताल फ़ाइल, रोगी आईडी कार्ड, ABHA नंबर या आयुष्मान कार्ड, पिछले अपॉइंटमेंट स्लिप, डायलिसिस कार्ड, भुगतान या योजना दस्तावेज़ साथ लाएँ।" },
     vo: "That is Sarvam, reading Meena's own plan back to her in Hindi. It was chosen for one reason that is not marketing: almost no phone ships an Odia voice, so this button used to do nothing at all, silently, for an Odia family. The plan tab shows four of seven steps done. The messages tab holds the whole conversation, also in Hindi, and every line in it has a source." },
 
   { id: "m-chapter", kind: "card", seconds: 3, card: { chapter: "8", heading: "When a vendor fails" }, vo: "" },
-  { id: "m-ravi", kind: "phone", seconds: 46, file: "14-ravi-phone-vendor-failure.mp4", in: 2,
-    hindi: { at: 1, text: "अभी घर पर रहें। जब यात्रा का समय तय हो जाएगा, आपको सूचित किया जाएगा।" },
+  { id: "m-ravi", kind: "phone", seconds: 46, file: "14-ravi-phone-vendor-failure.mp4", in: 0,
+    //: The button holds "बोलिए" until 0.6s and flips there, so the voice
+    //: starts on the frame the screen changes. This is the one clip that
+    //: caught the tap itself.
+    hindi: { at: 0.6, text: "अभी घर पर रहें। जब यात्रा का समय तय हो जाएगा, आपको सूचित किया जाएगा।" },
     panel: { heading: "Ravi · Patna", lines: ["रुकिए — Wait", "गाड़ी · Ola, asked at 08:44", "600 किलोमीटर दूर"] },
     vo: "Ravi, on the same morning. His verdict is Wait, and the app says exactly what it is waiting on: the cab. Ola, asked at eight forty four. Six hundred kilometres away. Look at what is not on this screen. There is no date. The app will not promise a day it does not have, even though a date would feel more reassuring, because a family that travels on a date the system invented has lost a day's wages and a day's travel for nothing. The plan tab shows seven of ten steps done, and the cab is step seven. The family is told the truth, told who is being chased, and asked to do nothing." },
 
@@ -134,8 +140,8 @@ export const PLAN = [
   { id: "n-flip", kind: "phone", seconds: 30, file: "10-live-demo-anita-phone-hindi.mp4", in: 104,
     panel: { heading: "Nobody touches the phone", lines: ["The lab desk releases the report", "रुकिए becomes आइए", "A date appears with it"] },
     vo: "This is Anita's phone while the control centre releases her report. Nobody touches the phone. Nobody sends a message. The lab desk clicks once, four hundred kilometres away, and the chain fills in behind it. Wait becomes Come. A date appears, Sunday the eighth of November. And with the date comes the list of papers to carry, because a journey that arrives without the right papers is still a wasted journey." },
-  { id: "o-come", kind: "phone", seconds: 50, file: "15-anita-phone-go.mp4", in: 2,
-    hindi: { at: 1, text: "8 नवंबर को यात्रा करें। पहले पंजीकरण काउंटर पर जाएँ। हॉस्पिटल फ़ाइल, रोगी पहचान कार्ड, ABHA नंबर या आयुष्मान कार्ड, पूर्व अपॉइंटमेंट स्लिप्स, सभी रिपोर्ट स्लिप्स लाएँ।" },
+  { id: "o-come", kind: "phone", seconds: 50, file: "15-anita-phone-go.mp4", in: 0,
+    hindi: { at: 0.5, text: "8 नवंबर को यात्रा करें। पहले पंजीकरण काउंटर पर जाएँ। हॉस्पिटल फ़ाइल, रोगी पहचान कार्ड, ABHA नंबर या आयुष्मान कार्ड, पूर्व अपॉइंटमेंट स्लिप्स, सभी रिपोर्ट स्लिप्स लाएँ।" },
     panel: { heading: "Anita · Gaya", lines: ["आइए — Come", "यात्रा · रविवार 8 नवंबर", "Nine of ten steps done"] },
     vo: "Anita's, in her own language, with the date and the papers to carry. That list is not generic advice: it is assembled from this hospital's own rules and this family's own scheme, which is why it names Ayushman and not something else. Nine of ten steps are done; the last one is the visit itself. Nothing on this screen was typed by a person. The date came from the chain clearing, the list from the hospital's rules, and the language from the family's own choice." },
 
@@ -145,7 +151,7 @@ export const PLAN = [
     vo: "No report content is ever stored. The model never decides anything; it only puts a decision the planner made into the family's own language. Nothing reaches a family without a source. And the ledger only grows when a fact actually changes.",
   },
   {
-    id: "q-close", kind: "card", seconds: 14,
+    id: "q-close", kind: "card", seconds: 17,
     card: { heading: "EKYATRA Saathi", sub: "The console reflects the world. It never causes it.", kicker: "Chapter 6 on a local build · everything else on the deployed service" },
     vo: "Everything here runs against the real service, with real records and a real phone. Chapter six runs on a local build, because that part is not deployed yet; the rest is. The console reflects the world. It never causes it.",
   },
