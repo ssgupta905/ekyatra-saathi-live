@@ -26,6 +26,16 @@ have been an odd thing to do.
 `~/Downloads/demo-recordings`, against the deployed service. The film only
 chooses what to keep.
 
+**The Hindi you hear is the phone's own read-aloud, re-spoken.** The source
+recordings have no audio track at all — `adb screenrecord` captures none — so
+the read-aloud you can *see* happening on screen was never recorded. Three
+segments carry a `hindi` block in the plan: the exact sentence on screen at
+that moment, transcribed from the frames, spoken by the same model the phone
+called (`bulbul:v3`, hi-IN). Where one is present the English narration waits
+for it instead of ducking under it, because the point of that chapter is to
+hear the voice, and a narrator talking over a voice you cannot hear is the
+wrong way round.
+
 ## What was cut, and why
 
 The source recordings are honest but slow: they were made to prove things

@@ -73,11 +73,25 @@ function seek(seg) {
     : ["-i", resolve(CLIPS, seg.file)];
 }
 
-function args(seg) {
+/**
+ * How long the Hindi runs, and therefore when the narrator may start.
+ *
+ * The English waits rather than ducking under it. Ducking would have been less
+ * code, but chapter seven exists to let you *hear* the voice the family hears,
+ * and a narrator explaining a voice playing underneath them is the wrong way
+ * round.
+ */
+function voiceStart(seg, hindiSeconds) {
+  return seg.hindi ? seg.hindi.at + hindiSeconds + 0.6 : 0;
+}
+
+function args(seg, hindiSeconds = 0) {
   const secs = seg.seconds.toFixed(3);
   const out = resolve(PARTS, `${seg.id}.mp4`);
   const voice = resolve(VO, `${seg.id}.wav`);
+  const hindi = resolve(VO, `${seg.id}.hi.wav`);
   const hasVoice = existsSync(voice);
+  const hasHindi = seg.hindi != null && existsSync(hindi);
 
   const input = [];
   let filter;
@@ -99,20 +113,41 @@ function args(seg) {
   }
 
   // Silence is laid down first so every part has the same audio shape; the
-  // voice is mixed on top and the pad guarantees the exact segment length.
+  // voices are mixed on top and the pad guarantees the exact segment length.
   const silence = `anullsrc=channel_layout=stereo:sample_rate=48000`;
+  //: Inputs so far: the picture (and, for a phone segment, its panel). Audio
+  //: inputs are appended after those, so their stream indices are counted
+  //: rather than hard-coded — getting that wrong once already meant a segment
+  //: seeking its narration instead of its video.
+  let next = seg.kind === "phone" ? 2 : 1;
+  const mixed = ["[sil]"];
+  filter += `;${silence}:d=${secs}[sil]`;
+
+  if (hasHindi) {
+    input.push("-i", hindi);
+    const at = Math.round(seg.hindi.at * 1000);
+    filter +=
+      `;[${next}:a]aresample=48000,aformat=channel_layouts=stereo,` +
+      `adelay=${at}|${at}[hi]`;
+    mixed.push("[hi]");
+    next += 1;
+  }
   if (hasVoice) {
     input.push("-i", voice);
-    const voiceIn = seg.kind === "phone" ? "2:a" : "1:a";
+    const start = Math.round(voiceStart(seg, hindiSeconds) * 1000);
+    const delay = start > 0 ? `,adelay=${start}|${start}` : "";
     filter +=
-      `;${silence}:d=${secs}[sil];` +
-      `[${voiceIn}]aresample=48000,aformat=channel_layouts=stereo,` +
-      `afade=t=in:st=0:d=0.12[vo];` +
-      `[sil][vo]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,` +
-      `apad,atrim=0:${secs},asetpts=N/SR/TB[a]`;
-  } else {
-    filter += `;${silence}:d=${secs}[a]`;
+      `;[${next}:a]aresample=48000,aformat=channel_layouts=stereo,` +
+      `afade=t=in:st=0:d=0.12${delay}[vo]`;
+    mixed.push("[vo]");
+    next += 1;
   }
+
+  filter +=
+    mixed.length > 1
+      ? `;${mixed.join("")}amix=inputs=${mixed.length}:duration=first:` +
+        `dropout_transition=0:normalize=0,apad,atrim=0:${secs},asetpts=N/SR/TB[a]`
+      : `;[sil]anull[a]`;
 
   return [
     "-v", "error", "-y",
@@ -140,7 +175,28 @@ mkdirSync(PARTS, { recursive: true });
 for (const seg of PLAN) {
   process.stdout.write(`  ${seg.id.padEnd(15)}`);
   const started = Date.now();
-  await run("ffmpeg", args(seg), { maxBuffer: 1 << 24 });
+
+  let hindiSeconds = 0;
+  if (seg.hindi) {
+    const file = resolve(VO, `${seg.id}.hi.wav`);
+    if (!existsSync(file)) throw new Error(`${seg.id}: no Hindi audio — run narrate.py`);
+    hindiSeconds = await seconds(file);
+    //: Checked here rather than discovered in the finished film. If the
+    //: narration would run past the end of the segment it is cut off mid
+    //: sentence, which is the kind of thing that survives a casual watch.
+    const voFile = resolve(VO, `${seg.id}.wav`);
+    if (existsSync(voFile)) {
+      const ends = voiceStart(seg, hindiSeconds) + (await seconds(voFile));
+      if (ends > seg.seconds) {
+        throw new Error(
+          `${seg.id}: Hindi then narration ends at ${ends.toFixed(1)}s, ` +
+            `past the segment's ${seg.seconds}s`,
+        );
+      }
+    }
+  }
+
+  await run("ffmpeg", args(seg, hindiSeconds), { maxBuffer: 1 << 24 });
   //: Measured, not planned. The length printed here used to be the number out
   //: of the plan, which is exactly the number that cannot reveal a trim that
   //: silently did not happen.

@@ -6,6 +6,15 @@
  * disagree the moment the plan lives in more than one file, and a film whose
  * narration is a beat out of step with its picture is worse than no narration.
  *
+ * Some segments carry a `hindi` block. The source recordings have no audio at
+ * all — `adb screenrecord` does not capture any — so the read-aloud the phone
+ * actually played was never recorded. It is re-spoken here by the same service
+ * (Sarvam `bulbul:v3`, hi-IN) saying the exact words on the screen at that
+ * moment, transcribed from the frames. Where one is present the English
+ * narration waits for it rather than talking over it: the point of that
+ * chapter is the voice, and a narrator explaining a voice you cannot hear is
+ * the wrong way round.
+ *
  * Every `in`/`out` below was chosen by looking at the footage, not guessed.
  * The burned-in captions in the control-centre clips change at known seconds,
  * so each cut lands on a caption boundary; what is trimmed is hold time, which
@@ -108,12 +117,16 @@ export const PLAN = [
   },
 
   { id: "l-chapter", kind: "card", seconds: 3, card: { chapter: "7", heading: "A voice, because reading is not universal" }, vo: "" },
-  { id: "l-meena", kind: "phone", seconds: 45, file: "13-meena-phone-sarvam.mp4", in: 3,
+  { id: "l-meena", kind: "phone", seconds: 48, file: "13-meena-phone-sarvam.mp4", in: 3,
     panel: { heading: "Meena · Varanasi", lines: ["आइए — Come, with a date", "बोलिए reads it aloud", "The voice is Sarvam"] },
-    vo: "Meena's phone. She is on Go, with a date, and a list of what to bring. The boliye button reads the whole thing aloud. That voice is Sarvam, and it was chosen for one reason that is not marketing. No browser, and almost no phone, ships an Odia voice. The read aloud button used to do nothing at all, silently, for an Odia family, which is the worst way for an accessibility feature to fail. The plan tab shows four of seven steps done. The messages tab is the whole conversation, in Hindi, and every line in it has a source." },
+    //: The button on screen reads "पढ़ रहे हैं…" from 4s to past 26s of the
+    //: clip, so the voice has room to finish before the narrator starts.
+    hindi: { at: 2, text: "8 नवंबर को डायलिसिस यूनिट रिसेप्शन जाएँ। अस्पताल फ़ाइल, रोगी आईडी कार्ड, ABHA नंबर या आयुष्मान कार्ड, पिछले अपॉइंटमेंट स्लिप, डायलिसिस कार्ड, भुगतान या योजना दस्तावेज़ साथ लाएँ।" },
+    vo: "That is Sarvam, reading Meena's own plan back to her in Hindi. It was chosen for one reason that is not marketing: almost no phone ships an Odia voice, so this button used to do nothing at all, silently, for an Odia family. The plan tab shows four of seven steps done. The messages tab holds the whole conversation, also in Hindi, and every line in it has a source." },
 
   { id: "m-chapter", kind: "card", seconds: 3, card: { chapter: "8", heading: "When a vendor fails" }, vo: "" },
-  { id: "m-ravi", kind: "phone", seconds: 54, file: "14-ravi-phone-vendor-failure.mp4", in: 2,
+  { id: "m-ravi", kind: "phone", seconds: 46, file: "14-ravi-phone-vendor-failure.mp4", in: 2,
+    hindi: { at: 1, text: "अभी घर पर रहें। जब यात्रा का समय तय हो जाएगा, आपको सूचित किया जाएगा।" },
     panel: { heading: "Ravi · Patna", lines: ["रुकिए — Wait", "गाड़ी · Ola, asked at 08:44", "600 किलोमीटर दूर"] },
     vo: "Ravi, on the same morning. His verdict is Wait, and the app says exactly what it is waiting on: the cab. Ola, asked at eight forty four. Six hundred kilometres away. Look at what is not on this screen. There is no date. The app will not promise a day it does not have, even though a date would feel more reassuring, because a family that travels on a date the system invented has lost a day's wages and a day's travel for nothing. The plan tab shows seven of ten steps done, and the cab is step seven. The family is told the truth, told who is being chased, and asked to do nothing." },
 
@@ -121,9 +134,10 @@ export const PLAN = [
   { id: "n-flip", kind: "phone", seconds: 30, file: "10-live-demo-anita-phone-hindi.mp4", in: 104,
     panel: { heading: "Nobody touches the phone", lines: ["The lab desk releases the report", "रुकिए becomes आइए", "A date appears with it"] },
     vo: "This is Anita's phone while the control centre releases her report. Nobody touches the phone. Nobody sends a message. The lab desk clicks once, four hundred kilometres away, and the chain fills in behind it. Wait becomes Come. A date appears, Sunday the eighth of November. And with the date comes the list of papers to carry, because a journey that arrives without the right papers is still a wasted journey." },
-  { id: "o-come", kind: "phone", seconds: 46, file: "15-anita-phone-go.mp4", in: 2,
+  { id: "o-come", kind: "phone", seconds: 50, file: "15-anita-phone-go.mp4", in: 2,
+    hindi: { at: 1, text: "8 नवंबर को यात्रा करें। पहले पंजीकरण काउंटर पर जाएँ। हॉस्पिटल फ़ाइल, रोगी पहचान कार्ड, ABHA नंबर या आयुष्मान कार्ड, पूर्व अपॉइंटमेंट स्लिप्स, सभी रिपोर्ट स्लिप्स लाएँ।" },
     panel: { heading: "Anita · Gaya", lines: ["आइए — Come", "यात्रा · रविवार 8 नवंबर", "Nine of ten steps done"] },
-    vo: "Come. Travel on the eighth. Go to the O P D registration counter first. Bring the hospital file, the patient identity card, the ABHA number or Ayushman card, the previous appointment slips, and all the report slips. That list is not generic advice. It is assembled from this hospital's own rules and this family's own scheme, which is why it names Ayushman and not something else. Nine of ten steps are done. The last one is the visit itself." },
+    vo: "Anita's, in her own language, with the date and the papers to carry. That list is not generic advice: it is assembled from this hospital's own rules and this family's own scheme, which is why it names Ayushman and not something else. Nine of ten steps are done; the last one is the visit itself. Nothing on this screen was typed by a person. The date came from the chain clearing, the list from the hospital's rules, and the language from the family's own choice." },
 
   {
     id: "p-invariants", kind: "card", seconds: 20,

@@ -4,8 +4,18 @@ The same service the family's phone uses for read-aloud speaks the narration
 here. That is deliberate: a film about a system whose voice is Sarvam should
 not be narrated by something else.
 
-One file per segment, named by segment id. A segment with no line is skipped
-rather than written as silence; the assembler pads to length either way.
+Two kinds of audio come out of this.
+
+`<id>.wav` is the English narration. `<id>.hi.wav` is the Hindi the phone
+itself was speaking at that moment — the source recordings have no audio track
+at all, because `adb screenrecord` captures none, so the read-aloud a viewer
+can see happening was never recorded. It is re-spoken here by the same model
+(`bulbul:v3`, hi-IN) saying the exact words on the screen, transcribed from
+the frames. That is as close to the captured thing as it is possible to get
+without the device audio, and it is the real voice saying the real sentence.
+
+A segment with no line is skipped rather than written as silence; the
+assembler pads to length either way.
 """
 
 from __future__ import annotations
@@ -28,12 +38,23 @@ def plan() -> list[dict]:
     """Read the plan from its one home rather than restating it here."""
     script = (
         "import('./plan.mjs').then(m => "
-        "console.log(JSON.stringify(m.PLAN.map(s => ({id: s.id, vo: s.vo, seconds: s.seconds})))))"
+        "console.log(JSON.stringify(m.PLAN.map(s => "
+        "({id: s.id, vo: s.vo, seconds: s.seconds, hindi: s.hindi ?? null})))))"
     )
     raw = subprocess.run(
         ["node", "-e", script], cwd=HERE, capture_output=True, text=True, check=True
     ).stdout
     return json.loads(raw)
+
+
+def _speak(speech, text: str, language: str, path: pathlib.Path) -> float | None:
+    """Say one line and write it down. Returns its length, or None if refused."""
+    utterance = speech.say(text, language)
+    if utterance is None:
+        return None
+    path.write_bytes(utterance.audio)
+    with wave.open(str(path)) as handle:
+        return handle.getnframes() / handle.getframerate()
 
 
 def main() -> int:
@@ -52,18 +73,23 @@ def main() -> int:
 
     failed: list[str] = []
     for seg in plan():
+        hindi = seg.get("hindi")
+        if hindi:
+            said = _speak(speech, hindi["text"], "hi", OUT / f"{seg['id']}.hi.wav")
+            if said is None:
+                failed.append(f"{seg['id']} (hi)")
+                print(f"  {seg['id']:14s} SILENT - sarvam refused the Hindi")
+            else:
+                print(f"  {seg['id']:14s} {said:5.1f}s  hindi, from {hindi['at']}s")
+
         line = (seg["vo"] or "").strip()
         if not line:
             continue
-        path = OUT / f"{seg['id']}.wav"
-        utterance = speech.say(line, "en")
-        if utterance is None:
+        seconds = _speak(speech, line, "en", OUT / f"{seg['id']}.wav")
+        if seconds is None:
             failed.append(seg["id"])
-            print(f"  {seg['id']}: SILENT - sarvam refused")
+            print(f"  {seg['id']:14s} SILENT - sarvam refused")
             continue
-        path.write_bytes(utterance.audio)
-        with wave.open(str(path)) as handle:
-            seconds = handle.getnframes() / handle.getframerate()
         fit = "ok" if seconds <= seg["seconds"] else "OVERRUNS"
         print(f"  {seg['id']:14s} {seconds:5.1f}s / {seg['seconds']:5.1f}s  {fit}")
 
