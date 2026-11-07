@@ -1,0 +1,585 @@
+================================================================================
+EKYATRA SAATHI — FULL NARRATION SCRIPT
+Team Bits2026 · 86W1QA · Health-a-thon 2026
+================================================================================
+
+HOW TO USE THIS
+---------------
+Read alongside the clips in  ~/Documents/EKYATRA-demo-clips/
+Timecodes in [brackets] are positions inside the clip named above them.
+
+Total if every clip is played: about 28 minutes.
+The SHORT CUT marked at the end runs about 12 and makes the whole case.
+
+THREE RULES OF DELIVERY
+  1. Say the number, then say what it means. Never a number on its own.
+  2. Never say "stops", "fails" or "blocked" without, in the same breath,
+     saying what happened next. A demo that describes a failure and pauses
+     has shown the audience a broken product.
+  3. When a verdict changes on screen, STOP TALKING and let it change. That
+     silence is the most persuasive second in the whole demo.
+
+
+================================================================================
+PART 1 — THE OPENING                                        (no clip · 60 sec)
+================================================================================
+
+   A family in Bihar travels six hundred kilometres to a cancer hospital in
+   Mumbai. They arrive. The report isn't back. So they go home, and they come
+   again.
+
+   Sixty per cent of that hospital's patients come from outside the state.
+   Three quarters travel more than five hundred kilometres. Eighty-three per
+   cent of them hit catastrophic non-medical costs — a mean of eighty-eight
+   thousand rupees. More than half borrow money or sell something to cope.
+
+   The treatment is often free. It is the journey that ruins them.
+
+   And the reason is structural. Every department optimises its own queue —
+   the lab, the scheme desk, the pharmacy, the cab firm, the hotel. Each one
+   is efficient on its own terms. Nobody counts the patient's trips.
+
+   EKYATRA Saathi is the layer that counts them.
+
+   Two things it is not.
+
+   It is not a hospital management system. It stores no clinical record and
+   it replaces nothing. It reads status out of whatever the hospital already
+   runs, decides whether the next visit can actually happen, and tells the
+   people who need to know.
+
+   And it is not only for cancer. A care pathway is declared as a graph of
+   steps and the dependencies between them. Three ship today: oncology,
+   maintenance dialysis, and recovery after discharge. The decision core
+   never knows which one it is working on. Adding a condition is a
+   declaration, not a rewrite.
+
+
+================================================================================
+PART 2 — WHO BUILT IT                                       (no clip · 45 sec)
+================================================================================
+
+   Four of us built it, with a clinical partner.
+
+   Siddhartha Sengupta, technical architect — the decision core, and the
+   rules the system is not allowed to break.
+   Ankshuk Ray, full-stack and AI engineer — the two web products, the
+   Android app, the language and speech layer.
+   Abhik Sengupta, a PhD scholar in the biological sciences — the evidence
+   review this is built against.
+   Srinivas Pavan, delivery manager — four weeks of planning, and the scope
+   calls that kept it shippable.
+
+   Our doctor partner is Doctor Arani Chakraborty. M.B.B.S., registration
+   nine three six nine eight. Neurology at Manipal Hospital, E M Bypass;
+   formerly neurosurgery at AIIMS Kalyani.
+
+   His contribution changed the shape of the product. He mapped the sequence
+   a patient actually moves through — presentation, evaluation, the wait for
+   a result, follow-up — and told us where that sequence breaks: the points
+   at which a patient is sent away and does not come back.
+
+   That is why a journey here is modelled as a chain with one thing blocking
+   it, rather than a calendar of appointments. And why we withhold the date
+   until the chain clears.
+
+   To be precise about the limits: this is clinical process review. It is not
+   a clinical trial, and no real patient data has been used anywhere.
+
+
+================================================================================
+PART 3 — HOW THE APPROACH CHANGED                           (no clip · 30 sec)
+================================================================================
+
+   We did not start here.
+
+   The idea we submitted was a reminder app. Tell the family their
+   appointment is coming.
+
+   Within the first week it was obvious the useful question is the opposite
+   one. Not "when is your appointment" — but "should you come at all?"
+
+   So we rebuilt around a readiness verdict. The hospital says come back in a
+   week. Saathi asks whether the thing you are coming for will actually be
+   ready, and only then gives you a date.
+
+
+================================================================================
+PART 4 — THE ARCHITECTURE                                   (no clip · 60 sec)
+================================================================================
+Show the "Where it sits" diagram from the presentation, or clip 01 at [0:51].
+
+   Three layers.
+
+   Above the line: what the hospital already runs. Its own system for
+   appointments and report status. ABDM, for linked status under India's own
+   consent model. The care pathways themselves. And the directory of labs,
+   cabs, hotels, pharmacies and scheme desks it already uses.
+
+   Saathi reads from all of those. It never writes anything clinical.
+
+   In the middle: the orchestration layer. It resolves the care pathway as a
+   dependency graph. It forecasts when each pending step will be ready. It
+   asks every party the journey leans on. It reaches a verdict. And it writes
+   every fact it learns into a hash-chained ledger.
+
+   Below the line: three audiences, each seeing only what they need.
+   The navigator sees every journey against whatever is holding it up.
+   The family sees one word and one date, in their own language.
+   Each vendor sees one job, and nothing at all about anybody's care.
+
+   On the technology: the decision itself uses no model. It is a dependency
+   graph, split conformal prediction for the readiness forecast with a stated
+   coverage level, change-point detection for drop-off, and the ledger.
+
+   An agentic AI layer does one job — putting a decided plan into the
+   family's own language. It never decides anything. Sarvam provides speech
+   in Hindi, Bengali, Odia and English.
+
+   Underneath: FastAPI, PostgreSQL, React, Kotlin — and six hundred and
+   thirty-one automated tests that run with no credentials at all.
+
+
+================================================================================
+CLIP 02 — HOW A FAMILY IS TAKEN ON                                  (0:58)
+================================================================================
+
+[0:00]
+   A family is taken on in seven stages. Each saves on its own, so a
+   navigator can stop and come back tomorrow. Nothing is rushed into one
+   sitting at a counter.
+
+[0:20]
+   This is the medical background stage — what the family itself reports.
+   Known conditions, allergies, medicines, past stays, an emergency contact.
+
+[0:35]  ** the point of this clip **
+   Now look at what is not here. There is nowhere to upload a report.
+
+   That is not an oversight. Nothing a pathologist wrote ever enters this
+   system — there is no field anywhere that could hold it. Only doctors and
+   administrators can see this stage. A navigator cannot. The planner never
+   reads it. And it is never written into a message to the family.
+
+
+================================================================================
+CLIP 03 — THE HOSPITAL'S DESK                                       (1:34)
+================================================================================
+
+[0:00]
+   This is the control centre — what a patient navigator sees. One person
+   holding around thirty families.
+
+[0:10]  Today
+   What needs attention right now. The audit trail, hospitals on time,
+   families on record.
+
+[0:20]  Families
+   Every family, grouped by what each one needs next — not sorted by date.
+   Open one and you see the verdict, the journey, and every party it leans on.
+
+[0:30]  The network board  ** the one that matters **
+   Every journey, laid against every party that holds it up. The lab, the
+   insurer, the pharmacy, the cab, the hotel.
+
+   Green is ready. Amber means asked, but not yet answered. A dash means that
+   party has not been asked at all.
+
+   One screen, instead of thirty phone calls.
+
+[0:50]
+   Approvals — where a re-plan that touches treatment timing waits for a
+   doctor to agree. Report an issue — for when a machine goes down.
+
+   Releases — the lab desk marking a report released. Remember this one; in
+   a moment you will see exactly what a single click here unlocks.
+
+[1:15]
+   Reports and their queue times. Plan boards. The cohort view. The directory
+   of every organisation a journey runs through. Configuration.
+
+   And the audit log. Every decision and every change, hash-chained, so it
+   cannot be quietly edited later.
+
+
+================================================================================
+CLIP 04 — THE MAIN DEMO                                             (7:20)
+================================================================================
+If you show only one clip, show this one. It contains the failure AND the
+recovery in a single continuous take.
+
+[0:00]  Three families
+   Three families, reset to the start of their stories. Anita in Gaya. Ravi
+   in Patna. Meena in Varanasi.
+
+   And note Meena is on dialysis — not cancer. Same system, different
+   declared pathway.
+
+[0:20]  The network board
+   Every journey against every party holding it up.
+
+[0:36]  MEENA — the system working normally
+   Meena's verdict is Wait. The visit depends on something not settled yet.
+
+   Saathi asks her cab firm. The cab firm answers for itself. Nothing here
+   was typed by a person.
+
+[1:00]  ** STOP TALKING. LET IT CHANGE. **
+   Wait becomes Come. A date appears.
+
+   The date arrived because the chain cleared. It is never a guess, and it is
+   never shown early.
+
+[1:31]  RAVI — the most important ninety seconds of the demo
+   Now Ravi. His cab firm comes back and says it cannot do the journey.
+
+   ** Say this exactly: **
+
+   Here is the whole point of the product. Saathi caught that this morning —
+   before Ravi left home. Under the old way, he finds out at the station, or
+   when the car simply never arrives.
+
+   So Saathi does not invent a date it cannot honour. It does not quietly
+   substitute another vendor behind the scenes. It says plainly which party
+   failed, and it waits for a person — because choosing who to use is a human
+   decision, not an algorithm's.
+
+[1:50]  The recovery
+   The navigator presses "Book another". A second firm, Ola, is asked.
+
+   The system did not choose that vendor. A person did, from the directory.
+   And the ledger records who asked, which firm, and when.
+
+[2:50]  Ravi is fine
+   Ola says ready. Everything else was ready already — so Ravi goes straight
+   back to Come, with a date.
+
+   One vendor failing cost a navigator a few minutes. It did not cost Ravi a
+   wasted six-hundred-kilometre journey. He never knew anything went wrong.
+
+[3:06]  ANITA — one click
+   Now Anita. Her report is still sitting with the lab. That is the single
+   thing her entire journey is waiting on.
+
+   The lab desk opens Releases and marks it released. One click, by one
+   person, and that is the only thing they do.
+
+[3:18]  The chain fills in
+   That one fact unlocks everything behind it. Saathi now asks each remaining
+   party in turn — the insurer, the pharmacy, the ride, the stay — the way a
+   navigator would, except in seconds rather than across a morning of calls.
+
+   And the family's phone updates by itself. Nobody sends them anything.
+
+[4:26]  Done
+   The chain is complete. All three families are ready to travel.
+
+   Two of them began this morning held up — one by a lab, one by a cab firm —
+   and neither family had to telephone anybody to find that out.
+
+
+================================================================================
+CLIP 05 — THE VENDOR'S OWN SCREEN                                   (0:31)
+================================================================================
+
+[0:00]
+   Everyone a journey leans on gets a screen of their own. This is the cab
+   firm's.
+
+   They are not hospital staff. Ola sees only the jobs its own organisation
+   was asked to do — a first name, a district, and a day, but only when the
+   plan actually promises one.
+
+[0:18]  ** the detail worth pausing on **
+   And the phone number is missing on purpose. This family has not agreed to
+   share it, so the card says so, rather than leaving a blank that looks like
+   a bug. Consent is enforced at the point of display.
+
+
+================================================================================
+CLIP 06 — AFFORDABILITY                                             (1:04)
+================================================================================
+This is the differentiator. Do not rush it.
+
+[0:00]
+   The planner can work out that this journey needs a ride and a bed. It
+   cannot work out whether this household can pay for the ones it picked.
+
+   Not every family can absorb an app cab and a hotel. Eighty-three per cent
+   of them are already in catastrophic costs.
+
+[0:12]
+   So Saathi asks. And every option on this screen is a real organisation
+   from the hospital's own directory — a railway patient-quota berth, a
+   shared jeep, a taxi.
+
+   This family's ration card is AAY, so the concession is offered first, and
+   marked. It is not pre-selected. A default nobody changed is not an answer
+   to "what can you manage".
+
+[0:28]
+   There is no price anywhere on this screen. Saathi doesn't have one, and a
+   number invented for a screen would be worse than silence.
+
+[0:35]  ** the line to land **
+   And last on every list — deliberately not one of the things to buy:
+   "I cannot manage any of these."
+
+   That answer does not book a cheaper cab. It raises a social worker.
+   Because the answer to a family with no fare is a person and a scheme.
+
+[0:45]
+   The family chooses. A navigator confirms it is what they meant. And only
+   then does the ride move — from a taxi, to the railway desk — on the
+   family's own screen.
+
+
+================================================================================
+CLIPS 07, 08, 09 — THE FAMILY'S PHONE                        (about 2 min used)
+================================================================================
+
+CLIP 07 [0:00]
+   Now the other side. The family has none of that complexity.
+
+   One word. One date. What to bring, and which desk to reach first. In their
+   own language.
+
+CLIP 07 [0:08]  the voice
+   And it reads aloud.
+
+   We chose an Indian-language speech service for one specific reason. Almost
+   no phone on earth ships an Odia voice. So this button used to do nothing
+   at all — silently — for an Odia family. Which is the worst way an
+   accessibility feature can fail.
+
+CLIP 07 [0:30]
+   The plan tab: four of seven steps done, and what each one waits on. The
+   messages tab: the whole conversation, in Hindi, every line with a source.
+
+CLIP 08 [1:50]  ** the money shot — say less, not more **
+   This is Anita's phone while the lab desk, four hundred kilometres away,
+   releases her report.
+
+   Nobody touches this phone. Nobody sends a message.
+
+   ** PAUSE. LET IT FLIP. **
+
+   Wait becomes Come. A date appears — Sunday the eighth of November. And
+   with the date comes the list of papers to carry, because a journey that
+   arrives without the right papers is still a wasted journey.
+
+CLIP 09 [0:00]
+   Come. Travel on the eighth. Go to the OPD registration counter first.
+   Bring the hospital file, the patient ID, the ABHA number or Ayushman card,
+   the previous appointment slips, all the report slips.
+
+   That list is not generic advice. It is assembled from this hospital's own
+   rules and this family's own scheme — which is why it names Ayushman, and
+   not something else.
+
+
+================================================================================
+PART 5 — SAFETY AND RESPONSIBLE AI                          (no clip · 60 sec)
+================================================================================
+
+   Four things make this safe to put in front of a family.
+
+   One. The model never decides whether a family travels. A deterministic
+   planner decides; the model only puts that decision into their language.
+   The response schema's verdict list is derived from the code's own decision
+   type, so a new verdict cannot silently fall outside it.
+
+   Two. Report content never enters the system. The ingest drops conclusion,
+   result and presented-form. The record pointer has no field that could hold
+   a finding. Saathi cannot leak what it is structurally unable to store.
+
+   Three. A clinical question is never answered by software. A guard screens
+   every message in both directions and routes it to a human. A diverted
+   message reaches the family as "a person is calling you" — never as blank
+   words.
+
+   Four. Honest uncertainty. There is no score anywhere in this system. A
+   forecast carries its coverage level, and below a hundred and twenty
+   calibration observations it declines to answer at all — the verdict
+   becomes Uncertain and a person is told. "We don't know yet" costs a family
+   nothing. A date we invented costs them a journey.
+
+   And on fairness: there is deliberately no stored field for how poor a
+   family is. Only a household whose own papers say so is offered a
+   subsidised bed first — because a charity bed taken by someone who could
+   pay for a lodge is a bed a destitute family did not get.
+
+
+================================================================================
+PART 6 — DOES IT WORK                                       (no clip · 45 sec)
+================================================================================
+
+   We scored it against planted ground truth.
+
+   Fifty synthetic families. For each one we generate the true date their
+   pending report actually lands. Then we ask the only question that matters:
+   if the family had travelled on the date they were given, would the step
+   have been possible?
+
+   The hospital's default policy produces thirty wasted journeys out of
+   fifty. Sixty per cent.
+
+   Saathi produces none.
+
+   At the published figure of eight and a half thousand rupees per journey,
+   that is two lakh fifty-five thousand rupees of household cost avoided,
+   across fifty families.
+
+   Be clear about what that is. These are synthetic families with planted
+   answers, not patients. The turnaround distributions come from published
+   queue behaviour, not one hospital's real data. No caregiver has used this,
+   and no clinician has used the console in a live clinic.
+
+   Replacing that number with a real one is exactly what the pilot is for.
+
+
+================================================================================
+PART 7 — DEPLOYMENT                                         (no clip · 40 sec)
+================================================================================
+
+   What a pilot needs: a named hospital partner, and an Institutional Ethics
+   Committee approval. Before any real-data pilot, not after.
+
+   Integration happens at three seams, and all three are thin. ABDM OAuth and
+   consent-manager routing — specified; the consent model is built and
+   enforced, the live handshake is not yet wired. One read-only feed of
+   appointment and report status from the hospital's existing system. And the
+   directory of vendors it already uses.
+
+   Saathi reads status and writes nothing clinical. That is the reason this
+   can be piloted in one quarter rather than becoming an HMIS project.
+
+   Scaling is linear in families, not hospitals. A second centre is
+   configuration — its own pathway rules, its own directory — not a fork.
+
+
+================================================================================
+PART 8 — THE BUSINESS MODEL                                 (no clip · 75 sec)
+================================================================================
+>>> IMPORTANT: the pricing below is a PROPOSAL, not a decided model. Every
+>>> number is marked. Agree these with the team before presenting, or present
+>>> the structure and say pricing is being validated in the pilot.
+
+   Who pays. Not the family. The family is the beneficiary, and a family
+   already in catastrophic costs cannot be the revenue line.
+
+   The payer is whoever currently absorbs the cost of a wasted visit. That is
+   the hospital, and behind the hospital, the scheme.
+
+   Why the hospital pays. A patient who arrives for a step that cannot happen
+   occupies a slot in a queue that is already the bottleneck. A no-show after
+   a wasted trip does the same. Reducing wasted arrivals gives the hospital
+   back capacity it is currently losing — at a tertiary centre seeing
+   forty-five thousand new patients a year, that is material.
+
+   Why the scheme pays. PM-JAY and the state schemes carry the downstream
+   cost of patients who disengage from treatment and return later, sicker.
+   Follow-up loss is expensive to the payer long before it is visible.
+
+   The unit. We price per navigation desk per month, because that is the
+   operational unit a hospital actually budgets — one desk serving roughly
+   five hundred active families.
+
+   The numbers.  [ALL FIGURES BELOW ARE PROPOSED — CONFIRM BEFORE USE]
+   Our cost to run one desk is four to nine thousand rupees a month:
+   infrastructure, plus three to eight rupees per active family for model and
+   speech calls.
+   Proposed price: twenty-five to fifty thousand rupees per desk per month.
+   Which is between three and six avoided journeys, out of a desk that should
+   be avoiding dozens.
+
+   One-time deployment: six to nine person-weeks for the ABDM wiring, the
+   status-feed adapter, and configuration. Roughly one point eight to two
+   point seven lakh at a blended rate.
+
+   Why the economics hold. The marginal cost of planning one family for a
+   month is a few rupees. One avoided journey is eight and a half thousand.
+   That conclusion survives being wrong about our cost by two orders of
+   magnitude.
+
+   Three channels, in the order we would pursue them.
+   One: a paid pilot at a single tertiary centre, on institutional or grant
+   support, to produce the real number.
+   Two: public-sector procurement through the scheme, where avoided wasted
+   utilisation is the buyer's own metric.
+   Three: CSR and philanthropic funding, specifically to underwrite the
+   subsidised tier — the dharamshala beds and the patient-quota berths — so
+   affordability routing has somewhere to route to.
+
+   What we are not doing: charging families, selling data, or taking a
+   commission from vendors. A commission would corrupt the one thing this
+   product must be trusted on — which vendor a family is sent to, and why.
+
+
+================================================================================
+PART 9 — WHAT NEXT, AND THE CLOSE                           (no clip · 45 sec)
+================================================================================
+
+   The plan, in order.
+
+   One: a named hospital partner and an ethics approval. Everything waits on
+   this. A draft inquiry to ICMR-NCDIR is written and unsent.
+   Two: finish the ABDM handshake, so status arrives under real consent.
+   Three: a single-desk pilot — fifty to a hundred families, one quarter. The
+   primary endpoint is the one this was built for: wasted journeys per family
+   per quarter, against that desk's own prior practice.
+   Four: replace the synthetic calibration with the hospital's own turnaround
+   data, and the published per-trip cost with measured spend.
+   Five: close the known gaps — the budget conversation on Android, the
+   nearer-treatment-centre option, and an IVR path for families without a
+   smartphone.
+
+   THE CLOSE
+
+   Three rules hold all of this up.
+
+   The model never decides whether a family travels.
+   No report content ever enters the system.
+   And every decision sits in a log that cannot be quietly edited.
+
+   Everything you have seen runs against a deployed service, with real
+   records and a real phone. The console reflects the world. It never causes
+   it.
+
+   Thank you.
+
+
+================================================================================
+THE SHORT CUT — about 12 minutes
+================================================================================
+When there is not time for everything:
+
+   PART 1   The opening                                          60 sec
+   PART 4   The architecture                                     60 sec
+   CLIP 04  The main demo — all of it                           7:20
+   CLIP 06  Affordability                                       1:04
+   CLIP 08  The flip, from [1:50]                                45 sec
+   PART 6   Does it work                                         45 sec
+   PART 8   The business model — shortened to the unit and the
+            price, skipping the channels                         30 sec
+   CLOSE    The three rules                                      20 sec
+
+Introduction, the demo, the differentiator, the moment the phone changes on
+its own, the number, who pays, and the three rules.
+
+
+================================================================================
+WHAT NOT TO SHOW
+================================================================================
+not-for-demo/ravi-phone-while-the-desk-rebooks
+
+   This is Ravi's phone during the minutes the navigator is re-booking his
+   ride. On its own it is a still screen reading "stay at home, we are
+   working on it, you need do nothing."
+
+   That is the product behaving correctly — the alternative is telling a
+   family to travel on a date nobody can honour. But as a clip it looks like
+   a dead end, because the recovery happens on a different screen.
+
+   Clip 04 contains the same failure and its recovery in one continuous take.
+   Show that instead, and narrate it as "caught before he left home."
