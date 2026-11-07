@@ -31,21 +31,24 @@ await page.goto(`file://${source}`, { waitUntil: "networkidle" });
  * render time. Without it the PDF says so in the page rather than silently
  * shipping the placeholder, which is the failure that would not be noticed.
  */
-const secret = process.env.SAATHI_DEMO_PASSWORD;
-await page.evaluate((value) => {
-  const token = "__DEMO_ADMIN_PASSWORD__";
+const LATE = {
+  __DEMO_ADMIN_PASSWORD__: process.env.SAATHI_DEMO_PASSWORD,
+  __DEMO_VIDEO_LINK__: process.env.SAATHI_DEMO_VIDEO,
+};
+await page.evaluate((pairs) => {
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  const hits = [];
-  while (walker.nextNode()) {
-    if (walker.currentNode.nodeValue.includes(token)) hits.push(walker.currentNode);
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const node of nodes) {
+    for (const [token, value] of Object.entries(pairs)) {
+      if (node.nodeValue.includes(token)) {
+        node.nodeValue = node.nodeValue.replaceAll(token, value || `[set ${token}]`);
+      }
+    }
   }
-  for (const node of hits) {
-    node.nodeValue = node.nodeValue.replaceAll(token, value ?? "[set SAATHI_DEMO_PASSWORD]");
-  }
-  return hits.length;
-}, secret);
-if (!secret) {
-  console.warn("  SAATHI_DEMO_PASSWORD is not set — the demo sign-in is blank in this PDF");
+}, LATE);
+for (const [token, value] of Object.entries(LATE)) {
+  if (!value) console.warn(`  ${token} not supplied — it prints as a reminder in this PDF`);
 }
 // Print rules, not screen rules: the stylesheet sets @page margins and the
 // running footer, and emulating screen here would quietly discard both.
