@@ -22,11 +22,22 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { CANVAS, INK, PLAN } from "./plan.mjs";
+/**
+ * Which edit to build. `SAATHI_FILM` names a plan beside this file, so a second
+ * cut of the same footage is a new plan rather than a fork of the pipeline.
+ *   plan        the 12-minute end-to-end film
+ *   walkthrough the submission walkthrough: team, approach, partners, product
+ */
+const PLAN_FILE = `./${process.env.SAATHI_FILM ?? "plan"}.mjs`;
+const { CANVAS, INK, PLAN, FILM } = await import(PLAN_FILE);
+
+//: Card layouts that render to a single still, like a plain card.
+const STILLS = new Set(["people", "turn", "stack"]);
 
 const run = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
-const BUILD = resolve(HERE, "build");
+//: One build directory per film, so two cuts never overwrite each other.
+const BUILD = resolve(HERE, "build", process.env.SAATHI_FILM ?? "plan");
 const ART = resolve(BUILD, "art");
 const VO = resolve(BUILD, "vo");
 const PARTS = resolve(BUILD, "parts");
@@ -34,9 +45,17 @@ const PARTS = resolve(BUILD, "parts");
 const CLIPS =
   process.env.SAATHI_CLIPS_DIR ??
   resolve(process.env.HOME ?? HERE, "Downloads/demo-recordings");
+const NAMES = {
+  plan: "EKYATRA-Saathi-end-to-end.mp4",
+  walkthrough: "EKYATRA-Saathi-demo-walkthrough.mp4",
+};
 const OUT =
   process.env.SAATHI_FILM_OUT ??
-  resolve(process.env.HOME ?? HERE, "Documents/EKYATRA-Saathi-end-to-end.mp4");
+  resolve(
+    process.env.HOME ?? HERE,
+    "Documents",
+    NAMES[process.env.SAATHI_FILM ?? "plan"] ?? `EKYATRA-Saathi-${process.env.SAATHI_FILM ?? "plan"}.mp4`,
+  );
 
 const { w, h, fps } = CANVAS;
 
@@ -49,7 +68,9 @@ const PHONE_X = 200;
 const PANEL_X = 760;
 
 function videoFilter(seg) {
-  if (seg.kind === "card") return `scale=${w}:${h},fps=${fps},format=yuv420p`;
+  if (seg.kind === "card" || STILLS.has(seg.kind)) return `scale=${w}:${h},fps=${fps},format=yuv420p`;
+  //: An excerpt is already the right size; anything else is fitted.
+  if (seg.kind === "film") return `scale=${w}:${h},fps=${fps},format=yuv420p`;
   if (seg.kind === "browser") return `${fitted},fps=${fps},format=yuv420p`;
   return null; // phone needs a two-input graph
 }
@@ -68,9 +89,11 @@ function videoFilter(seg) {
  * Length is an output option, applied once at the end, for the same reason.
  */
 function seek(seg) {
-  return seg.in > 0
-    ? ["-ss", String(seg.in), "-i", resolve(CLIPS, seg.file)]
-    : ["-i", resolve(CLIPS, seg.file)];
+  //: A `film` segment quotes the finished end-to-end cut rather than the raw
+  //: clips, so it arrives already composited, already narrated, and carrying
+  //: the phone's Hindi read-aloud. Its own audio is kept.
+  const source = seg.kind === "film" ? FILM : resolve(CLIPS, seg.file);
+  return seg.in > 0 ? ["-ss", String(seg.in), "-i", source] : ["-i", source];
 }
 
 /**
@@ -120,10 +143,10 @@ function args(seg, hindiSeconds = 0) {
   const input = [];
   let filter;
 
-  if (seg.kind === "card") {
+  if (seg.kind === "card" || STILLS.has(seg.kind)) {
     input.push("-loop", "1", "-i", resolve(ART, `${seg.id}.png`));
     filter = `[0:v]${videoFilter(seg)}[v]`;
-  } else if (seg.kind === "browser") {
+  } else if (seg.kind === "browser" || seg.kind === "film") {
     input.push(...seek(seg));
     filter = `[0:v]${videoFilter(seg)}[v]`;
   } else {
@@ -144,8 +167,16 @@ function args(seg, hindiSeconds = 0) {
   //: rather than hard-coded — getting that wrong once already meant a segment
   //: seeking its narration instead of its video.
   let next = seg.kind === "phone" ? 2 : 1;
+  //: An excerpt's own audio is the narration for that passage, so it joins
+  //: the mix exactly like a voice-over would.
+  const quoted = seg.kind === "film" ? "[0:a]" : null;
   const mixed = ["[sil]"];
   filter += `;${silence}:d=${secs}[sil]`;
+
+  if (quoted) {
+    filter += `;${quoted}aresample=48000,aformat=channel_layouts=stereo[src]`;
+    mixed.push("[src]");
+  }
 
   if (hasHindi) {
     input.push("-i", hindi);

@@ -28,7 +28,7 @@ import sys
 import wave
 
 HERE = pathlib.Path(__file__).resolve().parent
-OUT = HERE / "build/vo"
+OUT = HERE / "build" / os.environ.get("SAATHI_FILM", "plan") / "vo"
 ROOT = HERE.parents[1]
 
 sys.path.insert(0, str(ROOT / "backend"))
@@ -50,7 +50,7 @@ PHONE = "shreya"
 def plan() -> list[dict]:
     """Read the plan from its one home rather than restating it here."""
     script = (
-        "import('./plan.mjs').then(m => "
+        f"import('./{os.environ.get('SAATHI_FILM', 'plan')}.mjs').then(m => "
         "console.log(JSON.stringify(m.PLAN.map(s => "
         "({id: s.id, vo: s.vo, seconds: s.seconds, hindi: s.hindi ?? null})))))"
     )
