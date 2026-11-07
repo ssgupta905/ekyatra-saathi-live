@@ -161,6 +161,73 @@ const CLIPS = {
       },
     });
   },
+
+  /**
+   * Onboarding, and the one stage the 7 November set never captured: medical
+   * background. It is not a screen that was skipped for time — it is the stage
+   * that proves the sixth invariant, so leaving it out of the footage left the
+   * strongest claim in the system unshown.
+   */
+  async onboarding() {
+    const password = process.env.SAATHI_ADMIN_PASSWORD;
+    if (!password) throw new Error("set SAATHI_ADMIN_PASSWORD");
+    await wake("API", `${API}/api/health`);
+    await wake("control centre", CONTROL);
+
+    const token = await signIn("admin", password);
+
+    await record("16-onboarding-medical-background", {
+      token,
+      origin: CONTROL,
+      play: async (page, demo) => {
+        await page.goto(CONTROL, { waitUntil: "networkidle" });
+        await page.waitForTimeout(3500);
+
+        await demo.title("Taking a family on", "Seven stages, each saved on its own");
+        await demo.say(
+          "A family is registered once and taken through the stages over days, " +
+            "not in one sitting at a counter.",
+          4000,
+        );
+
+        await demo.click(page.getByRole("button", { name: "Onboarding", exact: true }));
+        //: The stage list loads from the API. Waiting for the tab itself rather
+        //: than a fixed delay is what the first attempt at this clip got wrong:
+        //: the screen was still loading when the camera moved on.
+        await page.getByRole("button", { name: "Medical background" }).waitFor({ timeout: 60_000 });
+        await page.waitForTimeout(1200);
+
+        const stages = page.locator(".cc-stages");
+        await demo.lookAt(stages);
+        await demo.say(
+          "Seven stages, each ticked off on its own. Anita's outstanding one is " +
+            "the agreement to share — the family has not answered it yet.",
+          4400,
+        );
+
+        await demo.click(page.getByRole("button", { name: "Medical background" }));
+        await page.waitForTimeout(1600);
+        await demo.say(
+          "Medical background, as the family reports it — and only as the family " +
+            "reports it.",
+          4000,
+        );
+        await demo.say(
+          "No report is uploaded here. Nothing a pathologist wrote enters Saathi " +
+            "at any point, in this form or anywhere else.",
+          4600,
+        );
+        await demo.say(
+          "This stage is kept apart: doctors and administrators can see it, a " +
+            "navigator cannot, and it never reaches the planner or a message.",
+          4800,
+        );
+
+        await demo.clear();
+        await page.waitForTimeout(1200);
+      },
+    });
+  },
 };
 
 const which = process.argv[2];
