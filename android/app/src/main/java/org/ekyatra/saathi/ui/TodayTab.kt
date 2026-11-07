@@ -79,7 +79,8 @@ fun TodayTab(home: FamilyHome?, lang: Lang, s: Strings, speaker: Speaker, patien
                     }
                     // Cleared to travel, the date that matters is the one they set out on;
                     // a step's older booked date beside it would read as a contradiction.
-                    val shown = if (home.decision == "go" && home.travelOn != null) home.travelOn else next.on
+                    // Not cleared, no date at all: a booked date is still a promise.
+                    val shown = if (home.decision == "go") home.travelOn ?: next.on else null
                     if (shown != null) {
                         Text(
                             localDateShort(shown, lang),

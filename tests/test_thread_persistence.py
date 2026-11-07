@@ -49,3 +49,16 @@ def test_what_a_family_was_told_is_still_there_after_a_restart(tmp_path, monkeyp
         "the same plan message is not sent again just because the server restarted"
     )
     get_settings.cache_clear()
+
+
+def test_a_message_the_guard_diverted_is_not_shown_to_the_family(tmp_path, monkeypatch):
+    with _boot(tmp_path, monkeypatch) as client:
+        runner = client.app.state.container.runner
+        runner._record_outbound(
+            "SHOW-DIA-1", kind="plan", body="", language="hi", channel="whatsapp",
+            held=True, reason="date stated in a non-GO plan",
+        )
+        thread = _thread(client)
+
+        assert all(row["body"] for row in thread)
+    get_settings.cache_clear()

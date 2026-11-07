@@ -159,6 +159,9 @@ class LanguageChoice(BaseModel):
 async def notifications(state: ContainerDep, patient_id: str, limit: int = 30) -> dict:
     """What this family was told, and what they said, newest last.
 
+    A message the guard diverted has no words (staff see why on the control
+    centre), so it is not part of what the family was told and is left out.
+
     One merged thread rather than two lists: a family does not experience "the
     hospital's outbound queue" and "my replies" as separate things, and reading
     the holding message immediately above their own reply to it is the whole
@@ -171,7 +174,7 @@ async def notifications(state: ContainerDep, patient_id: str, limit: int = 30) -
     thread: list[dict] = [
         {**row, "direction": "to_family"}
         for row in state.runner.outbound
-        if row["patient_id"] == patient_id
+        if row["patient_id"] == patient_id and row["body"]
     ]
     thread.extend(
         {
@@ -277,7 +280,8 @@ def _latest_plan_message(runner, patient_id: str) -> dict | None:
     different sentences with nothing to say which one counts.
     """
     for row in reversed(runner.outbound):
-        if row["patient_id"] == patient_id and row["kind"] in {"plan", "holding", "answer"}:
+        said = row["kind"] in {"plan", "holding", "answer"} and row["body"]
+        if row["patient_id"] == patient_id and said:
             return row
     return None
 
