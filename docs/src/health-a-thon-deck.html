@@ -51,6 +51,13 @@
        font-weight: 700; }
   td.n { text-align: right; font-weight: 700; white-space: nowrap; }
   .fill { color: inherit; }
+  /* The access slide carries six steps and two lists; it earns its own scale
+     rather than forcing every other slide down to its size. */
+  .slide.dense { font-size: 9.2pt; }
+  .slide.dense h1 { font-size: 19pt; margin-bottom: 4mm; }
+  .slide.dense h2 { font-size: 10pt; }
+  .slide.dense li { margin-bottom: 1.3mm; }
+  .slide.dense .url { font-size: 0.88em; }
   /* URLs never break across lines — see the brief for why. */
   .url { white-space: nowrap; font-family: "SF Mono", Menlo, Consolas, monospace;
          font-size: 0.9em; }
@@ -677,49 +684,50 @@
 </section>
 
 <!-- 13 ──────────────────────────────── ACCESS -->
-<section class="slide">
+<section class="slide dense">
   <div class="brand"><span class="g">Health-a-</span><span class="b">thon 2026</span></div>
   <h1>How to open and try it</h1>
   <div class="body">
     <div class="two">
       <div>
-        <h2>Try it in five steps</h2>
+        <h2>Try it yourself</h2>
         <ul>
           <li><b>1 · Open the control centre</b><br>
             <span class="url">https://ekyatra-saathi-control-centre.onrender.com</span><br>
-            Sign in with <span class="url">admin</span> /
+            Sign in <span class="url">admin</span> /
             <span class="url">__DEMO_ADMIN_PASSWORD__</span></li>
-          <li><b>2 · Go to Configuration</b> and find the <b>Demo Families</b> section.</li>
-          <li><b>3 · Enter your own email address</b> there to attach it to one of the demo
-            family personas — Anita, Ravi or Meena.</li>
-          <li><b>4 · Install the Android app</b><br>
-            <span class="url">https://drive.google.com/file/d/1LF5vqHKQmRc262wluMMOubkjQawTXKC8/view</span></li>
-          <li><b>5 · Sign in to the app with that same email.</b> A one-time code arrives by
-            email; there is no password.</li>
+          <li><b>2 · Left nav → Hospital → Configuration</b> (admin-only).</li>
+          <li><b>3 · Find the "Demo families" card.</b> Three slots, three stories —
+            smooth journey · a vendor fails · a second condition (dialysis). Put your own
+            email into one or more; the first is required.</li>
+          <li><b>4 · Press "Load the demo families".</b> This resets each story <i>and</i>
+            emails a sign-in code to the address you gave. Press it again to start over.</li>
+          <li><b>5 · Open the family app, sign in with that address</b> and the code from
+            your inbox. No password.<br>
+            In a browser: <span class="url">ekyatra-saathi-family.onrender.com</span><br>
+            On Android: <span class="url">drive.google.com/drive/folders/122AVNq7vfu8PhKCz2-X8kJqup5S-Q5FM</span></li>
+          <li><b>6 · The vendor's own screen</b> is at
+            <span class="url">ekyatra-saathi-partner.onrender.com</span></li>
         </ul>
-        <p class="q">Prefer not to install anything? The family app also runs in a browser at
-        <span class="url">ekyatra-saathi-family.onrender.com</span>, and the vendor's own
-        screen is at <span class="url">ekyatra-saathi-partner.onrender.com</span>.</p>
       </div>
+
       <div>
         <h2>What to look at first</h2>
         <ul>
-          <li><b>Network board</b> — every family against every party holding them up. Tick
-            "Only the stuck".</li>
-          <li><b>Families → any family → Why</b> — the verdict, and what it is waiting on.</li>
+          <li><b>Network board</b> — every family against every party holding them up.
+            Tick "Only the stuck".</li>
           <li><b>Releases</b> — mark a report released and watch the family's phone change
             by itself, with nobody sending anything.</li>
-          <li><b>On the phone</b> — switch language at the top right, and press
-            <b>बोलिए</b> to hear the plan read aloud.</li>
+          <li><b>On the phone</b> — switch language top right, and press <b>बोलिए</b> to
+            hear the plan read aloud.</li>
         </ul>
-        <h2>Things that are expected, not faults</h2>
+        <h2>Expected, not faults</h2>
         <ul>
-          <li><b>The first page load can take up to a minute.</b> The free hosting tier
-            sleeps when idle; it is awake after that.</li>
-          <li><b>Android will ask permission to install from this source.</b> The APK is
+          <li><b>The first load can take a minute.</b> The free tier sleeps when idle.</li>
+          <li><b>Android asks permission to install from this source.</b> The APK is
             signed, but distributed outside the Play Store.</li>
-          <li><b>One-time codes expire after five minutes</b> and can be re-requested after
-            thirty seconds. Check the spam folder.</li>
+          <li><b>Codes expire after five minutes</b> and can be re-requested after thirty
+            seconds. Check the spam folder.</li>
           <li><b>Every family, report and vendor is synthetic.</b> No real patient data
             exists anywhere in this system.</li>
         </ul>
@@ -741,7 +749,7 @@
     <div class="q" style="margin-top:4mm; font-size:10.5pt; line-height:1.9">
       ssgupta905@gmail.com<br>
       <b>MVP</b> &nbsp;<span class="url">https://ekyatra-saathi-control-centre.onrender.com</span><br>
-      <b>Android APK</b> &nbsp;<span class="url">https://drive.google.com/file/d/1LF5vqHKQmRc262wluMMOubkjQawTXKC8/view</span><br>
+      <b>Android APK</b> &nbsp;<span class="url">https://drive.google.com/drive/folders/122AVNq7vfu8PhKCz2-X8kJqup5S-Q5FM</span><br>
       <b>Code</b> &nbsp;<span class="url">https://github.com/ssgupta905/ekyatra-saathi-live</span><br>
       <b>Demo video</b> &nbsp;<span class="url">__DEMO_VIDEO_LINK__</span>
     </div>

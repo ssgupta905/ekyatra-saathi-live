@@ -49,17 +49,21 @@ sys.path.insert(0, str(ROOT / "backend"))
 #: is the one thing the narrator must not do.
 #:
 #: Override either without touching this file: SAATHI_NARRATOR, SAATHI_PHONE.
-#: The narrator is a US English voice from the operating system, and the
-#: family's phone is still Sarvam. That split is deliberate twice over: the
-#: film wants a narrator who is clearly not the product, and Sarvam only ships
-#: Indian voices — every one of its speakers reads Indian English, which is
-#: right for the phone and wrong for a voice-over sitting beside it.
+#: Narrator and phone are both Sarvam, and different speakers.
 #:
-#: `say` rather than a hosted service because there is no other text-to-speech
-#: credential in this project: the one hosted option on the existing key was
-#: retired by its provider. Samantha is the only US female voice installed.
-NARRATOR_VOICE = os.environ.get("SAATHI_NARRATOR_VOICE", "Samantha")
-NARRATOR_WPM = os.environ.get("SAATHI_NARRATOR_WPM", "178")
+#: The operating system's own voice was tried for the narration and is a
+#: concatenative engine a decade older than this one; next to neural speech it
+#: gives itself away in a sentence. Quality beat the wish for a non-Indian
+#: accent, because the thing a viewer notices first is whether a voice sounds
+#: synthetic, not where it is from.
+#:
+#: `neha` of the ten sampled had the widest spread in its fundamental
+#: frequency — 63 Hz against 18 to 46 for the rest — which is the closest
+#: measurable thing to "not a drone". The phone keeps `shreya`, and the
+#: telephone-band filter it goes through in `build.mjs` separates the two far
+#: more than any choice of speaker would.
+NARRATOR = os.environ.get("SAATHI_NARRATOR", "aditya")
+NARRATION_PACE = float(os.environ.get("SAATHI_NARRATION_PACE", "1.15"))
 PHONE = os.environ.get("SAATHI_PHONE", "shreya")
 PHONE = os.environ.get("SAATHI_PHONE", "shreya")
 
@@ -75,28 +79,6 @@ def plan() -> list[dict]:
         ["node", "-e", script], cwd=HERE, capture_output=True, text=True, check=True
     ).stdout
     return json.loads(raw)
-
-
-def _narrate(text: str, path: pathlib.Path) -> float | None:
-    """The English voice-over, spoken by the operating system.
-
-    Written straight to a 22 kHz mono WAV because that is what the assembler
-    resamples from anyway, and because an AIFF left lying around is one more
-    intermediate nobody cleans up.
-    """
-    aiff = path.with_suffix(".aiff")
-    subprocess.run(
-        ["say", "-v", NARRATOR_VOICE, "-r", NARRATOR_WPM, "-o", str(aiff), text],
-        check=True,
-    )
-    subprocess.run(
-        ["ffmpeg", "-v", "error", "-y", "-i", str(aiff),
-         "-ar", "22050", "-ac", "1", str(path)],
-        check=True,
-    )
-    aiff.unlink(missing_ok=True)
-    with wave.open(str(path)) as handle:
-        return handle.getnframes() / handle.getframerate()
 
 
 def _speak(
@@ -147,7 +129,10 @@ def main() -> int:
         line = (seg["vo"] or "").strip()
         if not line:
             continue
-        seconds = _narrate(line, OUT / f"{seg['id']}.wav")
+        seconds = _speak(
+            speech, line, "en", OUT / f"{seg['id']}.wav",
+            speaker=NARRATOR, pace=NARRATION_PACE,
+        )
         if seconds is None:
             failed.append(seg["id"])
             print(f"  {seg['id']:14s} SILENT - sarvam refused")

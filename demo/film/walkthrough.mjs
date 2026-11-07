@@ -27,45 +27,45 @@ export const FILM =
 export const PLAN = [
   {
     id: "w01-title", kind: "card", seconds: 6,
-    card: { heading: "EKYATRA Saathi", sub: "An orchestration layer for cancer-care logistics", kicker: "Team Bits2026 · 86W1QA · Health-a-thon 2026" },
+    card: { heading: "EKYATRA Saathi", sub: "An orchestration layer for any care pathway that makes a patient travel", kicker: "Team Bits2026 · 86W1QA · Health-a-thon 2026" },
     vo: "EKYATRA Saathi. From team Bits2026.",
   },
 
   // ── what it actually is, before anything else ─────────────────────────────
   {
-    id: "w02-whatitis", kind: "turn", seconds: 23,
+    id: "w02-whatitis", kind: "turn", seconds: 30,
     card: {
       heading: "What this is",
-      before: "Another hospital\nmanagement\nsystem",
-      after: "An orchestration\nlayer the HMS\ncan call",
-      note: "Saathi stores no clinical record and replaces nothing. It reads status out of the systems a hospital already runs, works out whether a family's next visit can actually happen, and tells the people who need to know — the family, the navigator, and every vendor the journey leans on.",
+      before: "A hospital system.\nFor cancer.",
+      after: "An orchestration\nlayer. For any\ncare pathway.",
+      note: "Saathi stores no clinical record and replaces nothing. A care pathway is declared as a graph of steps and the dependencies between them — three ship today: oncology, maintenance dialysis, and recovery after discharge. The decision core never knows which one it is working on.",
     },
-    vo: "First, what this is not. It is not a hospital management system. It stores no clinical record, and it replaces nothing. Saathi is an orchestration layer. It reads status out of the systems a hospital already runs. It works out whether a family's next visit can actually happen. And it tells the people who need to know.",
+    vo: "First, two things this is not. It is not a hospital management system. It stores no clinical record and replaces nothing. And it is not only for cancer. Saathi is an orchestration layer. A care pathway is declared as a graph — the steps, and what each one waits on. Three ship today. Oncology. Maintenance dialysis. And recovery after discharge. The decision core never knows which one it is working on. Adding a condition is a declaration, not a rewrite.",
   },
   {
-    id: "w03-problem", kind: "card", seconds: 25,
+    id: "w03-problem", kind: "card", seconds: 39,
     card: {
       heading: "Why that layer is missing",
-      sub: "Every department optimises its own queue. Nobody counts the family's trips.",
-      kicker: "60% of Tata Memorial's patients come from outside Maharashtra · 75%+ travel over 500 km · 83% face catastrophic non-medical costs, mean ₹88,433 · 53% borrow or sell assets",
+      sub: "Every department optimises its own queue. Nobody counts the patient's trips.",
+      kicker: "The evidence is strongest in oncology, so the numbers here are oncology's: 60% of Tata Memorial's patients come from outside Maharashtra · 75%+ travel over 500 km · 83% face catastrophic non-medical costs, mean ₹88,433 · 53% borrow or sell assets. A dialysis patient makes the same journey three times a week.",
     },
-    vo: "Here is the gap it fills. Every department optimises its own queue. The lab, the scheme desk, the pharmacy, the cab firm. Nobody counts the family's trips. So a family travels six hundred kilometres, and the report is not back. Eighty-three per cent of these households hit catastrophic non-medical costs. More than half borrow or sell something to cope.",
+    vo: "Here is the gap it fills. Every department optimises its own queue. The lab, the scheme desk, the pharmacy, the cab firm. Nobody counts the patient's trips. So a family travels six hundred kilometres, and the report is not back. The published evidence is strongest in cancer care, so these numbers are cancer's. Eighty-three per cent of those households hit catastrophic non-medical costs. More than half borrow or sell something. But a dialysis patient makes that journey three times a week, and somebody recovering from surgery makes it not knowing whether the wound clinic can see them.",
   },
 
   // ── the architecture, before any screen ───────────────────────────────────
   {
-    id: "w04-arch", kind: "arch", seconds: 46,
+    id: "w04-arch", kind: "arch", seconds: 49,
     card: {
       heading: "Where it sits",
       sub: "Read status · decide · tell everyone who needs to know. No clinical write, anywhere.",
       above: [
         ["HMS / LIS", "appointments and report status — read only"],
         ["ABDM", "linked status under India's own consent model"],
-        ["Directory", "the labs, cabs, hotels, pharmacies and scheme desks already in use"],
+        ["Pathways & directory", "the care pathway as a declared graph — oncology, dialysis, post-discharge — and the vendors already in use"],
       ],
       core: {
         title: "EKYATRA Saathi · the orchestration layer",
-        detail: "Stateless per family. No diagnosis, no result, no report content — there is no field that could hold one.",
+        detail: "Pathway-agnostic and stateless per family. No diagnosis, no result, no report content — there is no field that could hold one.",
         steps: ["dependency graph", "conformal readiness forecast", "ask every party", "verdict", "render into the family's language", "hash-chained ledger"],
       },
       below: [
@@ -74,10 +74,10 @@ export const PLAN = [
         ["Vendor screens", "one job each, and nothing about anybody's care"],
       ],
     },
-    vo: "This is where it sits. Above the line, what the hospital already runs — its own system for appointments and report status, A B D M for linked status under India's consent model, and the directory of labs, cabs, hotels and scheme desks it already uses. Saathi reads from those. It never writes anything clinical. In the middle it resolves the care pathway as a dependency graph, forecasts when each pending step will be ready, asks every party the journey leans on, and reaches a verdict. Below the line, three audiences. The navigator sees every journey against whatever is holding it up. The family sees one word and one date, in their own language. And each vendor sees one job, and nothing about anybody's care.",
+    vo: "This is where it sits. Above the line, what the hospital already runs — its own system for appointments and report status, A B D M for linked status under India's consent model, the care pathways themselves, and the directory of labs, cabs, hotels and scheme desks it already uses. Saathi reads from those. It never writes anything clinical. In the middle it resolves the care pathway as a dependency graph, forecasts when each pending step will be ready, asks every party the journey leans on, and reaches a verdict. Below the line, three audiences. The navigator sees every journey against whatever is holding it up. The family sees one word and one date, in their own language. And each vendor sees one job, and nothing about anybody's care.",
   },
   {
-    id: "w05-tech", kind: "stack", seconds: 35,
+    id: "w05-tech", kind: "stack", seconds: 38,
     card: {
       heading: "What it is built from",
       rows: [
@@ -92,7 +92,7 @@ export const PLAN = [
 
   // ── who built it, and with whom ───────────────────────────────────────────
   {
-    id: "w06-team", kind: "people", seconds: 20,
+    id: "w06-team", kind: "people", seconds: 19,
     card: {
       heading: "Who built it",
       sub: "Bits2026",
@@ -106,7 +106,7 @@ export const PLAN = [
     vo: "Four of us built it. Siddhartha Sengupta, technical architect, on the decision core. Ankshuk Ray on the two web products, the Android app and the speech layer. Abhik Sengupta, a PhD scholar in the biological sciences, on the evidence. And Srinivas Pavan on delivery and scope.",
   },
   {
-    id: "w07-doctor", kind: "card", seconds: 28,
+    id: "w07-doctor", kind: "card", seconds: 29,
     card: {
       heading: "Dr Arani Chakraborty",
       sub: "MBBS · Reg. 93698 · our doctor partner",
@@ -116,7 +116,7 @@ export const PLAN = [
   },
 
   // ── the working solution, quoted from the film ────────────────────────────
-  { id: "w07-chapter", kind: "card", seconds: 7,
+  { id: "w07-chapter", kind: "card", seconds: 5,
     card: { chapter: "The product, running", heading: "Five things it does" },
     vo: "So here it is, running. Five things to watch for." },
 

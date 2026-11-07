@@ -277,7 +277,7 @@ Use exactly these. Do not invent or shorten a URL.
   Team            Bits2026
   Contact         ssgupta905@gmail.com
   MVP             https://ekyatra-saathi-control-centre.onrender.com
-  Android APK     https://drive.google.com/file/d/1LF5vqHKQmRc262wluMMOubkjQawTXKC8/view
+  Android APK     https://drive.google.com/drive/folders/122AVNq7vfu8PhKCz2-X8kJqup5S-Q5FM
   Code            https://github.com/ssgupta905/ekyatra-saathi-live
 
 ================================= PROMPT ENDS ==================================
