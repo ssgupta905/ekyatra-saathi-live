@@ -21,3 +21,8 @@ recordings/
 # Film intermediates: stills, voice-over and per-segment encodes. All of it is
 # reproducible from plan.mjs, and the voice-over costs an API call to remake.
 demo/film/build/
+
+# The release signing key and its passwords. Losing this file means never being
+# able to ship an update to an installed app, so it is kept out of git and
+# backed up by hand.
+android/keystore/

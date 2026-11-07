@@ -1,4 +1,4 @@
-.PHONY: dev-users migrate api-real help install demo demo-audio demo-mov demo-video demo-video-headless demo-check fetch-reference test lint api web dev web-test web-typecheck emulator android-build android-test android-install android-run android-strings docker seed clean
+.PHONY: android-release dev-users migrate api-real help install demo demo-audio demo-mov demo-video demo-video-headless demo-check fetch-reference test lint api web dev web-test web-typecheck emulator android-build android-test android-install android-run android-strings docker seed clean
 
 PY ?= .venv/bin/python
 # Override when something else already owns 8000:  make api PORT=8001
@@ -8,6 +8,7 @@ PORT ?= 8000
 # the Android SDK that ships with Android Studio; the emulator is whichever AVD
 # is installed.
 AVD ?= Pixel_3a_API_33_arm64-v8a
+SAATHI_PUBLIC_API ?= https://ekyatra-saathi-ueoa.onrender.com/api
 ANDROID_SDK ?= $(HOME)/Library/Android/sdk
 ADB = $(ANDROID_SDK)/platform-tools/adb
 GRADLE = cd android && JAVA_HOME=$$(/usr/libexec/java_home -v 17) ./gradlew
@@ -106,6 +107,20 @@ emulator:
 
 android-build:
 	$(GRADLE) :app:assembleDebug
+
+# The APK that gets handed to anybody outside this machine. Two things make it
+# different from a debug build and both are easy to forget:
+#
+#   * it is signed with the real key (android/keystore/, gitignored), so a
+#     phone installs it without the unknown-developer warning; and
+#   * `apiBase` must name the deployed service. The default in
+#     gradle.properties is 10.0.2.2, the emulator's route to this laptop, and a
+#     release build inherits it silently — then refuses to load at all, because
+#     release has no cleartext exemption. Which is the good failure: a shipped
+#     APK quietly pointing at a developer's machine is the bad one.
+android-release:
+	$(GRADLE) :app:assembleRelease -PapiBase=$(SAATHI_PUBLIC_API)
+	@echo "signed APK: android/app/build/outputs/apk/release/app-release.apk"
 
 android-test:
 	$(GRADLE) :app:testDebugUnitTest
