@@ -279,5 +279,6 @@ Use exactly these. Do not invent or shorten a URL.
   MVP             https://ekyatra-saathi-control-centre.onrender.com
   Android APK     https://drive.google.com/drive/folders/122AVNq7vfu8PhKCz2-X8kJqup5S-Q5FM
   Code            https://github.com/ssgupta905/ekyatra-saathi-live
+  Demo video      https://app.heygen.com/videos/ekyatra-saathi-bits2026-health-a-thon-2026-f28b08eb12f44b23813c22a71d010102
 
 ================================= PROMPT ENDS ==================================

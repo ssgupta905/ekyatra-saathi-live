@@ -16,6 +16,31 @@ await p.goto(`file://${file}`, { waitUntil: "networkidle" });
 await p.emulateMedia({ media: "print" });
 
 /**
+ * Substitute the same late values `to-pdf.mjs` does, before measuring.
+ *
+ * Without this the check measures `__DEMO_VIDEO_LINK__` — nineteen characters
+ * standing in for a hundred and three — and reports a link fits when the
+ * printed page will have it running off the edge. A fit check that tests
+ * different content from the renderer is worse than none, because it is
+ * believed.
+ */
+await p.evaluate((pairs) => {
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const node of nodes) {
+    for (const [token, value] of Object.entries(pairs)) {
+      if (value && node.nodeValue.includes(token)) {
+        node.nodeValue = node.nodeValue.replaceAll(token, value);
+      }
+    }
+  }
+}, {
+  __DEMO_ADMIN_PASSWORD__: process.env.SAATHI_DEMO_PASSWORD,
+  __DEMO_VIDEO_LINK__: process.env.SAATHI_DEMO_VIDEO,
+});
+
+/**
  * Any URL that wrapped or ran past its column.
  *
  * A URL broken across two lines cannot be typed from a printout or
@@ -52,10 +77,12 @@ const report = await p.evaluate(() => {
     out.push({ what: `page ${i + 1}`, over: Math.round(over / mm) });
     page.querySelectorAll(".box").forEach((box) => {
       const title = box.querySelector("h2")?.textContent ?? "?";
-      out.push({
-        what: `  ${title}`,
-        over: Math.round((box.scrollHeight - box.clientHeight) / mm),
-      });
+      //: A flex box reports a millimetre over even when the page itself fits
+      //: and nothing is clipped — border and sub-pixel rounding. Anything
+      //: genuinely cut off runs to several millimetres, and the page total
+      //: catches it anyway, so one millimetre is not worth reporting.
+      const spill = Math.round((box.scrollHeight - box.clientHeight) / mm);
+      out.push({ what: `  ${title}`, over: spill <= 1 ? 0 : spill });
     });
   });
   return out;

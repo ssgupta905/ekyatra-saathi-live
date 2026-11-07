@@ -37,7 +37,7 @@
   .cols { flex: 1 1 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; min-height: 0; }
   .box {
     border: 1.1px solid #1f5fa8;
-    padding: 3.4mm 4.2mm 3.4mm;
+    padding: 3.0mm 4.2mm 3.0mm;
     display: flex; flex-direction: column; gap: 2.4mm;
     min-height: 0;
   }
@@ -62,6 +62,9 @@
      or double-clicked to copy. They never break. */
   .url { white-space: nowrap; font-family: "SF Mono", Menlo, Consolas, monospace;
          font-size: 0.93em; }
+  /* A link too long for its column at the normal size. Still one line — a URL
+     broken across two cannot be copied with a double-click. */
+  .url.long { font-size: 0.76em; letter-spacing: -0.01em; }
   .flag {
     border-left: 2.2px solid #64748b; padding-left: 2.6mm;
     color: #334155;
@@ -135,16 +138,19 @@
     <!-- right column -->
     <div class="box">
       <h2>AI Solution Description</h2>
-      <p>Saathi answers one question, every day, for every family: <b>is this trip worth
+      <p><b>An orchestration layer, not a hospital system.</b> It stores no clinical record
+      and replaces nothing. A care pathway is <i>declared</i> as a graph of steps and their
+      dependencies — three ship today: oncology, maintenance dialysis, recovery after
+      discharge — and the decision core never knows which it is working on.</p>
+      <p>It answers one question, every day, for every patient: <b>is this trip worth
       making?</b> It reads appointment and report <i>status</i> from ABDM and hospital feeds —
       never report content — resolves a dependency graph of the care pathway, forecasts when
       each pending step will be ready, and returns one of four verdicts: <b>Come, Wait,
       Re-plan</b> or <b>Uncertain</b>. A date appears only when every prerequisite is
       satisfied, so the app never promises a day it does not have.</p>
-      <p>Two surfaces share a backend and nothing else. The caregiver gets one word, one date,
-      what to bring and where to go first, in their own language and read aloud on request.
-      The navigator gets a board of every journey against every party holding it up — lab,
-      insurer, pharmacy, cab, hotel — and acts on the stuck ones.</p>
+      <p>Two surfaces share a backend and nothing else. The caregiver gets one word, one
+      date, what to bring and where to go first, in their language and read aloud. The
+      navigator gets a board of every journey against every party holding it up.</p>
       <p><b>The decision is not made by a model.</b> A deterministic planner decides; the model
       only renders that decision into the family's language, bound by a schema whose verdict
       enum is derived from the <code>Decision</code> type so it cannot drift. A guard screens
@@ -171,14 +177,13 @@
         with a date only when the chain is clear, and a forecast carrying its own coverage
         level instead of a confident guess.</li>
         <li><b>The whole network, asked automatically.</b> Scheme desk, pharmacy, cab firm,
-        hotel and lab each answer for themselves; a vendor signs in to its own screen and sees
-        only its own jobs — a first name, a district, and a phone number only if the family
-        agreed to share it.</li>
+        hotel and lab each answer for themselves; a vendor sees only its own jobs — a first
+        name, a district, and a number only if the family agreed.</li>
         <li><b>Affordability built into the plan.</b> A railway patient-quota berth and a
         dharamshala for one household, an app cab and a hotel for another — and Saathi
         <i>asks</i> the family to confirm, with "I cannot manage any of these" always on the
         list, routed to a social worker rather than a cheaper booking.</li>
-        <li><b>Four languages, and a voice.</b> A plan a caregiver cannot read is not a plan.</li>
+        <li><b>Four languages, read aloud.</b> A plan a caregiver cannot read is not a plan.</li>
         <li><b>An audit trail that cannot be quietly edited.</b> A hash-chained ledger that
         grows only when a fact actually changes.</li>
       </ol>
@@ -256,25 +261,23 @@
       <ul>
         <li><b>The model never decides whether a family travels.</b> A deterministic planner
         decides; the model renders. The response schema's verdict enum is derived from the
-        <code>Decision</code> type, so a new verdict cannot silently fall outside it.</li>
+        <code>Decision</code> type, so a new verdict cannot fall outside it.</li>
         <li><b>Report content never enters the system.</b> The ABDM ingest drops
-        <code>conclusion</code>, <code>result</code> and <code>presentedForm</code>, and the
-        pointer type has no field that could hold a finding. Saathi cannot leak what it does
-        not store.</li>
-        <li><b>Clinical questions go to a human, always.</b> A guard screens every inbound
-        message and every outgoing one; a diverted message reaches the family as "a person is
-        calling you", never as empty words.</li>
+        <code>conclusion</code>, <code>result</code> and <code>presentedForm</code>; the
+        pointer type has no field that could hold a finding.</li>
+        <li><b>Clinical questions go to a human, always.</b> A guard screens every message
+        in both directions; a diverted one reaches the family as "a person is calling you",
+        never as empty words.</li>
         <li><b>Human oversight at the points that matter.</b> A re-plan touching treatment or
         dose timing requires a doctor; a vendor is chosen by a person, not the system; a
         family's budget answer is a proposal until a navigator confirms it.</li>
-        <li><b>Privacy and consent.</b> Consent per purpose, withdrawable, checked at every
-        read and logged with refusals; a vendor sees a first name and a district, and a phone
-        number only if the family agreed to share it. DPDP Act 2023 / ABDM consent model.</li>
+        <li><b>Privacy and consent.</b> Per purpose, withdrawable, checked at every read and
+        logged with refusals; a vendor sees a first name and a district, and a phone number
+        only if the family agreed. DPDP Act 2023 / ABDM consent model.</li>
         <li><b>Honest uncertainty.</b> No score anywhere. A forecast carries its coverage
-        level and refuses to answer on thin calibration; when the system does not know, a
-        person is told.</li>
-        <li><b>Credential-free tests.</b> All 631 run with every API key blanked, so no suite
-        run can quietly depend on a live service.</li>
+        level and declines on thin calibration; when the system does not know, a person is
+        told.</li>
+        <li><b>Credential-free tests.</b> All 631 run with every API key blanked.</li>
       </ul>
 
       <h2>Deployment and Sustainability Plan</h2>
@@ -299,7 +302,7 @@
         <li><b>Partner app</b> <span class="url">ekyatra-saathi-partner.onrender.com</span></li>
         <li><b>Android APK</b> <span class="url">drive.google.com/drive/folders/122AVNq7vfu8PhKCz2-X8kJqup5S-Q5FM</span></li>
         <li><b>Code</b> <span class="url">github.com/ssgupta905/ekyatra-saathi-live</span></li>
-        <li><b>Demo video</b> <span class="url">__DEMO_VIDEO_LINK__</span></li>
+        <li><b>Demo walkthrough video</b> — team, approach, partners and the product running<br><span class="url long">__DEMO_VIDEO_LINK__</span></li>
       </ul>
       <p class="q"><b>To see a family's own phone:</b> sign in to the control centre →
       <b>Hospital → Configuration → "Demo families"</b>. Three slots, three stories (smooth · a vendor fails · dialysis). Put your email in one and press <b>Load the demo families</b> — that resets the stories <i>and</i> emails you
