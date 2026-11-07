@@ -392,7 +392,7 @@
       <div class="lab">Network &amp; vendors</div>
       <div></div><div></div><div></div><div class="bar g">Directory · partner app · onboarding · deploy</div>
       <div class="lab">Affordability</div>
-      <div></div><div></div><div></div><div class="bar">Cost tiers · budget conversation</div>
+      <div></div><div></div><div></div><div class="bar">Cost tiers · means-aware planning · budget conversation</div>
       <div class="lab">ABDM OAuth</div>
       <div></div><div></div><div></div><div class="bar l">specified, not built</div>
     </div>
@@ -421,7 +421,10 @@
           <li><b>110 model calls and a 226-second stall</b> on first load. Reduced to 9 calls
           and 43 seconds by skipping a first-pass render, excluding seed data and serialising
           under the rate limit.</li>
-          <li><b>Means data collected and never read</b> — found in week 4, fixed in week 4.</li>
+          <li><b>One directory of vendors could not serve every family.</b> Offering the
+          same app cab and hotel to a household on a daily wage and one on a salary is not
+          one plan, so the directory gained cost tiers and the planner learned to read
+          them.</li>
         </ul>
         <h2>Deliberately incomplete</h2>
         <p class="q"><b>ABDM OAuth and consent-manager routing</b> — the consent model is
@@ -676,7 +679,60 @@
   <footer><span>HEALTH-A-THON 2026 · FINAL SUBMISSION</span><span>12</span></footer>
 </section>
 
-<!-- 13 ──────────────────────────────── THANK YOU -->
+<!-- 13 ──────────────────────────────── ACCESS -->
+<section class="slide">
+  <div class="brand"><span class="g">Health-a-</span><span class="b">thon 2026</span></div>
+  <h1>How to open and try it</h1>
+  <div class="body">
+    <div class="two">
+      <div>
+        <h2>Try it in five steps</h2>
+        <ul>
+          <li><b>1 · Open the control centre</b><br>
+            <code>https://ekyatra-saathi-control-centre.onrender.com</code><br>
+            Sign in with <code>admin</code> / <code>__DEMO_ADMIN_PASSWORD__</code></li>
+          <li><b>2 · Go to Configuration</b> and find the <b>Demo Families</b> section.</li>
+          <li><b>3 · Enter your own email address</b> there to attach it to one of the demo
+            family personas — Anita, Ravi or Meena.</li>
+          <li><b>4 · Install the Android app</b><br>
+            <code>https://drive.google.com/file/d/<br>1LF5vqHKQmRc262wluMMOubkjQawTXKC8/view</code></li>
+          <li><b>5 · Sign in to the app with that same email.</b> A one-time code arrives by
+            email; there is no password.</li>
+        </ul>
+        <p class="q">Prefer not to install anything? The family app also runs in a browser at
+        <code>ekyatra-saathi-family.onrender.com</code>, and the vendor's own screen is at
+        <code>ekyatra-saathi-partner.onrender.com</code>.</p>
+      </div>
+      <div>
+        <h2>What to look at first</h2>
+        <ul>
+          <li><b>Network board</b> — every family against every party holding them up. Tick
+            "Only the stuck".</li>
+          <li><b>Families → any family → Why</b> — the verdict, and what it is waiting on.</li>
+          <li><b>Releases</b> — mark a report released and watch the family's phone change
+            by itself, with nobody sending anything.</li>
+          <li><b>On the phone</b> — switch language at the top right, and press
+            <b>बोलिए</b> to hear the plan read aloud.</li>
+        </ul>
+        <h2>Things that are expected, not faults</h2>
+        <ul>
+          <li><b>The first page load can take up to a minute.</b> The free hosting tier
+            sleeps when idle; it is awake after that.</li>
+          <li><b>Android will ask permission to install from this source.</b> The APK is
+            signed, but distributed outside the Play Store.</li>
+          <li><b>One-time codes expire after five minutes</b> and can be re-requested after
+            thirty seconds. Check the spam folder.</li>
+          <li><b>Every family, report and vendor is synthetic.</b> No real patient data
+            exists anywhere in this system.</li>
+        </ul>
+        <p class="q"><b>Any trouble:</b> ssgupta905@gmail.com</p>
+      </div>
+    </div>
+  </div>
+  <footer><span>HEALTH-A-THON 2026 · FINAL SUBMISSION</span><span>13</span></footer>
+</section>
+
+<!-- 14 ──────────────────────────────── THANK YOU -->
 <section class="slide">
   <div class="centre">
     <div class="wordmark"><span style="color:#0a7d3c">Health-a-</span><span style="color:#15357f">thon</span> <span style="color:#15357f">2026</span></div>
@@ -684,17 +740,16 @@
     <div style="font-size:13pt; font-weight:700; color:#0a7d3c; margin-top:2mm">
       Bits2026 &nbsp;·&nbsp; <span class="fill">[team code]</span>
     </div>
-    <div class="q" style="margin-top:5mm; font-size:11pt; line-height:2">
-      ssgupta905@gmail.com &nbsp;|&nbsp;
-      <span class="fill">[MVP link]</span> &nbsp;|&nbsp;
-      <span class="fill">[Demo video link]</span> &nbsp;|&nbsp;
-      <span class="fill">[Code repository link]</span><br>
-      <span class="fill">[Android APK — public download link]</span>
+    <div class="q" style="margin-top:4mm; font-size:10.5pt; line-height:1.9">
+      ssgupta905@gmail.com<br>
+      <b>MVP</b> &nbsp;https://ekyatra-saathi-control-centre.onrender.com<br>
+      <b>Android APK</b> &nbsp;https://drive.google.com/file/d/1LF5vqHKQmRc262wluMMOubkjQawTXKC8/view<br>
+      <b>Code</b> &nbsp;https://github.com/ssgupta905/ekyatra-saathi-live<br>
+      <b>Demo video</b> &nbsp;<span class="fill">[paste the public link]</span>
     </div>
-    <p class="q" style="margin-top:6mm; max-width:170mm; font-size:10pt">
-      Every link above must open for the evaluation panel, not only for the team. Access
-      instructions and demo sign-in details are included with the submission.
+    <p class="q" style="margin-top:4mm; max-width:180mm; font-size:9.5pt">
+      Sign-in and step-by-step access instructions are on the previous slide.
     </p>
   </div>
-  <footer><span>HEALTH-A-THON 2026</span><span>13</span></footer>
+  <footer><span>HEALTH-A-THON 2026</span><span>14</span></footer>
 </section>

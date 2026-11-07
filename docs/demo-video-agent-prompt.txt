@@ -263,9 +263,20 @@ ALSO:
     There are none.
   - Do not generate an avatar that is presented as a doctor or a patient.
   - One section of the source (07:31-08:35, affordability) was recorded against
-    a local build rather than the live deployment. If you state that the demo
-    runs on a live deployment, add: "apart from the affordability feature,
-    which is new and not yet deployed."
+    a local build rather than the live deployment, because that feature is not
+    on the deployed service yet. Do not claim otherwise. Everything else in the
+    film is the live deployment.
   - The team has five members. Name all five. Do not invent a sixth.
+
+--------------------------------------------------------------------------------
+IF THE VIDEO NEEDS AN END CARD
+--------------------------------------------------------------------------------
+Use exactly these. Do not invent or shorten a URL.
+
+  Team            Bits2026
+  Contact         ssgupta905@gmail.com
+  MVP             https://ekyatra-saathi-control-centre.onrender.com
+  Android APK     https://drive.google.com/file/d/1LF5vqHKQmRc262wluMMOubkjQawTXKC8/view
+  Code            https://github.com/ssgupta905/ekyatra-saathi-live
 
 ================================= PROMPT ENDS ==================================

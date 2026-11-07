@@ -21,6 +21,32 @@ mkdirSync(dirname(target), { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage();
 await page.goto(`file://${source}`, { waitUntil: "networkidle" });
+
+/**
+ * Fill in the demo sign-in, which the source deliberately does not contain.
+ *
+ * The submission documents have to print a working password so an evaluation
+ * panel can open the control centre. The repository is public, so the source
+ * holds a placeholder and the real value arrives from the environment at
+ * render time. Without it the PDF says so in the page rather than silently
+ * shipping the placeholder, which is the failure that would not be noticed.
+ */
+const secret = process.env.SAATHI_DEMO_PASSWORD;
+await page.evaluate((value) => {
+  const token = "__DEMO_ADMIN_PASSWORD__";
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const hits = [];
+  while (walker.nextNode()) {
+    if (walker.currentNode.nodeValue.includes(token)) hits.push(walker.currentNode);
+  }
+  for (const node of hits) {
+    node.nodeValue = node.nodeValue.replaceAll(token, value ?? "[set SAATHI_DEMO_PASSWORD]");
+  }
+  return hits.length;
+}, secret);
+if (!secret) {
+  console.warn("  SAATHI_DEMO_PASSWORD is not set — the demo sign-in is blank in this PDF");
+}
 // Print rules, not screen rules: the stylesheet sets @page margins and the
 // running footer, and emulating screen here would quietly discard both.
 await page.emulateMedia({ media: "print" });
