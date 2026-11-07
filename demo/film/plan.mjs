@@ -114,15 +114,26 @@ export const PLAN = [
     panel: { heading: "Anita · Gaya", lines: ["आइए — Come", "यात्रा · रविवार 8 नवंबर", "Nine of ten steps done"] },
     vo: "Come. Travel on the eighth. Go to the O P D registration counter first. Bring the hospital file, the patient identity card, the ABHA number or Ayushman card, the previous appointment slips, and all the report slips. That list is not generic advice. It is assembled from this hospital's own rules and this family's own scheme, which is why it names Ayushman and not something else. Nine of ten steps are done. The last one is the visit itself." },
 
+  { id: "r-chapter", kind: "card", seconds: 3, card: { chapter: "9", heading: "What the family can manage" }, vo: "" },
+  {
+    //: The one chapter recorded against a *local* stack rather than the
+    //: deployed one, because the deployed service does not have this yet —
+    //: `/budget` is a 404 there. The closing card says so. A film that implied
+    //: otherwise would be the single dishonest thing in it.
+    id: "r-budget", kind: "browser", seconds: 64.1,
+    file: "17-what-the-family-can-manage.webm", in: 0,
+    vo: "One thing the planner cannot work out on its own. It knows this journey needs a ride and a bed. It does not know whether this household can pay for the ones it picked, and guessing is how a family ends up with a confirmed app cab they quietly cannot afford, and a visit they therefore do not make. So Saathi asks. Three real organisations from the directory, one of each kind: a railway patient quota, a shared jeep, a taxi. This family's ration card is AAY, so the concession is offered first and marked, and it is not ticked, because a default nobody changed is not an answer. There is no price on this screen. Saathi has none to give, and a number invented for a screen would be worse than silence. Last on every list, and deliberately not one of the things to buy: we cannot manage any of this. That one does not rebook anything. It raises a person, because the answer to a family with no fare is a scheme and a social worker. The family chooses, a navigator agrees it is what they meant, and only then does the ride move from a taxi to the railway desk, on the family's own screen.",
+  },
+
   {
     id: "p-invariants", kind: "card", seconds: 20,
     card: { heading: "What never enters", sub: "Four of the rules this is built on", kicker: "No report content · the model never decides · nothing without a source · the ledger grows only on change" },
     vo: "No report content is ever stored. The model never decides anything; it only puts a decision the planner made into the family's own language. Nothing reaches a family without a source. And the ledger only grows when a fact actually changes.",
   },
   {
-    id: "q-close", kind: "card", seconds: 11,
-    card: { heading: "EKYATRA Saathi", sub: "The console reflects the world. It never causes it.", kicker: "" },
-    vo: "Everything here runs against the deployed service, with real records and a real phone. The console reflects the world. It never causes it.",
+    id: "q-close", kind: "card", seconds: 14,
+    card: { heading: "EKYATRA Saathi", sub: "The console reflects the world. It never causes it.", kicker: "Chapters 1-8 on the deployed service · chapter 9 on a local build" },
+    vo: "Everything here runs against the real service, with real records and a real phone. Chapter nine runs on a local build, because that part is not deployed yet; the rest is. The console reflects the world. It never causes it.",
   },
 ];
 

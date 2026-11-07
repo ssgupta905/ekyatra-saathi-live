@@ -42,6 +42,7 @@ half of the footage is that hold time.
 | `13`, `14`, `15` (phones) | 2:18, 2:04, 2:13 | 0:45, 0:54, 0:46 | Each one ends with a minute or more parked on the Today tab |
 | `16-onboarding-medical-background` | 0:58 | 0:46 | A loading screen, and the clip's own burned-in title |
 | `12-partner-app` | 0:31 | 0:21 | The same: an "Opening…" screen and a burned-in title |
+| `17-what-the-family-can-manage` | 1:04 | 1:04 | Nothing — recorded for this film, so there is no hold time in it |
 
 The last two are worth a word. Both clips open with a title card of their own,
 burned in when they were recorded, and both say exactly what the film's chapter
@@ -52,6 +53,13 @@ cards keep the job.
 The cuts in `09` land on the caption changes — the frame numbers were read off
 the footage, not guessed — so each one reads as a deliberate edit rather than
 a jump.
+
+## The one chapter that is not the deployed service
+
+Chapter 9 runs against a **local** build. The budget conversation is new and the deployed
+service answers `/budget` with a 404, so recording it there was not an option and
+recording it anywhere else without saying so would have been the single dishonest thing
+in the film. The closing card and the narration both say which chapters are which.
 
 ## What was left alone
 

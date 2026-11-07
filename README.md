@@ -41,6 +41,7 @@ That is the configuration CI runs and the one to fall back on if the venue's wif
 - [The problem](#the-problem) · [The rule](#the-rule)
 - [How it fits together](#how-it-fits-together)
 - [**Invariants — do not break these**](#invariants--do-not-break-these)
+- [What a family can afford](#what-a-family-can-afford)
 - [The live demo](#the-live-demo) · [The control centre](#the-control-centre) · [Real records](#real-records) · [Who may do what](#who-may-do-what)
 - [Layout](#layout) · [Configuration](#configuration)
 - [Working on it](#working-on-it) · [Troubleshooting](#troubleshooting)
@@ -60,7 +61,9 @@ Cancer care means a long journey, and the journey itself is ruinous.
 | **83%** | faced catastrophic non-medical costs — mean spend ₹88,433 on travel, lodging and food [2] |
 
 Travel (43%) and accommodation (33%) make up most of that cost. Among patients travelling
-over 500 km, 53% borrowed or sold assets to cope [2].
+over 500 km, 53% borrowed or sold assets to cope [2]. Which is why a plan that books the
+same app cab and the same hotel for every family is not a plan for most of them — see
+[What a family can afford](#what-a-family-can-afford).
 
 Every department optimises its own queue. Nobody counts the family's trips. The caregiver
 holds the whole journey together alone, often in a language the hospital does not speak.
@@ -456,6 +459,66 @@ centre already lawfully received. Navigators see a record's category, not the te
 real world consent survives a restart, and every event is a row in the hash-chained ledger.
 
 The ABDM client is not yet routed through this gate: that lands with the ABDM OAuth work.
+
+## What a family can afford
+
+The numbers at the top of this page say the journey is ruinous — 83% catastrophic
+non-medical costs, 53% borrowing or selling assets. For a long time nothing in the code
+acted on them. Onboarding asked for a ration card and an income band from the first
+commit; nothing ever read either. So the directory answered identically for a household
+on a daily wage and one on a salary: Uber, then Ola, then Meru, three market-rate cabs,
+and a chain hotel ahead of the patient dharamshala sitting unused in the same directory.
+
+Two facts, kept deliberately apart.
+
+**`CostTier`** is a property of an *organisation* — `subsidised`, `modest`, `standard` —
+declared by whoever maintains the directory. Not inferred, because this project does not
+report a fare it was not given (`tools/geo.py`) and a tier we guessed would be the same
+mistake wearing a different hat. A tier is an ordering, never an amount.
+
+**`Means`** is a property of a *family*, derived at read time from what onboarding was
+told. The ration card leads, because it is a determination made against evidence, while
+an income band is a number a frightened family said at a counter. It is never stored:
+there is no column holding how poor a family is, for the same reason there is no column
+holding a readiness score — it would be sorted by.
+
+Three limits, each with a test in `tests/test_affordability.py`:
+
+- **Cost reorders only what the family pays for.** Transport, stay and medicine. A slot, a
+  doctor and a bed are the hospital's to allocate, and ordering those by price would be a
+  clinical decision wearing a logistics hat.
+- **It reorders, never filters.** Every organisation stays reachable, so a dharamshala with
+  no beds still falls through its `alternate_id` chain to a lodge.
+- **It never reaches for the rationed thing on a family's behalf.** Only a household whose
+  own papers say so is offered a subsidised bed first. For everyone else — including
+  everyone nobody has asked — it ranks last: a charity bed taken by someone who could pay
+  for a lodge is a bed a destitute family did not get.
+
+The nights-versus-trips trade flips with means. A night away is a bed, food and a day not
+earning, and the third cost repeats every night; a second fare is painful once.
+
+### Asking, rather than assuming
+
+Reading a card narrows the choice. It does not say whether this household can pay for the
+ride the system then picked, so Saathi asks — `GET /patients/{id}/budget`, answered on the
+family's own phone in their own language.
+
+Every option is a real organisation from the directory that serves their district and works
+with their hospital; nothing is composed for the screen. They see one per tier, so the
+choice is between a patient-quota berth, a state bus and an app cab rather than three cabs
+at three prices. No option carries an amount. The row the system would have picked is
+marked and not pre-selected: a default nobody changed is not an answer.
+
+The reply is a proposal. Like `PatientRequest` it waits for a navigator — a spoken answer
+has been through a transcriber, which is exactly the kind of reading that must not be
+believed on sight. Confirming writes into the `partners` section onboarding has always had,
+which is how it takes effect: the partner desk already reads that field, so the
+conversation needed no new path through the system.
+
+**"I cannot manage any of these"** is always last on the list, and it is the answer a
+priced menu has no room for. It rebooks nothing. It raises the social-work desk, because
+the answer to a family with no fare is a scheme and a person, and quietly moving them to a
+cheaper cab would look like help without being it.
 
 ## Who may do what
 

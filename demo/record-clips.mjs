@@ -25,6 +25,7 @@ const OUT = process.env.SAATHI_CLIPS_DIR
 const API = process.env.SAATHI_API_URL ?? "https://ekyatra-saathi-ueoa.onrender.com";
 const CONTROL = process.env.SAATHI_CONTROL_URL ?? "https://ekyatra-saathi-control-centre.onrender.com";
 const PARTNER = process.env.SAATHI_PARTNER_URL ?? "https://ekyatra-saathi-partner.onrender.com";
+const FAMILY = process.env.SAATHI_FAMILY_URL ?? "https://ekyatra-saathi-family.onrender.com";
 
 const VIEWPORT = { width: 1600, height: 1000 };
 const BEAT = Number(process.env.SAATHI_DEMO_BEAT ?? 1100);
@@ -220,6 +221,106 @@ const CLIPS = {
         await demo.say(
           "This stage is kept apart: doctors and administrators can see it, a " +
             "navigator cannot, and it never reaches the planner or a message.",
+          4800,
+        );
+
+        await demo.clear();
+        await page.waitForTimeout(1200);
+      },
+    });
+  },
+
+  /**
+   * What the family can manage.
+   *
+   * Recorded against a **local** stack, not the deployed one, because the
+   * deployed service does not have this yet — `/budget` is a 404 there. Saying
+   * so is the point: a clip that implied otherwise would be the one dishonest
+   * thing in the film.
+   *
+   * Needs the API, the family app and the control centre running locally:
+   *   SAATHI_API_URL=http://127.0.0.1:8077/api \
+   *   SAATHI_FAMILY_URL=http://localhost:5177/family.html \
+   *   SAATHI_CONTROL_URL=http://localhost:5178 node record-clips.mjs budget
+   */
+  async budget() {
+    const patient = process.env.SAATHI_DEMO_PATIENT ?? "SHOW-DIA-1";
+    await wake("API", `${API}/api/health`);
+
+    await record("17-what-the-family-can-manage", {
+      origin: FAMILY,
+      play: async (page, demo) => {
+        await page.goto(`${FAMILY}?patient=${patient}`, { waitUntil: "networkidle" });
+        await page.getByRole("heading", { name: /खर्च|About the cost/ }).waitFor({ timeout: 30_000 });
+        await page.waitForTimeout(1200);
+
+        await demo.say(
+          "The planner can work out that this journey needs a ride and a bed. " +
+            "It cannot work out whether this household can pay for them.",
+          4600,
+        );
+
+        const railway = page.getByRole("button", { name: /Railway patient quota desk/ });
+        await demo.lookAt(railway);
+        await demo.say(
+          "So it asks. Three real organisations from the directory, one per kind " +
+            "of thing — a railway patient quota, a shared jeep, a taxi.",
+          4600,
+        );
+        await demo.say(
+          "This family's ration card is AAY, so the concession is offered first " +
+            "and marked. It is not ticked: a default nobody changed is not an answer.",
+          5000,
+        );
+        await demo.say("And there is no price anywhere. Saathi has none to give.", 3600);
+
+        await demo.scroll(page.locator(".fx-scroll"), 420);
+        await demo.say(
+          "Last on every list, and not one of the things to buy: we cannot manage " +
+            "any of this.",
+          4200,
+        );
+
+        await demo.scroll(page.locator(".fx-scroll"), -420);
+        await demo.click(railway);
+        await page.waitForTimeout(1800);
+        await demo.say("The family chooses. Nothing moves yet.", 3000);
+
+        //: Same page, second app. The navigator's side of the same answer.
+        await page.goto(CONTROL, { waitUntil: "networkidle" });
+        await page.waitForTimeout(1500);
+        await page.getByText("Seema Kamble").click().catch(() => {});
+        await page.waitForTimeout(2000);
+        await demo.click(page.getByRole("button", { name: "Approvals", exact: true }));
+        //: The card's own heading, not the page lead — which now carries the
+        //: same words and would make this a strict-mode collision.
+        await page
+          .getByRole("heading", { name: "What families say they can manage" })
+          .waitFor({ timeout: 30_000 });
+        await page.waitForTimeout(1200);
+
+        await demo.say(
+          "It arrives in a navigator's queue as a proposal, like every other " +
+            "thing a family says.",
+          4000,
+        );
+        await demo.click(page.getByRole("button", { name: "Confirm" }).first());
+        await page.waitForTimeout(2500);
+        await demo.say("Confirmed, and the queue empties.", 3000);
+
+        //: Back to the family's own screen, because the previous caption makes
+        //: a claim — that the ride moved — and a claim the picture does not
+        //: show is the one kind of caption this film should not carry.
+        await page.goto(`${FAMILY}?patient=${patient}`, { waitUntil: "networkidle" });
+        await page.waitForTimeout(2500);
+        await demo.say(
+          "And on the family's own screen the ride is now with the railway desk " +
+            "rather than a taxi. Nobody typed it twice.",
+          4600,
+        );
+        await demo.say(
+          "The verdict honestly goes back to Wait, because the new party has not " +
+            "answered yet. Changing who is asked re-opens the question.",
           4800,
         );
 
