@@ -153,6 +153,10 @@ class AlertKind(StrEnum):
     DISENGAGEMENT = "disengagement"
     CLINICAL_QUESTION = "clinical_question"
     UNCERTAIN_PLAN = "uncertain_plan"
+    #: The family has said they cannot manage the fare or the room. Goes to the
+    #: social-work desk, never to the planner: the answer to a family with no
+    #: money is a person and a scheme, not a cheaper cab.
+    NEEDS_HELP = "needs_help"
 
 
 class ResourceKind(StrEnum):

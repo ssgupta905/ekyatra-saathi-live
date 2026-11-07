@@ -106,14 +106,15 @@ DEMO_DIRECTORY: tuple[Organisation, ...] = (
          services=("shared seats to the station",), districts=("Gaya", "Patna"),
          delay=35, cost=_MODEST),
     # ---- travel partners
+    # Tied to no district, because the railway is not. Listing five cities here
+    # is how the first version of this quietly failed: every family outside
+    # them fell through to the one unrestricted option, which was a taxi.
     _org("tr-rail-assist", "Railway booking desk", OrgType.TRAVEL,
          services=("rail tickets", "sleeper class", "senior and patient quota"),
-         districts=("Mumbai", "Patna", "Gaya", "Kolkata", "Cuttack"), delay=45,
-         alternate="tr-bus-assist", cost=_MODEST),
+         delay=45, alternate="tr-bus-assist", cost=_MODEST),
     _org("tr-rail-quota", "Railway patient quota desk", OrgType.TRAVEL,
          services=("patient and escort quota", "concession on a medical certificate"),
-         districts=("Mumbai", "Patna", "Gaya", "Kolkata", "Cuttack"), delay=60,
-         alternate="tr-rail-assist", cost=_SUBSIDISED),
+         delay=60, alternate="tr-rail-assist", cost=_SUBSIDISED),
     _org("tr-bus-assist", "State bus booking desk", OrgType.TRAVEL, services=("bus tickets",),
          districts=("Patna", "Gaya", "Cuttack"), delay=45, cost=_MODEST),
     # ---- hotels and stays, cheapest first in the fall-back chain

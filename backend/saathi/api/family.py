@@ -26,8 +26,10 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel, Field
 
+from .. import orchestrator
 from ..adapters.speech import GroqWhisper, SarvamSpeech
-from ..domain.enums import Language, StepKind, StepStatus
+from ..domain.budget import TOPIC_NEED, BudgetAnswer, BudgetAsk, BudgetTopic
+from ..domain.enums import Language, ReadinessKind, StepKind, StepStatus
 from .access import FamilyOrStaff, PrincipalDep, ensure_may_see
 from .deps import ContainerDep
 
@@ -467,3 +469,137 @@ async def say(state: ContainerDep, patient_id: str, body: SayThis) -> Response:
             "Content-Language": language,
         },
     )
+
+
+# ---------------------------------------------------------------- budget ----
+#
+# What the family can actually manage. See `domain/budget.py` for why this is a
+# conversation rather than a setting: the planner can work out that a journey
+# needs a ride and a bed, and cannot work out whether this household can pay
+# for the ones it picked.
+
+
+def _desk(state):
+    """The partner desk, when partners are switched on.
+
+    It is the one object holding the onboarding store, so it is the one that
+    can say what a family told us and write down what they choose.
+    """
+    return state.runner.partners
+
+
+def _asks(state, patient) -> list[BudgetAsk]:
+    """The budget questions worth putting to this family, in journey order.
+
+    Only about parts of the trip they actually have. A family going home the
+    same evening is never asked which hotel they can afford, and a question
+    with no real organisation behind it is not asked at all.
+    """
+    desk = _desk(state)
+    registry = state.registry
+    if desk is None or registry is None:
+        return []
+    #: Only the needs this journey actually has. The desk has already worked
+    #: that out and written a row for each; asking about a stay this family
+    #: does not need is the kind of question that makes people stop reading.
+    needs = {item.kind for item in state.world.readiness_for(patient.id)}
+    hospital = next((h for h in registry.hospitals() if h.id == patient.hospital_id), None)
+    organisations = registry.organisations()
+    means = desk.means_for(patient.id)
+    out = []
+    for topic in orchestrator.topics_worth_asking(needs):
+        need = TOPIC_NEED[topic]
+        at_hospital = need in {ReadinessKind.STAY, ReadinessKind.MEDICINE}
+        place = (hospital.place if (at_hospital and hospital) else patient.home_district)
+        ask = orchestrator.offer(
+            topic,
+            patient_id=patient.id,
+            district=place,
+            hospital_id=patient.hospital_id,
+            organisations=organisations,
+            means=means,
+        )
+        if ask.answerable:
+            out.append(ask)
+    return out
+
+
+@router.get("/patients/{patient_id}/budget", dependencies=[FamilyOrStaff])
+async def budget(state: ContainerDep, patient_id: str) -> dict:
+    """What this family is being asked about cost, and what they have said.
+
+    Every option named here is a real organisation that serves this family's
+    district and works with their hospital. Nothing is composed for the screen,
+    and nothing carries an amount: this project does not report a fare it was
+    not given.
+    """
+    patient = state.world.patient(patient_id)
+    if patient is None:
+        raise HTTPException(404, "unknown patient")
+    asks = _asks(state, patient)
+    answers = state.runner.budget_answers_for(patient_id)
+    return {
+        "asks": [
+            {
+                "topic": ask.topic.value,
+                "need": ask.need.value,
+                "options": [
+                    {
+                        "organisation_id": o.organisation_id,
+                        "name": o.name,
+                        #: The organisation's own words from the directory, not
+                        #: a label written for this screen.
+                        "what": list(o.what),
+                        "cost_tier": o.cost_tier.value,
+                        "suggested": o.suggested,
+                    }
+                    for o in ask.options
+                ],
+                #: Always offered, always last. The most important answer, and
+                #: the one a priced menu usually has no room for.
+                "can_say_cannot_manage": True,
+                "answered": ask.topic.value in answers,
+            }
+            for ask in asks
+        ],
+        "answers": [a.model_dump(mode="json") for a in answers.values()],
+    }
+
+
+class BudgetReply(BaseModel):
+    """What the family tapped, or said."""
+
+    #: The organisation they chose. Omit it with `cannot_manage` set.
+    organisation_id: str | None = Field(default=None, max_length=64)
+    #: "I cannot manage any of these." Routed to the social-work desk.
+    cannot_manage: bool = False
+    #: Their own words, when they spoke rather than tapped, so a navigator can
+    #: check the transcription against the option it was matched to.
+    said: str = Field(default="", max_length=400)
+
+
+@router.post("/patients/{patient_id}/budget/{topic}", dependencies=[FamilyOrStaff])
+async def answer_budget(
+    state: ContainerDep, patient_id: str, topic: BudgetTopic, body: BudgetReply
+) -> dict:
+    """Record what the family said. Nothing moves until a navigator agrees.
+
+    A proposal, like `PatientRequest`, and for the same reason: a tapped option
+    is safer than prose but a *spoken* one has been through a transcriber, and
+    that is exactly the kind of reading that must not be believed on sight.
+    """
+    patient = state.world.patient(patient_id)
+    if patient is None:
+        raise HTTPException(404, "unknown patient")
+    if not body.cannot_manage and not body.organisation_id:
+        raise HTTPException(422, "choose an organisation or say you cannot manage")
+
+    answer = BudgetAnswer(
+        patient_id=patient_id,
+        topic=topic,
+        organisation_id=None if body.cannot_manage else body.organisation_id,
+        needs_help=body.cannot_manage,
+        said=body.said,
+    )
+    state.runner.record_budget_answer(answer)
+    return {"recorded": True, "awaiting_confirmation": True, "topic": topic.value}

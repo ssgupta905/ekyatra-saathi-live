@@ -99,6 +99,45 @@ class PartnerDesk:
             income_band=str(answers.get("income_band") or ""),
         )
 
+    def remember_choice(
+        self, patient_id: str, kind: ReadinessKind, organisation_id: str, by: str
+    ) -> Organisation | None:
+        """Record the family's own choice, and ask the one they chose.
+
+        This is the entire mechanism by which a budget conversation changes
+        anything, and it deliberately adds no new path through the system:
+        `_preferred` has always read the partners section, so writing it is
+        enough for every later ask to obey.
+
+        The ask is redone rather than left alone. `missing_needs` is
+        idempotent — it asks once — so a family who answers *after* the desk
+        has already written to a cab would otherwise have chosen nothing at
+        all. The replacement carries the same item id, so the network board
+        shows one row that changed hands rather than two competing rides.
+        """
+        if self._onboarding is None or kind not in _CHOICE_KEYS:
+            return None
+        org = next(
+            (o for o in self._organisations() if o.id == organisation_id and o.active), None
+        )
+        if org is None:
+            return None
+        patient = self._world.patient(patient_id)
+        if patient is None:
+            return None
+
+        saved = self._onboarding.section(patient_id, "partners")
+        answers = dict(saved[0]) if saved else {}
+        answers[_CHOICE_KEYS[kind]] = org.id
+        self._onboarding.save_section(patient_id, "partners", answers, by)
+
+        already = next(
+            (i for i in self._world.readiness_for(patient_id) if i.kind is kind), None
+        )
+        if already is not None and already.partner_id != org.id:
+            self._request(patient, kind, org)
+        return org
+
     def _care_steps_say_go(self, patient: Patient) -> bool:
         """The prerequisites are all done, whatever the parties have or have not said yet."""
         steps = self._world.steps_for(patient.id)

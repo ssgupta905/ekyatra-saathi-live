@@ -30,6 +30,7 @@ from datetime import UTC, date, datetime, timedelta
 from time import perf_counter
 
 from ..domain.affordability import Means
+from ..domain.budget import TOPIC_NEED, BudgetAnswer, BudgetTopic
 from ..domain.enums import (
     REPORT_STEPS,
     AlertKind,
@@ -246,6 +247,10 @@ class LiveRunner:
     #: Ranked options awaiting a human, keyed by patient id — one pending
     #: disruption response per patient at a time.
     options: dict[str, OptionSet] = field(default_factory=dict)
+    #: What families have said they can manage, keyed by patient then topic.
+    #: Waiting on a person, exactly like `options`: a budget answer is a
+    #: proposal until a navigator agrees it is what the family meant.
+    budget: dict[str, dict[str, BudgetAnswer]] = field(default_factory=dict)
     approvals: list[ApprovalDecision] = field(default_factory=list)
     ivr_confirmations: dict[str, IVRConfirmation] = field(default_factory=dict)
     #: "press advance" progress per scripted story — see `advance_story`.
@@ -769,6 +774,59 @@ class LiveRunner:
             )
             if channel is Channel.IVR:
                 self._open_ivr_confirmation(patient_id, message.body)
+
+    # ---------------- what the family can manage ----------------
+
+    def budget_answers_for(self, patient_id: str) -> dict[str, BudgetAnswer]:
+        return dict(self.budget.get(patient_id, {}))
+
+    def record_budget_answer(self, answer: BudgetAnswer) -> BudgetAnswer:
+        """Take down what the family said. Nothing moves yet.
+
+        Deliberately inert. The family has told us something about their own
+        circumstances, and acting on it the instant it arrives would mean a
+        mis-tap or a mis-transcription silently rebooking their journey.
+        """
+        self.budget.setdefault(answer.patient_id, {})[answer.topic.value] = answer
+        return answer
+
+    def confirm_budget_answer(
+        self, patient_id: str, topic: BudgetTopic, by: str
+    ) -> BudgetAnswer | None:
+        """A navigator agrees this is what the family meant, and it takes effect.
+
+        Two different outcomes, and only one of them is a plan change. A chosen
+        organisation is written into the partners section and asked. "We cannot
+        manage any of these" is not a cheaper booking — it is a family with no
+        fare, which is a person and a scheme, so it raises an alert and leaves
+        the journey exactly where it was.
+        """
+        answer = self.budget.get(patient_id, {}).get(topic.value)
+        if answer is None:
+            return None
+        confirmed = answer.model_copy(update={"confirmed_by": by})
+        self.budget[patient_id][topic.value] = confirmed
+
+        if confirmed.needs_help:
+            self.alerts.append(
+                Alert(
+                    id=f"alert-{patient_id}-budget-{topic.value}-{len(self.alerts)}",
+                    patient_id=patient_id,
+                    kind=AlertKind.NEEDS_HELP,
+                    raised_at=datetime.now(UTC),
+                    detail=(
+                        f"the family says they cannot manage the {topic.value} for this "
+                        f"journey" + (f": {confirmed.said}" if confirmed.said else "")
+                    ),
+                )
+            )
+            return confirmed
+
+        desk = self.partners
+        remember = getattr(desk, "remember_choice", None)
+        if remember is not None and confirmed.organisation_id:
+            remember(patient_id, TOPIC_NEED[topic], confirmed.organisation_id, by)
+        return confirmed
 
     def means_for(self, patient_id: str) -> Means:
         """What this family can carry, when anybody has asked them.

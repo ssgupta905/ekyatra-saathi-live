@@ -13,9 +13,10 @@ from datetime import date
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from ..domain.budget import BudgetTopic
 from ..domain.enums import ReadinessKind, ReadinessStatus, SourceSystem
 from ..domain.models import ReadinessItem
-from .access import DeskWork
+from .access import DeskWork, PrincipalDep
 from .deps import ContainerDep
 
 router = APIRouter(tags=["readiness"])
@@ -115,3 +116,59 @@ async def book_another(state: ContainerDep, patient_id: str, item_id: str) -> di
         raise HTTPException(409, str(exc)) from exc
     run = await state.runner.plan_patient(patient_id, allow_render=True)
     return {"item": item.model_dump(mode="json"), "decision": run.decision.value if run else None}
+
+
+# --------------------------------------------------------- budget answers ----
+
+
+@router.get("/budget/waiting", dependencies=[DeskWork])
+async def budget_waiting(state: ContainerDep) -> list[dict]:
+    """Every family who has said what they can manage and is waiting on a person.
+
+    The navigator's queue, alongside the option sets. A family who answered and
+    was never confirmed has been asked a question for nothing, which is worse
+    than not asking: it teaches them the screen does not listen.
+    """
+    out = []
+    for patient_id, by_topic in state.runner.budget.items():
+        patient = state.world.patient(patient_id)
+        for answer in by_topic.values():
+            if answer.confirmed:
+                continue
+            organisation = None
+            if answer.organisation_id and state.registry is not None:
+                organisation = next(
+                    (o for o in state.registry.organisations() if o.id == answer.organisation_id),
+                    None,
+                )
+            out.append(
+                {
+                    "patient_id": patient_id,
+                    "name": patient.name if patient else patient_id,
+                    "topic": answer.topic.value,
+                    "organisation_id": answer.organisation_id,
+                    "organisation": organisation.name if organisation else None,
+                    #: The headline. A family saying they cannot manage is not
+                    #: a booking to confirm, it is somebody to call.
+                    "needs_help": answer.needs_help,
+                    "said": answer.said,
+                    "answered_at": answer.answered_at.isoformat(),
+                }
+            )
+    out.sort(key=lambda row: (not row["needs_help"], row["answered_at"]))
+    return out
+
+
+@router.post("/patients/{patient_id}/budget/{topic}/confirm", dependencies=[DeskWork])
+async def confirm_budget(
+    state: ContainerDep, principal: PrincipalDep, patient_id: str, topic: BudgetTopic
+) -> dict:
+    """A navigator agrees this is what the family meant, and it takes effect."""
+    answer = state.runner.confirm_budget_answer(patient_id, topic, principal.name or "staff")
+    if answer is None:
+        raise HTTPException(404, "no answer from this family about that")
+    run = await state.runner.plan_patient(patient_id, allow_render=True)
+    return {
+        "answer": answer.model_dump(mode="json"),
+        "decision": run.decision.value if run else None,
+    }
