@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from time import perf_counter
 
+from ..domain.affordability import Means
 from ..domain.enums import (
     REPORT_STEPS,
     AlertKind,
@@ -769,6 +770,17 @@ class LiveRunner:
             if channel is Channel.IVR:
                 self._open_ivr_confirmation(patient_id, message.body)
 
+    def means_for(self, patient_id: str) -> Means:
+        """What this family can carry, when anybody has asked them.
+
+        The partner desk is the only object here holding the onboarding store,
+        so it is the only one that can answer. With partners switched off
+        nobody has asked, and the option ranking falls back to the order it has
+        always used — which is the right default, not a degraded one.
+        """
+        reader = getattr(self.partners, "means_for", None)
+        return reader(patient_id) if reader is not None else Means.NOT_STATED
+
     def _enumerate_options_sync(
         self,
         patient: Patient,
@@ -785,6 +797,9 @@ class LiveRunner:
             # built-in behaviour.
             policy=self.planner.rules_for(patient.hospital_id),
             round_trip_hours=round_trip_hours,
+            #: Which way round the nights-versus-trips trade goes for this
+            #: household. See `domain/affordability.py`.
+            means=self.means_for(patient.id),
         )
         if direct:
             return direct

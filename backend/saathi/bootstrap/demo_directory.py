@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 
+from ..domain.affordability import CostTier
 from ..domain.directory import Organisation, OrgType, PartnerMode
 from ..ports.registry import RegistryStore
 
@@ -18,13 +19,18 @@ _MUM = ("TMH-MUM",)
 
 
 def _org(id, name, type_, *, services=(), districts=(), hospitals=(), contact="", hours="",
-         delay=30, alternate=None, linked=(), address=""):
+         delay=30, alternate=None, linked=(), address="", cost=CostTier.STANDARD):
     return Organisation(
         id=id, name=name, type=type_, services=tuple(services), districts=tuple(districts),
         hospital_ids=tuple(hospitals), address=address, contact=contact, hours=hours,
         mode=PartnerMode.SIMULATED, answer="ready", delay_seconds=delay,
-        alternate_id=alternate, linked_ids=tuple(linked),
+        alternate_id=alternate, linked_ids=tuple(linked), cost_tier=cost,
     )
+
+
+#: Shorthands, so the tier reads as a word at each entry rather than a constant.
+_SUBSIDISED = CostTier.SUBSIDISED
+_MODEST = CostTier.MODEST
 
 
 DEMO_DIRECTORY: tuple[Organisation, ...] = (
@@ -58,7 +64,14 @@ DEMO_DIRECTORY: tuple[Organisation, ...] = (
     _org("ph-medplus-patna", "MedPlus, Patna", OrgType.PHARMACY,
          services=("home delivery",), districts=("Patna",), linked=("md-eastern",)),
     _org("ph-janaushadhi-gaya", "Jan Aushadhi Kendra, Gaya", OrgType.PHARMACY,
-         services=("generic supplies",), districts=("Gaya",), linked=("md-eastern",)),
+         services=("generic supplies",), districts=("Gaya",), linked=("md-eastern",),
+         cost=_SUBSIDISED),
+    _org("ph-janaushadhi-mum", "Jan Aushadhi Kendra, Parel", OrgType.PHARMACY,
+         services=("generic supplies",), districts=("Mumbai",), hospitals=_MUM,
+         linked=("md-westcare",), cost=_SUBSIDISED),
+    _org("ph-generic-patna", "Generic Medical Store, Patna", OrgType.PHARMACY,
+         services=("generic supplies",), districts=("Patna", "Gaya"),
+         linked=("md-eastern",), cost=_MODEST),
     _org("ph-wellness-cuttack", "Wellness Pharmacy, Cuttack", OrgType.PHARMACY,
          districts=("Cuttack",), linked=("md-eastern",)),
     # ---- medicine and equipment distributors (upstream; families never see them)
@@ -75,7 +88,8 @@ DEMO_DIRECTORY: tuple[Organisation, ...] = (
          services=("dressings", "hygiene supplies"), districts=("Mumbai",)),
     _org("sh-careneeds-patna", "Care Needs Store, Patna", OrgType.SHOP,
          services=("dressings", "hygiene supplies"), districts=("Patna",)),
-    # ---- cab services
+    # ---- cab services. All market rate: this is what a family pays for when
+    # nothing cheaper will do, not the first thing to reach for.
     _org("cab-uber", "Uber", OrgType.CAB, services=("pickup", "airport pickup"),
          districts=("Mumbai", "Patna", "Kolkata"), delay=30, alternate="cab-ola"),
     _org("cab-ola", "Ola", OrgType.CAB, services=("pickup",),
@@ -86,20 +100,38 @@ DEMO_DIRECTORY: tuple[Organisation, ...] = (
          services=("pickup from any district",), delay=40),
     _org("cab-saarthi-patna", "Saarthi Taxi, Patna", OrgType.CAB, services=("pickup",),
          districts=("Patna", "Gaya")),
+    # ---- shared and public transport, which is how most of these families
+    # actually travel. A 600km journey by app cab is not a plan.
+    _org("tr-shared-jeep-gaya", "Shared jeep stand, Gaya", OrgType.CAB,
+         services=("shared seats to the station",), districts=("Gaya", "Patna"),
+         delay=35, cost=_MODEST),
     # ---- travel partners
     _org("tr-rail-assist", "Railway booking desk", OrgType.TRAVEL,
-         services=("rail tickets", "senior and patient quota"),
-         districts=("Mumbai", "Patna", "Gaya", "Kolkata", "Cuttack"), delay=45),
+         services=("rail tickets", "sleeper class", "senior and patient quota"),
+         districts=("Mumbai", "Patna", "Gaya", "Kolkata", "Cuttack"), delay=45,
+         alternate="tr-bus-assist", cost=_MODEST),
+    _org("tr-rail-quota", "Railway patient quota desk", OrgType.TRAVEL,
+         services=("patient and escort quota", "concession on a medical certificate"),
+         districts=("Mumbai", "Patna", "Gaya", "Kolkata", "Cuttack"), delay=60,
+         alternate="tr-rail-assist", cost=_SUBSIDISED),
     _org("tr-bus-assist", "State bus booking desk", OrgType.TRAVEL, services=("bus tickets",),
-         districts=("Patna", "Gaya", "Cuttack"), delay=45),
-    # ---- hotels and stays
+         districts=("Patna", "Gaya", "Cuttack"), delay=45, cost=_MODEST),
+    # ---- hotels and stays, cheapest first in the fall-back chain
     _org("ho-oyo-parel", "OYO, Parel", OrgType.HOTEL, services=("rooms near the hospital",),
          districts=("Mumbai",), hospitals=_MUM, delay=45, alternate="ho-treebo-dadar"),
     _org("ho-treebo-dadar", "Treebo, Dadar", OrgType.HOTEL, services=("rooms",),
-         districts=("Mumbai",), hospitals=_MUM, delay=45, alternate="ho-dharamshala-parel"),
+         districts=("Mumbai",), hospitals=_MUM, delay=45, alternate="ho-lodge-parel"),
+    _org("ho-lodge-parel", "Parel Guest House", OrgType.HOTEL,
+         services=("shared rooms", "kitchen for attendants"), districts=("Mumbai",),
+         hospitals=_MUM, delay=45, alternate="ho-dharamshala-parel", cost=_MODEST),
     _org("ho-dharamshala-parel", "Patient dharamshala, Parel", OrgType.HOTEL,
-         services=("low-cost beds for patients",), districts=("Mumbai",), hospitals=_MUM),
-    _org("ho-lodge-patna", "Station Road Lodge, Patna", OrgType.HOTEL, districts=("Patna",)),
+         services=("low-cost beds for patients", "beds for one attendant"),
+         districts=("Mumbai",), hospitals=_MUM, cost=_SUBSIDISED),
+    _org("ho-sewa-sadan-mum", "Sewa Sadan patient shelter, Mumbai", OrgType.HOTEL,
+         services=("free beds for patients on treatment",), districts=("Mumbai",),
+         hospitals=_MUM, delay=70, cost=_SUBSIDISED),
+    _org("ho-lodge-patna", "Station Road Lodge, Patna", OrgType.HOTEL, districts=("Patna",),
+         cost=_MODEST),
     # ---- insurers and scheme desks
     _org("in-pmjay-desk", "PM-JAY help desk", OrgType.INSURER,
          services=("scheme pre-authorisation",), districts=("Mumbai", "Patna", "Gaya"),

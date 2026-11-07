@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 
+from ..domain.affordability import MEANS_SENSITIVE, Means, rank_of
 from ..domain.directory import NEED_FOR_TYPE, Organisation
 from ..domain.enums import ReadinessKind, StepKind
 from ..domain.models import ReadinessItem
@@ -47,12 +48,28 @@ def choose_organisation(
     hospital_id: str,
     organisations: Sequence[Organisation],
     preferred_id: str | None = None,
+    means: Means = Means.NOT_STATED,
 ) -> Organisation | None:
-    """Who to ask for a need: the family's own choice, else the first that fits.
+    """Who to ask for a need: the family's own choice, else the best fit.
 
-    "Fits" means the right kind, active, serving the family's district and working
-    with their hospital. The more wanted kind wins, then the alphabetically first
-    name, so the same inputs always choose the same organisation.
+    "Fits" means the right kind, active, serving the family's district and
+    working with their hospital.
+
+    Among those, what the family can carry comes first — but only for the needs
+    they pay for out of pocket (`MEANS_SENSITIVE`). A ride and a bed are bought
+    with the family's money, so a household on the lowest band is offered the
+    railway desk before an app cab and a dharamshala before a hotel. A slot, a
+    doctor and a bed inside the hospital are the hospital's to allocate, and
+    ordering *those* by price would be a clinical decision wearing a logistics
+    hat; for them the tier is ignored entirely.
+
+    This reorders and never filters. Every organisation stays reachable, so a
+    dharamshala with no beds still falls through to a lodge by the usual
+    `alternate_id` chain.
+
+    Below cost, the old rules stand: the more wanted kind, then the
+    alphabetically first name, so the same inputs always choose the same
+    organisation.
     """
     types = NEED_FOR_TYPE.get(kind.value, ())
     candidates = [o for o in organisations if o.active and o.type in types]
@@ -67,5 +84,13 @@ def choose_organisation(
         if (not o.districts or place in {d.lower() for d in o.districts})
         and (not o.hospital_ids or hospital_id in o.hospital_ids)
     ]
-    # Kinds are listed most-wanted first: a cab before a rail desk for a ride.
-    return min(fits, key=lambda o: (types.index(o.type), o.name.lower()), default=None)
+    pays = kind.value in MEANS_SENSITIVE
+
+    def order(o: Organisation) -> tuple[int, int, str]:
+        return (
+            rank_of(o.cost_tier, means) if pays else 0,
+            types.index(o.type),
+            o.name.lower(),
+        )
+
+    return min(fits, key=order, default=None)

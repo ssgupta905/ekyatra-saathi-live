@@ -14,6 +14,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import date, timedelta
 
+from ..domain.affordability import Means, nights_hurt_more_than_trips
 from ..domain.enums import Decision, StepKind
 from ..domain.models import CareStep, Disruption, MaintenanceCycle, Patient, PlanOption
 from ..domain.policy import HospitalPolicy
@@ -91,17 +92,36 @@ def _shift(steps: Sequence[CareStep], step_ids: set[str], to: date) -> list[Care
     return [s.model_copy(update={"scheduled_for": to}) if s.id in step_ids else s for s in steps]
 
 
-#: A documented, deterministic ranking — fewest extra trips, then fewest
-#: nights, then least delay. Never a stored composite score (invariant 7):
-#: this is a sort key computed at read time, not a field on `PlanOption`.
-def _rank_key(option: PlanOption) -> tuple[int, int, int, int]:
+#: A documented, deterministic ranking. Never a stored composite score
+#: (invariant 7): this is a sort key computed at read time, not a field on
+#: `PlanOption`.
+def _rank_key(option: PlanOption, means: Means = Means.NOT_STATED) -> tuple[int, int, int, int]:
     """Order the options. Deterministic, documented, and not a score.
 
     Unbookable before expensive: an option that needs a reserved berth sooner
     than one can be obtained may not be a plan at all, so it ranks below one
-    that merely costs a trip. Below that the trade is the old one — trips,
-    then nights, then a delayed dose — and a person still chooses.
+    that merely costs a trip.
+
+    Below that sits the trade this module exists to make, and which way round
+    it goes depends on the household. Staying put adds nights; going home and
+    coming back adds journeys. For most families a second 30-hour journey is
+    the worse of the two, which is the order this always used. For a family on
+    a daily wage it is the other way round: a night away is a bed, food, *and*
+    a day not earning, and that third cost repeats every night, while a fare is
+    painful once. So for them nights are weighed first.
+
+    A dose delay is last either way. It is the one cost here that is not the
+    family's money, and it is never traded away to save them a fare — if a
+    candidate delays treatment at all it goes to a doctor for approval before
+    anybody sees it.
     """
+    if nights_hurt_more_than_trips(means):
+        return (
+            option.short_notice_journeys,
+            abs(option.nights_added),
+            option.extra_trips,
+            option.dose_delay_days,
+        )
     return (
         option.short_notice_journeys,
         option.extra_trips,
@@ -122,6 +142,7 @@ def enumerate_candidates(
     cycle: MaintenanceCycle | None = None,
     policy: HospitalPolicy | None = None,
     round_trip_hours: float | None = None,
+    means: Means = Means.NOT_STATED,
 ) -> tuple[PlanOption, ...]:
     """Ranked candidates for one patient hit by `disruption`.
 
@@ -175,7 +196,7 @@ def enumerate_candidates(
         if split_option is not None:
             candidates.append(_under_rules(split_option, policy))
 
-    candidates.sort(key=_rank_key)
+    candidates.sort(key=lambda o: _rank_key(o, means))
     return filter_options(tuple(candidates), cycle)
 
 
@@ -301,6 +322,7 @@ def candidates_for_request(
     disruptions: Sequence[Disruption] = (),
     cycle: MaintenanceCycle | None = None,
     round_trip_hours: float | None = None,
+    means: Means = Means.NOT_STATED,
 ) -> tuple[PlanOption, ...]:
     """Re-plan around what a family said they cannot do.
 
@@ -381,5 +403,5 @@ def candidates_for_request(
             continue
         candidates.append(option)
 
-    candidates.sort(key=_rank_key)
+    candidates.sort(key=lambda o: _rank_key(o, means))
     return filter_options(tuple(candidates), cycle)

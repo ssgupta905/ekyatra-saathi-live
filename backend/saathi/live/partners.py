@@ -14,6 +14,7 @@ import logging
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
+from ..domain.affordability import Means, means_from
 from ..domain.directory import Organisation, PartnerMode
 from ..domain.enums import ReadinessKind, ReadinessStatus, SourceSystem, StepStatus
 from ..domain.models import Patient, ReadinessItem
@@ -81,6 +82,23 @@ class PartnerDesk:
         saved = self._onboarding.section(patient_id, "partners")
         return (saved[0].get(_CHOICE_KEYS[kind]) or None) if saved else None
 
+    def means_for(self, patient_id: str) -> Means:
+        """What this family can carry, read fresh from what onboarding was told.
+
+        Derived here and thrown away again. Nothing stores it: a column holding
+        how poor a family is would be sorted by sooner or later.
+        """
+        if self._onboarding is None:
+            return Means.NOT_STATED
+        saved = self._onboarding.section(patient_id, "background")
+        if not saved:
+            return Means.NOT_STATED
+        answers = saved[0]
+        return means_from(
+            ration_card=str(answers.get("ration_card") or ""),
+            income_band=str(answers.get("income_band") or ""),
+        )
+
     def _care_steps_say_go(self, patient: Patient) -> bool:
         """The prerequisites are all done, whatever the parties have or have not said yet."""
         steps = self._world.steps_for(patient.id)
@@ -134,6 +152,7 @@ class PartnerDesk:
         hospital = next(
             (h for h in self._registry.hospitals() if h.id == patient.hospital_id), None
         )
+        means = self.means_for(patient_id)
         asked = False
         for kind in missing_needs(needs, self._world.readiness_for(patient_id)):
             near_hospital = hospital is not None and kind in _AT_THE_HOSPITAL
@@ -144,6 +163,7 @@ class PartnerDesk:
                 hospital_id=patient.hospital_id,
                 organisations=organisations,
                 preferred_id=self._preferred(patient_id, kind),
+                means=means,
             )
             if org is None:
                 logger.info("nobody in the directory for %s of %s", kind.value, patient_id)

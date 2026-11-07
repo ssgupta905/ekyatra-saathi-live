@@ -11,6 +11,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .affordability import CostTier
+
 
 class OrgType(StrEnum):
     HOSPITAL = "hospital"
@@ -41,6 +43,13 @@ class Organisation(BaseModel):
     type: OrgType
     #: What it offers, in a few plain words: "MRI", "cold chain", "airport pickup".
     services: tuple[str, ...] = ()
+    #: What it costs the family, as an order rather than an amount. Declared by
+    #: whoever maintains the directory, never inferred: this project will not
+    #: report a fare it was not given, and it will not invent a tier either.
+    #: The default is `STANDARD` on purpose — an organisation nobody has looked
+    #: at should never be mistaken for a cheap one and offered to a family who
+    #: cannot afford to be wrong about it.
+    cost_tier: CostTier = CostTier.STANDARD
     #: Districts or cities it serves. Empty means it is not tied to a place.
     districts: tuple[str, ...] = ()
     #: The hospitals it works with. Empty means any.
