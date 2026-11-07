@@ -698,6 +698,66 @@ export async function speakMessage(
   return response.blob();
 }
 
+
+/* ──────────────────────────────────────────────────────────────────────────
+   What the family can manage
+   --------------------------------------------------------------------------
+   Not a setting. The planner can work out that a journey needs a ride and a
+   bed, and cannot work out whether this household can pay for the ones it
+   picked, so it asks.
+
+   Every option is a real organisation from the directory that serves this
+   family's district. Nothing here carries an amount: the backend will not
+   report a fare it was not given, and inventing one for a screen would be the
+   same mistake wearing a different hat.
+   ────────────────────────────────────────────────────────────────────────── */
+
+export type CostTier = "subsidised" | "modest" | "standard";
+export type BudgetTopic = "travel" | "stay" | "medicine";
+
+export interface BudgetOption {
+  organisation_id: string;
+  /** The organisation's own name, not a label written for this screen. */
+  name: string;
+  /** Its own words from the directory: "sleeper class", "low-cost beds". */
+  what: string[];
+  cost_tier: CostTier;
+  /** What the system would ask anyway. Shown, never pre-selected. */
+  suggested: boolean;
+}
+
+export interface BudgetAsk {
+  topic: BudgetTopic;
+  /** The readiness row this settles. */
+  need: string;
+  options: BudgetOption[];
+  /** Always true. The most important answer, and the one a menu omits. */
+  can_say_cannot_manage: boolean;
+  answered: boolean;
+}
+
+export interface BudgetAnswer {
+  patient_id: string;
+  topic: BudgetTopic;
+  organisation_id: string | null;
+  needs_help: boolean;
+  said: string;
+  answered_at: string;
+  /** Empty until a navigator agrees this is what the family meant. */
+  confirmed_by: string;
+}
+
+export interface BudgetWaiting {
+  patient_id: string;
+  name: string;
+  topic: BudgetTopic;
+  organisation_id: string | null;
+  organisation: string | null;
+  needs_help: boolean;
+  said: string;
+  answered_at: string;
+}
+
 export const family = {
   home: (patientId: string) => request<FamilyHome>(`/patients/${patientId}/home`),
   thread: (patientId: string) => request<Thread>(`/patients/${patientId}/notifications`),
@@ -738,6 +798,31 @@ export const family = {
     return (await response.json()) as Transcript;
   },
   say: (patientId: string, text: string) => live.inject(patientId, undefined, text),
+
+  /** What this family is being asked about cost, and what they have said. */
+  budget: (patientId: string) =>
+    request<{ asks: BudgetAsk[]; answers: BudgetAnswer[] }>(`/patients/${patientId}/budget`),
+
+  /** Record an answer. Nothing moves until a navigator confirms it. */
+  answerBudget: (
+    patientId: string,
+    topic: BudgetTopic,
+    reply: { organisation_id?: string; cannot_manage?: boolean; said?: string },
+  ) =>
+    request<{ recorded: boolean; awaiting_confirmation: boolean; topic: BudgetTopic }>(
+      `/patients/${patientId}/budget/${topic}`,
+      { method: "POST", body: JSON.stringify(reply) },
+    ),
+};
+
+/** The navigator's side of the same conversation. */
+export const budget = {
+  waiting: () => request<BudgetWaiting[]>("/budget/waiting"),
+  confirm: (patientId: string, topic: BudgetTopic) =>
+    request<{ answer: BudgetAnswer; decision: Decision | null }>(
+      `/patients/${patientId}/budget/${topic}/confirm`,
+      { method: "POST" },
+    ),
 };
 
 /* ──────────────────────────────────────────────────────────────────────────

@@ -217,3 +217,45 @@ def test_confirming_something_nobody_said_is_a_404_not_a_silent_success(net):
         f"/api/patients/{patient_id}/budget/stay/confirm", headers=_as(net, "neha")
     )
     assert reply.status_code == 404
+
+
+# ------------------------------------------------- with login switched off ----
+
+
+@pytest.fixture
+def open_door(tmp_path, monkeypatch):
+    """The demo's own configuration: a real world with no sign-in.
+
+    Worth its own fixture. Every other test here signs in, so none of them
+    exercises the path where `PrincipalDep` is None — which is the path the
+    recorded demo takes, and the one where confirming an answer first
+    returned a 500.
+    """
+    monkeypatch.setenv("SAATHI_WORLD", "real")
+    monkeypatch.setenv("SAATHI_AUTH", "off")
+    monkeypatch.setenv("SAATHI_RECORDS_URL", f"sqlite:///{tmp_path}/open.db")
+    monkeypatch.setenv("SAATHI_SEED_DEMO", "true")
+    get_settings.cache_clear()
+    with TestClient(create_app()) as client:
+        client.container = client.app.state.container
+        yield client
+    get_settings.cache_clear()
+
+
+def test_confirming_works_with_nobody_signed_in(open_door):
+    patient_id = _family_being_asked(open_door)
+    body = open_door.get(f"/api/patients/{patient_id}/budget").json()
+    if not body["asks"]:
+        pytest.skip("nothing to ask this family about")
+    ask = body["asks"][0]
+
+    open_door.post(
+        f"/api/patients/{patient_id}/budget/{ask['topic']}",
+        json={"organisation_id": ask["options"][-1]["organisation_id"]},
+    )
+    done = open_door.post(f"/api/patients/{patient_id}/budget/{ask['topic']}/confirm")
+
+    assert done.status_code == 200, done.text
+    # Recorded against somebody, even when nobody is signed in: an audit row
+    # saying None is worse than one saying "staff".
+    assert done.json()["answer"]["confirmed_by"]

@@ -38,7 +38,7 @@ export const SECTIONS: Section[] = [
   { id: "today", label: "Today", hint: "What needs you now", icon: "home", roles: STAFF, group: "work" },
   { id: "families", label: "Families", hint: "One family at a time: the answer, then the detail you ask for", icon: "users", roles: STAFF, group: "work" },
   { id: "network", label: "Network board", hint: "Every journey against every party: who is holding what up", icon: "network", roles: STAFF, group: "work", realOnly: true },
-  { id: "approvals", label: "Approvals", hint: "Re-plans waiting on a person, and the outages behind them", icon: "approve", roles: ["navigator", "doctor", "admin"], group: "work" },
+  { id: "approvals", label: "Approvals", hint: "What families say they can manage, and the re-plans waiting on a person", icon: "approve", roles: ["navigator", "doctor", "admin"], group: "work" },
   { id: "issues", label: "Report an issue", hint: "Say what went wrong, the way you would write it in the log", icon: "alert", roles: ["desk", "admin"], group: "work" },
   { id: "releases", label: "Releases", hint: "Reports to confirm or mark released", icon: "inbox", roles: ["desk", "admin"], group: "work" },
   { id: "reports", label: "Reports", hint: "Every report against the window it should land in", icon: "file", roles: STAFF, group: "records" },

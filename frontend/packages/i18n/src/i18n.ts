@@ -87,6 +87,23 @@ export interface Strings {
   /** A ticked item on the what-to-bring list. */
   packed: string;
 
+  /** What the family can manage. Asked, never assumed — the planner can work
+   *  out that a journey needs a ride, and cannot work out whether this
+   *  household can pay for the one it picked. No string here is an amount. */
+  budgetTitle: string;
+  budgetWhy: string;
+  budgetTravel: string;
+  budgetStay: string;
+  budgetMedicine: string;
+  budgetChoose: string;
+  budgetCannotManage: string;
+  budgetSuggested: string;
+  budgetSent: string;
+  /** The three kinds of thing on offer, as words rather than prices. */
+  tierSubsidised: string;
+  tierModest: string;
+  tierStandard: string;
+
   /** The journey: every party between the first test and the doctor, in order. */
   journeyTab: string;
   doNow: string;
@@ -169,6 +186,18 @@ export const STRINGS: Record<Lang, Strings> = {
     tapForWhy: "क्यों? देखने के लिए छुएँ",
     packed: "रख लिया",
     journeyTab: "सफ़र",
+    budgetTitle: "खर्च के बारे में",
+    budgetWhy: "हम पूछ रहे हैं ताकि आपके लिए ऐसा कुछ तय न हो जो आप वहन न कर सकें।",
+    budgetTravel: "आना-जाना",
+    budgetStay: "ठहरने की जगह",
+    budgetMedicine: "दवाई",
+    budgetChoose: "एक चुनें",
+    budgetCannotManage: "इनमें से कोई भी मैं नहीं कर पाऊँगा",
+    budgetSuggested: "आपके लिए सुझाव",
+    budgetSent: "धन्यवाद। कोई व्यक्ति इसकी पुष्टि करेगा।",
+    tierSubsidised: "रियायती",
+    tierModest: "कम खर्च",
+    tierStandard: "सामान्य दर",
     doNow: "अभी क्या करना है",
     progress: "{total} में से {done} कदम पूरे",
     noJourney: "आपका कदम-दर-कदम सफ़र यहाँ दिखेगा।",
@@ -242,6 +271,18 @@ export const STRINGS: Record<Lang, Strings> = {
     tapForWhy: "কেন? দেখতে ছুঁয়ে দিন",
     packed: "নেওয়া হয়েছে",
     journeyTab: "যাত্রা",
+    budgetTitle: "খরচের বিষয়ে",
+    budgetWhy: "আমরা জিজ্ঞাসা করছি যাতে এমন কিছু ঠিক না হয় যা আপনি বহন করতে পারবেন না।",
+    budgetTravel: "যাতায়াত",
+    budgetStay: "থাকার জায়গা",
+    budgetMedicine: "ওষুধ",
+    budgetChoose: "একটি বেছে নিন",
+    budgetCannotManage: "এর কোনোটিই আমি পারব না",
+    budgetSuggested: "আপনার জন্য প্রস্তাব",
+    budgetSent: "ধন্যবাদ। একজন ব্যক্তি এটি নিশ্চিত করবেন।",
+    tierSubsidised: "ছাড়যুক্ত",
+    tierModest: "কম খরচ",
+    tierStandard: "সাধারণ দর",
     doNow: "এখন কী করতে হবে",
     progress: "{total}টির মধ্যে {done}টি ধাপ সম্পূর্ণ",
     noJourney: "আপনার ধাপে ধাপে যাত্রা এখানে দেখা যাবে।",
@@ -315,6 +356,18 @@ export const STRINGS: Record<Lang, Strings> = {
     tapForWhy: "କାହିଁକି? ଦେଖିବାକୁ ଛୁଅନ୍ତୁ",
     packed: "ନିଆଗଲା",
     journeyTab: "ଯାତ୍ରା",
+    budgetTitle: "ଖର୍ଚ୍ଚ ବିଷୟରେ",
+    budgetWhy: "ଆମେ ପଚାରୁଛୁ ଯେପରି ଆପଣ ବହନ କରିପାରିବେ ନାହିଁ ଏପରି କିଛି ଠିକ୍ ନହୁଏ।",
+    budgetTravel: "ଯିବା ଆସିବା",
+    budgetStay: "ରହିବା ସ୍ଥାନ",
+    budgetMedicine: "ଔଷଧ",
+    budgetChoose: "ଗୋଟିଏ ବାଛନ୍ତୁ",
+    budgetCannotManage: "ଏଥିମଧ୍ୟରୁ କୌଣସିଟି ମୁଁ ପାରିବି ନାହିଁ",
+    budgetSuggested: "ଆପଣଙ୍କ ପାଇଁ ପରାମର୍ଶ",
+    budgetSent: "ଧନ୍ୟବାଦ। ଜଣେ ବ୍ୟକ୍ତି ଏହା ନିଶ୍ଚିତ କରିବେ।",
+    tierSubsidised: "ରିହାତି",
+    tierModest: "କମ୍ ଖର୍ଚ୍ଚ",
+    tierStandard: "ସାଧାରଣ ଦର",
     doNow: "ଏବେ କ'ଣ କରିବେ",
     progress: "{total}ଟିରୁ {done}ଟି ପଦକ୍ଷେପ ସମ୍ପୂର୍ଣ୍ଣ",
     noJourney: "ଆପଣଙ୍କ ପଦକ୍ଷେପ-ପଦକ୍ଷେପ ଯାତ୍ରା ଏଠାରେ ଦେଖାଯିବ।",
@@ -388,6 +441,18 @@ export const STRINGS: Record<Lang, Strings> = {
     tapForWhy: "Why? Tap to see",
     packed: "packed",
     journeyTab: "Journey",
+    budgetTitle: "About the cost",
+    budgetWhy: "We ask so that nothing is arranged for you that you cannot afford.",
+    budgetTravel: "Getting there",
+    budgetStay: "Somewhere to stay",
+    budgetMedicine: "Medicines",
+    budgetChoose: "Choose one",
+    budgetCannotManage: "I cannot manage any of these",
+    budgetSuggested: "Suggested for you",
+    budgetSent: "Thank you. A person will confirm this.",
+    tierSubsidised: "Concession",
+    tierModest: "Low cost",
+    tierStandard: "Standard rate",
     doNow: "Do this now",
     progress: "{done} of {total} steps done",
     noJourney: "Your step-by-step journey will appear here.",

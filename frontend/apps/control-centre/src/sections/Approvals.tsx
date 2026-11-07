@@ -4,9 +4,11 @@ import { usePersona } from "../session";
 import { Drawer } from "../ui/kit";
 import { Graph } from "../ui/icons";
 import { useWorld } from "../world";
+import { BudgetQueue } from "../components/BudgetQueue";
 
 /**
- * The re-plans waiting on a person. Pick a family, see its ranked options and what
+ * Everything waiting on a person. First what families have said they can
+ * manage, then the re-plans: pick a family, see its ranked options and what
  * each costs the family, approve one. "Why" opens beside it rather than pushing
  * the options off the screen. A navigator sees what a navigator may approve; a
  * doctor sees what only a doctor may. The server enforces both.
@@ -20,6 +22,9 @@ export function Approvals() {
 
   return (
     <div className="stack">
+      {/* Above the re-plans: a family who answered and was never confirmed has
+          been asked a question for nothing. */}
+      <BudgetQueue revision={world.cohortRevision} />
       {family && (
         <div className="approvals-bar">
           <span>

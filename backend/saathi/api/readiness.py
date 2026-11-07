@@ -164,7 +164,11 @@ async def confirm_budget(
     state: ContainerDep, principal: PrincipalDep, patient_id: str, topic: BudgetTopic
 ) -> dict:
     """A navigator agrees this is what the family meant, and it takes effect."""
-    answer = state.runner.confirm_budget_answer(patient_id, topic, principal.name or "staff")
+    #: `PrincipalDep` is `Principal | None` by design — login can be switched
+    #: off, and the demo runs that way. Reaching through it for a name is how
+    #: this returned a 500 on the one configuration the recording uses.
+    by = (principal.name if principal is not None else "") or "staff"
+    answer = state.runner.confirm_budget_answer(patient_id, topic, by)
     if answer is None:
         raise HTTPException(404, "no answer from this family about that")
     run = await state.runner.plan_patient(patient_id, allow_render=True)

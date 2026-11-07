@@ -7,6 +7,7 @@ import { Why } from "./Why";
 import { Journey } from "./Journey";
 import { PlanStrip } from "./PlanStrip";
 import { Thread } from "./Thread";
+import { Budget } from "./Budget";
 import { Composer } from "./Composer";
 import { Inbox, Pin, Shield, Spark } from "@saathi/ui-web";
 
@@ -174,7 +175,12 @@ export default function FamilyApp() {
         {error && <div className="fx-error">{error}</div>}
 
         {tab === "journey" ? (
-          <Journey guide={home?.guide} lang={lang} s={s} />
+          <>
+            {/* Above the journey, because it is the one thing here the family
+                has to answer rather than read. It disappears once they have. */}
+            <Budget patientId={patientId} lang={lang} s={s} onAnswered={refresh} />
+            <Journey guide={home?.guide} lang={lang} s={s} />
+          </>
         ) : tab === "plan" ? (
           <>
             <Why waits={home?.waiting_for ?? []} lang={lang} s={s} />
