@@ -58,6 +58,10 @@
   .q { color: #4b5563; }
   code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 7.6pt; }
   a { color: #1f5fa8; }
+  /* A URL that wraps mid-string cannot be read aloud, typed from a printout,
+     or double-clicked to copy. They never break. */
+  .url { white-space: nowrap; font-family: "SF Mono", Menlo, Consolas, monospace;
+         font-size: 0.93em; }
   .flag {
     border-left: 2.2px solid #64748b; padding-left: 2.6mm;
     color: #334155;
@@ -288,13 +292,13 @@
 
       <h2>Supporting Links &amp; Access</h2>
       <ul>
-        <li><b>MVP — hospital control centre:</b> ekyatra-saathi-control-centre.onrender.com
-        &nbsp;·&nbsp; sign in <code>admin</code> / <code>__DEMO_ADMIN_PASSWORD__</code></li>
-        <li><b>Family app (web, nothing to install):</b> ekyatra-saathi-family.onrender.com
-        &nbsp;·&nbsp; <b>Partner app:</b> ekyatra-saathi-partner.onrender.com</li>
-        <li><b>Android app (APK):</b> drive.google.com/file/d/1LF5vqHKQmRc262wluMMOubkjQawTXKC8</li>
-        <li><b>Code repository:</b> github.com/ssgupta905/ekyatra-saathi-live</li>
-        <li><b>Demo walkthrough video:</b> __DEMO_VIDEO_LINK__</li>
+        <li><b>MVP — control centre</b> <span class="url">ekyatra-saathi-control-centre.onrender.com</span><br>
+        sign in <span class="url">admin</span> / <span class="url">__DEMO_ADMIN_PASSWORD__</span></li>
+        <li><b>Family app</b> <span class="url">ekyatra-saathi-family.onrender.com</span></li>
+        <li><b>Partner app</b> <span class="url">ekyatra-saathi-partner.onrender.com</span></li>
+        <li><b>Android APK</b> <span class="url">drive.google.com/file/d/1LF5vqHKQmRc262wluMMOubkjQawTXKC8</span></li>
+        <li><b>Code</b> <span class="url">github.com/ssgupta905/ekyatra-saathi-live</span></li>
+        <li><b>Demo video</b> <span class="url">__DEMO_VIDEO_LINK__</span></li>
       </ul>
       <p class="q"><b>To see a family's own phone:</b> in the control centre go to
       Configuration → Demo Families, enter your email to attach it to a demo persona, then

@@ -51,6 +51,9 @@
        font-weight: 700; }
   td.n { text-align: right; font-weight: 700; white-space: nowrap; }
   .fill { color: inherit; }
+  /* URLs never break across lines — see the brief for why. */
+  .url { white-space: nowrap; font-family: "SF Mono", Menlo, Consolas, monospace;
+         font-size: 0.9em; }
   .big { font-size: 20pt; font-weight: 700; color: #0a7d3c; line-height: 1.15; }
 
   /* title + closing */
@@ -683,19 +686,20 @@
         <h2>Try it in five steps</h2>
         <ul>
           <li><b>1 · Open the control centre</b><br>
-            <code>https://ekyatra-saathi-control-centre.onrender.com</code><br>
-            Sign in with <code>admin</code> / <code>__DEMO_ADMIN_PASSWORD__</code></li>
+            <span class="url">https://ekyatra-saathi-control-centre.onrender.com</span><br>
+            Sign in with <span class="url">admin</span> /
+            <span class="url">__DEMO_ADMIN_PASSWORD__</span></li>
           <li><b>2 · Go to Configuration</b> and find the <b>Demo Families</b> section.</li>
           <li><b>3 · Enter your own email address</b> there to attach it to one of the demo
             family personas — Anita, Ravi or Meena.</li>
           <li><b>4 · Install the Android app</b><br>
-            <code>https://drive.google.com/file/d/<br>1LF5vqHKQmRc262wluMMOubkjQawTXKC8/view</code></li>
+            <span class="url">https://drive.google.com/file/d/1LF5vqHKQmRc262wluMMOubkjQawTXKC8/view</span></li>
           <li><b>5 · Sign in to the app with that same email.</b> A one-time code arrives by
             email; there is no password.</li>
         </ul>
         <p class="q">Prefer not to install anything? The family app also runs in a browser at
-        <code>ekyatra-saathi-family.onrender.com</code>, and the vendor's own screen is at
-        <code>ekyatra-saathi-partner.onrender.com</code>.</p>
+        <span class="url">ekyatra-saathi-family.onrender.com</span>, and the vendor's own
+        screen is at <span class="url">ekyatra-saathi-partner.onrender.com</span>.</p>
       </div>
       <div>
         <h2>What to look at first</h2>
@@ -736,10 +740,10 @@
     </div>
     <div class="q" style="margin-top:4mm; font-size:10.5pt; line-height:1.9">
       ssgupta905@gmail.com<br>
-      <b>MVP</b> &nbsp;https://ekyatra-saathi-control-centre.onrender.com<br>
-      <b>Android APK</b> &nbsp;https://drive.google.com/file/d/1LF5vqHKQmRc262wluMMOubkjQawTXKC8/view<br>
-      <b>Code</b> &nbsp;https://github.com/ssgupta905/ekyatra-saathi-live<br>
-      <b>Demo video</b> &nbsp;__DEMO_VIDEO_LINK__
+      <b>MVP</b> &nbsp;<span class="url">https://ekyatra-saathi-control-centre.onrender.com</span><br>
+      <b>Android APK</b> &nbsp;<span class="url">https://drive.google.com/file/d/1LF5vqHKQmRc262wluMMOubkjQawTXKC8/view</span><br>
+      <b>Code</b> &nbsp;<span class="url">https://github.com/ssgupta905/ekyatra-saathi-live</span><br>
+      <b>Demo video</b> &nbsp;<span class="url">__DEMO_VIDEO_LINK__</span>
     </div>
     <p class="q" style="margin-top:4mm; max-width:180mm; font-size:9.5pt">
       Sign-in and step-by-step access instructions are on the previous slide.

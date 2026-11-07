@@ -15,6 +15,35 @@ const p = await (await b.newContext({ viewport: { width: 1280, height: 720 } }))
 await p.goto(`file://${file}`, { waitUntil: "networkidle" });
 await p.emulateMedia({ media: "print" });
 
+/**
+ * Any URL that wrapped or ran past its column.
+ *
+ * A URL broken across two lines cannot be typed from a printout or
+ * double-clicked to copy, and it reads as a typo. `getClientRects()` returns
+ * one box per line a span occupies, so more than one means it wrapped — which
+ * is a thing you can measure, unlike "does this look right".
+ */
+const urls = await p.evaluate(() => {
+  //: Measured against the printable area of the page, not against the
+  //: element's own parent. A centred block shrinks to fit its widest line, so
+  //: a URL inside one always "ends exactly at its parent's edge" — which read
+  //: as an overflow on a link that in fact had ninety pixels to spare.
+  return [...document.querySelectorAll(".url")]
+    .map((el) => {
+      const page = el.closest(".page, .slide");
+      const pad = getComputedStyle(page);
+      const area = page.getBoundingClientRect();
+      const right = area.right - parseFloat(pad.paddingRight);
+      const box = el.getBoundingClientRect();
+      return {
+        text: el.textContent.trim().slice(0, 52),
+        lines: el.getClientRects().length,
+        over: Math.round(box.right - right),
+      };
+    })
+    .filter((u) => u.lines > 1 || u.over > 0);
+});
+
 const report = await p.evaluate(() => {
   const mm = 1280 / 338.7;
   const out = [];
@@ -33,11 +62,18 @@ const report = await p.evaluate(() => {
 });
 await b.close();
 
-let bad = 0;
+let bad = urls.length;
+for (const u of urls) {
+  console.log(
+    u.lines > 1
+      ? `WRAP        ${u.lines} lines  ${u.text}`
+      : `OVERFLOW  ${String(u.over).padStart(4)}px  ${u.text}`,
+  );
+}
 for (const row of report) {
   const fits = row.over <= 0;
   if (!fits) bad += 1;
   console.log(`${fits ? "fits  " : "OVER  "} ${String(row.over).padStart(4)}mm  ${row.what}`);
 }
-console.log(bad ? `\n${bad} overflowing` : "\neverything fits");
+console.log(bad ? `\n${bad} problem(s)` : "\neverything fits, no URL wraps");
 process.exit(bad ? 1 : 0);
