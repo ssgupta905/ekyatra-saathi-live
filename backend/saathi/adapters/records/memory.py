@@ -83,6 +83,10 @@ class MemoryRecordStore:
     def add_family_message(self, row: dict) -> None:
         self._family_messages.setdefault(row["id"], dict(row))
 
+    def clear_family_messages(self, patient_id: str) -> None:
+        kept = {k: r for k, r in self._family_messages.items() if r["patient_id"] != patient_id}
+        self._family_messages = kept
+
     def add_approval(self, approval: ApprovalDecision) -> None:
         # Append-only: an approval already on file is never rewritten.
         self._approvals.setdefault(approval.id, approval)

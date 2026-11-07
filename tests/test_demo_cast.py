@@ -149,3 +149,18 @@ def test_an_address_given_to_the_cast_is_taken_from_any_other_family(demo):
     holders = [p["id"] for p in demo.get("/api/patients").json()
                if p["caregiver_email"] == "one@example.com"]
     assert holders == ["DEMO-1"]
+
+
+def test_loading_again_also_starts_each_family_s_conversation_again(demo):
+    demo.post("/api/demo/cast", json={"emails": EMAILS})
+    demo.world.apply_release("DEMO-1-pathology_report")
+    demo.portal.call(demo.runner.plan_patient, "DEMO-1")
+    _later(demo)
+    told = [r for r in demo.runner.outbound if r["patient_id"] == "DEMO-1"]
+    assert told, "the family was told something along the way"
+
+    demo.post("/api/demo/cast", json={"emails": EMAILS})
+
+    assert not [r for r in demo.runner.outbound if r["patient_id"] == "DEMO-1"]
+    stored = demo.runner.world.store.load().family_messages
+    assert not [m for m in stored if m["patient_id"] == "DEMO-1"]

@@ -1670,6 +1670,13 @@ class LiveRunner:
         if self.world.store is not None:
             self.world.store.add_family_message(row)
 
+    def forget_thread(self, patient_id: str) -> None:
+        """Start a family's conversation again. Only the demo reset calls this."""
+        self.outbound[:] = [row for row in self.outbound if row["patient_id"] != patient_id]
+        self.inbound[:] = [record for record in self.inbound if record.patient_id != patient_id]
+        if self.world.store is not None:
+            self.world.store.clear_family_messages(patient_id)
+
     def ledger_size(self) -> int:
         return self.ledger.size()
 

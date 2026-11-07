@@ -14,7 +14,7 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, delete, select
 from sqlalchemy.orm import sessionmaker
 
 from ...db.tables import (
@@ -290,6 +290,10 @@ class SqlRecordStore:
                     payload_json=json.dumps(row),
                 )
             )
+
+    def clear_family_messages(self, patient_id: str) -> None:
+        with self._sessions.begin() as db:
+            db.execute(delete(FamilyMessageRow).where(FamilyMessageRow.patient_id == patient_id))
 
     def add_approval(self, approval: ApprovalDecision) -> None:
         with self._sessions.begin() as db:

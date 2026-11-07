@@ -111,6 +111,10 @@ class RecordStore(Protocol):
         """Keep one message a family was sent, so their thread survives a restart."""
         ...
 
+    def clear_family_messages(self, patient_id: str) -> None:
+        """Forget one family's thread. Only a demo reset does this."""
+        ...
+
     def add_approval(self, approval: ApprovalDecision) -> None:
         """Append-only: an approval is never edited or removed."""
         ...

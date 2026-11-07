@@ -70,6 +70,7 @@ async def load_cast(state: ContainerDep, principal: PrincipalDep, body: CastIn) 
         for item in state.world.readiness_for(patient.id):
             state.world.remove_readiness_item(patient.id, item.id)
         state.runner.guides.pop(patient.id, None)
+        state.runner.forget_thread(patient.id)
         state.onboarding.save_section(patient.id, "partners", member.partners, "demo cast")
         saved = state.onboarding.section(patient.id, "identity")
         if saved is not None:  # a reset with a new address: sign-in already follows the record
