@@ -37,14 +37,21 @@ _KEEP_SECONDS = 12 * 3600
 #: Overpass selectors per kind. `name~` matches are case-insensitive.
 _SELECT: dict[PlaceKind, list[str]] = {
     PlaceKind.PHARMACY: ['["amenity"="pharmacy"]'],
-    PlaceKind.JAN_AUSHADHI: ['["name"~"jan ?aushadhi|janaushadhi|jan ?aushadi",i]', '["brand"~"jan ?aushadhi",i]'],
-    PlaceKind.LAB: ['["healthcare"="laboratory"]', '["name"~"diagnostic|patholog|laborator",i]["amenity"~"clinic|doctors"]'],
+    PlaceKind.JAN_AUSHADHI: [
+        '["name"~"jan ?aushadhi|janaushadhi|jan ?aushadi",i]',
+        '["brand"~"jan ?aushadhi",i]',
+    ],
+    PlaceKind.LAB: [
+        '["healthcare"="laboratory"]',
+        '["name"~"diagnostic|patholog|laborator",i]["amenity"~"clinic|doctors"]',
+    ],
     PlaceKind.EQUIPMENT: ['["shop"="medical_supply"]'],
     PlaceKind.CLINIC: ['["amenity"~"^(clinic|doctors)$"]'],
     PlaceKind.PHYSIO: ['["healthcare"="physiotherapist"]'],
 }
 
-_DAYS = {"Mo": 1, "Tu": 2, "We": 3, "Th": 4, "Fr": 5, "Sa": 6, "Su": 0}  # Sunday = 0, as Place expects
+# Sunday = 0, as Place expects
+_DAYS = {"Mo": 1, "Tu": 2, "We": 3, "Th": 4, "Fr": 5, "Sa": 6, "Su": 0}
 _ORDER = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 
 
@@ -109,7 +116,9 @@ def parse_opening_hours(text: str | None) -> tuple[Period, ...]:
                 if end > start:
                     periods.append(Period(open_day=d, open_at=start, close_day=d, close_at=end))
                 else:  # past midnight, or midnight itself
-                    periods.append(Period(open_day=d, open_at=start, close_day=(d + 1) % 7, close_at=end))
+                    periods.append(
+                        Period(open_day=d, open_at=start, close_day=(d + 1) % 7, close_at=end)
+                    )
     return tuple(periods)
 
 
@@ -117,7 +126,11 @@ def _address(tags: dict) -> str:
     if tags.get("addr:full"):
         return tags["addr:full"]
     street = " ".join(x for x in (tags.get("addr:housenumber"), tags.get("addr:street")) if x)
-    parts = [street, tags.get("addr:suburb"), tags.get("addr:city") or tags.get("addr:town") or tags.get("addr:village")]
+    parts = [
+        street,
+        tags.get("addr:suburb"),
+        tags.get("addr:city") or tags.get("addr:town") or tags.get("addr:village"),
+    ]
     return ", ".join(p for p in parts if p)
 
 
@@ -138,7 +151,12 @@ def parse(body: dict, kind: PlaceKind) -> list[Place]:
                 address=_address(tags),
                 latitude=where["lat"],
                 longitude=where["lon"],
-                phone=tags.get("phone") or tags.get("contact:phone") or tags.get("mobile") or tags.get("contact:mobile"),
+                phone=(
+                    tags.get("phone")
+                    or tags.get("contact:phone")
+                    or tags.get("mobile")
+                    or tags.get("contact:mobile")
+                ),
                 periods=parse_opening_hours(tags.get("opening_hours")),
                 source="osm",
             )
@@ -159,12 +177,21 @@ class OsmPlaces:
         self._urls = (url, *[m for m in MIRRORS if m != url])
         # An honest, generic identity: the public service asks for one. No contact details.
         self._client = client or httpx.AsyncClient(
-            timeout=httpx.Timeout(45, connect=6), headers={"User-Agent": "saathi-care-navigator/1.0 (open-data lookup)"}
+            timeout=httpx.Timeout(45, connect=6),
+            headers={
+                "User-Agent": "saathi-care-navigator/1.0 (open-data lookup)"
+            },
         )
         self._kept: dict[tuple, tuple[float, list[Place]]] = {}
 
     async def nearby(
-        self, kind: PlaceKind, latitude: float, longitude: float, *, radius_m: int = 3000, language: str = "en"
+        self,
+        kind: PlaceKind,
+        latitude: float,
+        longitude: float,
+        *,
+        radius_m: int = 3000,
+        language: str = "en",
     ) -> list[Place]:
         cell = (kind, round(latitude, 2), round(longitude, 2), radius_m)
         hit = self._kept.get(cell)
@@ -173,7 +200,9 @@ class OsmPlaces:
         response = None
         for url in self._urls:
             try:
-                response = await self._client.post(url, data={"data": _query(kind, latitude, longitude, radius_m)})
+                response = await self._client.post(
+                    url, data={"data": _query(kind, latitude, longitude, radius_m)}
+                )
             except httpx.HTTPError:
                 continue
             if response.status_code == 200:
@@ -189,7 +218,8 @@ class OsmPlaces:
         return places
 
     async def warm(self, points: list[tuple[float, float]], *, pause: float = 3.0) -> None:
-        """Fill the cache for places families will ask about (hospital doors), politely, one at a time.
+        """Fill the cache for the places families ask about — hospital doors
+        — politely, one at a time.
 
         A free public service can take half a minute to answer; a family should
         not be the one who waits for it. Failures are ignored: the first real

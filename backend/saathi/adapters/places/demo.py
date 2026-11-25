@@ -10,7 +10,9 @@ from datetime import time
 
 from ...domain.places import Period, Place, PlaceKind
 
-_ALL_WEEK = tuple(Period(open_day=d, open_at=time(9), close_day=d, close_at=time(21)) for d in range(7))
+_ALL_WEEK = tuple(
+    Period(open_day=d, open_at=time(9), close_day=d, close_at=time(21)) for d in range(7)
+)
 _ROUND_THE_CLOCK = (Period(open_day=0, open_at=time(0)),)
 
 #: (kind, name, dlat, dlng, hours)
@@ -29,7 +31,13 @@ class DemoPlaces:
     name = "demo"
 
     async def nearby(
-        self, kind: PlaceKind, latitude: float, longitude: float, *, radius_m: int = 3000, language: str = "en"
+        self,
+        kind: PlaceKind,
+        latitude: float,
+        longitude: float,
+        *,
+        radius_m: int = 3000,
+        language: str = "en",
     ) -> list[Place]:
         return [
             Place(

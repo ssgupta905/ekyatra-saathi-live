@@ -19,7 +19,10 @@ def shop(id, kind=PlaceKind.PHARMACY, dlat=0.0, hours=None):
 
 
 def daytime():
-    return tuple(Period(open_day=d, open_at=time(9), close_day=d, close_at=time(21)) for d in range(7))
+    return tuple(
+        Period(open_day=d, open_at=time(9), close_day=d, close_at=time(21))
+        for d in range(7)
+    )
 
 
 # 2026-12-01 is a Tuesday. 06:00 UTC is 11:30 IST; 20:00 UTC is 01:30 IST the next day.
@@ -35,7 +38,9 @@ def test_a_shop_that_is_shut_when_they_arrive_is_said_to_be_shut():
     assert all(r.open_then is False and "shut_then" in r.reasons for r in late)
 
     got = rank([shut, open_far], near=CENTRE, at=NOON)
-    assert [r.place.id for r in got] == ["shut-but-close", "open-far"], "both open: the nearer first"
+    assert [r.place.id for r in got] == ["shut-but-close", "open-far"], (
+        "both open: the nearer first"
+    )
 
 
 def test_a_round_the_clock_shop_is_open_at_night():
@@ -48,7 +53,11 @@ def test_a_round_the_clock_shop_is_open_at_night():
 
 
 def test_unknown_hours_rank_after_known_open_and_say_so():
-    got = rank([shop("unknown", dlat=0.0001), shop("open", dlat=0.01, hours=daytime())], near=CENTRE, at=NOON)
+    got = rank(
+        [shop("unknown", dlat=0.0001), shop("open", dlat=0.01, hours=daytime())],
+        near=CENTRE,
+        at=NOON,
+    )
 
     assert [r.place.id for r in got] == ["open", "unknown"]
     assert "hours_unknown" in got[1].reasons
@@ -78,11 +87,20 @@ GOOGLE = {
             "businessStatus": "OPERATIONAL",
             "currentOpeningHours": {"openNow": True},
             "regularOpeningHours": {
-                "periods": [{"open": {"day": 2, "hour": 9, "minute": 0}, "close": {"day": 2, "hour": 21, "minute": 30}}]
+                "periods": [
+                    {
+                        "open": {"day": 2, "hour": 9, "minute": 0},
+                        "close": {"day": 2, "hour": 21, "minute": 30},
+                    }
+                ]
             },
         },
-        {"id": "gone", "displayName": {"text": "Closed Forever"}, "location": {"latitude": 19, "longitude": 72.8},
-         "businessStatus": "CLOSED_PERMANENTLY"},
+        {
+            "id": "gone",
+            "displayName": {"text": "Closed Forever"},
+            "location": {"latitude": 19, "longitude": 72.8},
+            "businessStatus": "CLOSED_PERMANENTLY",
+        },
     ]
 }  # fmt: skip
 
@@ -127,10 +145,21 @@ def test_a_shop_open_past_midnight_is_open_after_midnight():
 
 OVERPASS = {
     "elements": [
-        {"type": "node", "id": 1, "lat": 19.0, "lon": 72.84,
-         "tags": {"name": "Sai Medical", "amenity": "pharmacy", "opening_hours": "Mo-Sa 09:00-21:00",
-                  "phone": "+91 22 1234 5678", "addr:street": "Dr Ambedkar Rd", "addr:suburb": "Parel"}},
-        {"type": "way", "id": 2, "center": {"lat": 19.01, "lon": 72.85}, "tags": {"name": "Jan Aushadhi Kendra"}},
+        {
+            "type": "node", "id": 1, "lat": 19.0, "lon": 72.84,
+            "tags": {
+                "name": "Sai Medical",
+                "amenity": "pharmacy",
+                "opening_hours": "Mo-Sa 09:00-21:00",
+                "phone": "+91 22 1234 5678",
+                "addr:street": "Dr Ambedkar Rd",
+                "addr:suburb": "Parel",
+            },
+        },
+        {
+            "type": "way", "id": 2, "center": {"lat": 19.01, "lon": 72.85},
+            "tags": {"name": "Jan Aushadhi Kendra"},
+        },
         {"type": "node", "id": 3, "lat": 19.0, "lon": 72.8, "tags": {"amenity": "pharmacy"}},
     ]
 }  # fmt: skip
@@ -159,8 +188,20 @@ def test_only_a_point_and_a_category_go_to_the_service():
 def test_a_mobile_number_is_taken_when_there_is_no_landline():
     from saathi.adapters.places.osm import parse as parse_osm
 
-    got = parse_osm({"elements": [{"type": "node", "id": 9, "lat": 1.0, "lon": 1.0,
-                                   "tags": {"name": "X", "mobile": "09892449174",
-                                            "opening_hours": "Mo 08:00-23:30; Tu-Su 08:00-23:00"}}]}, PlaceKind.PHARMACY)  # fmt: skip
+    got = parse_osm(
+        {
+            "elements": [
+                {
+                    "type": "node", "id": 9, "lat": 1.0, "lon": 1.0,
+                    "tags": {
+                        "name": "X",
+                        "mobile": "09892449174",
+                        "opening_hours": "Mo 08:00-23:30; Tu-Su 08:00-23:00",
+                    },
+                }
+            ]
+        },
+        PlaceKind.PHARMACY,
+    )
 
     assert got[0].phone == "09892449174" and len(got[0].periods) == 7

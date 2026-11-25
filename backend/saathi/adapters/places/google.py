@@ -42,7 +42,10 @@ _QUERY: dict[PlaceKind, tuple[str, str | None]] = {
     PlaceKind.PHARMACY: ("pharmacy medical store", "pharmacy"),
     PlaceKind.JAN_AUSHADHI: ("Jan Aushadhi Kendra", None),
     PlaceKind.LAB: ("diagnostic laboratory pathology lab", None),
-    PlaceKind.EQUIPMENT: ("medical equipment wheelchair oxygen concentrator surgical appliances", None),
+    PlaceKind.EQUIPMENT: (
+        "medical equipment wheelchair oxygen concentrator surgical appliances",
+        None,
+    ),
     PlaceKind.CLINIC: ("clinic", "doctor"),
     PlaceKind.PHYSIO: ("physiotherapy clinic", "physiotherapist"),
 }
@@ -109,7 +112,13 @@ class GooglePlaces:
         self._client = client or httpx.AsyncClient(timeout=15)
 
     async def nearby(
-        self, kind: PlaceKind, latitude: float, longitude: float, *, radius_m: int = 3000, language: str = "en"
+        self,
+        kind: PlaceKind,
+        latitude: float,
+        longitude: float,
+        *,
+        radius_m: int = 3000,
+        language: str = "en",
     ) -> list[Place]:
         text, included = _QUERY[kind]
         body: dict = {
@@ -119,7 +128,10 @@ class GooglePlaces:
             "pageSize": 10,
             # A bias, not a limit: a village with one shop still gets it.
             "locationBias": {
-                "circle": {"center": {"latitude": latitude, "longitude": longitude}, "radius": float(radius_m)}
+                "circle": {
+                    "center": {"latitude": latitude, "longitude": longitude},
+                    "radius": float(radius_m),
+                }
             },
         }
         if included:

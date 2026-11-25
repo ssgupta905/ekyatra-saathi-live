@@ -121,7 +121,12 @@ def test_a_directions_answer_becomes_board_here_get_off_there():
     [option] = parse(DIRECTIONS)
 
     bus = next(s for s in option.steps if s.mode is StepMode.BUS)
-    assert (bus.line, bus.board_at, bus.get_off_at, bus.stops) == ("5A", "Station Road", "Hospital Gate", 11)
+    assert (bus.line, bus.board_at, bus.get_off_at, bus.stops) == (
+        "5A",
+        "Station Road",
+        "Hospital Gate",
+        11,
+    )
     assert bus.departs is not None
     assert option.fare_paise == 2500 and option.fare_basis is FareBasis.SERVICE
     assert option.steps[0].note == "Walk to Station Road"

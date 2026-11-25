@@ -16,9 +16,8 @@ from .api.family import router as family_router
 from .api.guide import router as guide_router
 from .api.hospital import router as hospital_router
 from .api.kharcha import router as kharcha_router
-from .api.nearby import router as nearby_router
-from .api.trip import router as trip_router
 from .api.live import router as live_router
+from .api.nearby import router as nearby_router
 from .api.onboarding import router as onboarding_router
 from .api.partner import router as partner_router
 from .api.payments_webhook import router as payments_webhook_router
@@ -28,6 +27,7 @@ from .api.registry import router as registry_router
 from .api.reports import router as reports_router
 from .api.requests import router as requests_router
 from .api.routes import router
+from .api.trip import router as trip_router
 from .bootstrap.lifespan import lifespan
 from .config import get_settings
 

@@ -306,7 +306,10 @@ class Settings(BaseSettings):
             self.routes_provider.strip().lower(),
             self.places_provider.strip().lower(),
         }:
-            raise ValueError("invented timetables or shops must never run in SAATHI_ENVIRONMENT=production")
+            raise ValueError(
+                "invented timetables or shops must never run in "
+                "SAATHI_ENVIRONMENT=production"
+            )
         if self.sim_mode and self.world == "real":
             raise ValueError(
                 "SAATHI_SIM_MODE is on while SAATHI_WORLD=real: the simulator's "

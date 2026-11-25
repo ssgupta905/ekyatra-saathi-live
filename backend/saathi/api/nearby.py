@@ -40,7 +40,11 @@ async def nearby(
 
     if near == "hospital":
         hospital = next(
-            (h for h in (state.registry.hospitals() if state.registry else []) if h.id == patient.hospital_id),
+            (
+                h
+                for h in (state.registry.hospitals() if state.registry else [])
+                if h.id == patient.hospital_id
+            ),
             None,
         )
         if hospital is None or hospital.latitude is None or hospital.longitude is None:
@@ -75,7 +79,12 @@ async def nearby(
     except PlacesUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc
 
-    found = rank([p for batch in batches for p in batch], near=centre, at=at or datetime.now(UTC), money_is_tight=tight)
+    found = rank(
+        [p for batch in batches for p in batch],
+        near=centre,
+        at=at or datetime.now(UTC),
+        money_is_tight=tight,
+    )
     return {
         "need": need,
         "near": near,

@@ -49,7 +49,11 @@ async def options(
     if planner is None:
         raise HTTPException(409, "no route service is set up here")
     hospital = next(
-        (h for h in (state.registry.hospitals() if state.registry else []) if h.id == patient.hospital_id),
+        (
+            h
+            for h in (state.registry.hospitals() if state.registry else [])
+            if h.id == patient.hospital_id
+        ),
         None,
     )
     if hospital is None or hospital.latitude is None or hospital.longitude is None:
@@ -70,12 +74,15 @@ async def options(
     # A seller's firm price for a car is the family's to book: it is the only
     # cost a car option may carry, with its owner named.
     quoted = next(
-        (b["amount_paise"] for b in (state.runner.network.bookable(patient_id) if state.runner.network else [])
+        (b["amount_paise"]
+         for b in (state.runner.network.bookable(patient_id) if state.runner.network else [])
          if b.get("amount_paise")),
         None,
     )
     cars: list[RouteOption] = [
-        o.model_copy(update={"fare_paise": quoted, "fare_basis": FareBasis.QUOTE}) if quoted and leg == "near" else o
+        o.model_copy(update={"fare_paise": quoted, "fare_basis": FareBasis.QUOTE})
+        if quoted and leg == "near"
+        else o
         for o in driving[:1]
     ]
     guidance = weigh(transit[:4] + cars, room_paise=_room(state, patient_id), arrive_by=arrive_by)

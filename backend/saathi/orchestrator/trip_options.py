@@ -49,7 +49,11 @@ def weigh(
     if not options:
         return Guidance(options=(), room_paise=room_paise)
 
-    usable = [o for o in options if arrive_by is None or o.arrives is None or o.arrives <= arrive_by]
+    usable = [
+        o
+        for o in options
+        if arrive_by is None or o.arrives is None or o.arrives <= arrive_by
+    ]
     dropped_for_time = len(usable) < len(options)
     pool = usable or options
 
@@ -82,10 +86,16 @@ def weigh(
                 option=o,
                 tags=tuple(tags),
                 fit=fit,
-                extra_over_cheapest_paise=(cost - cheapest) if cost is not None and cheapest is not None else None,
+                extra_over_cheapest_paise=(
+                    (cost - cheapest)
+                    if cost is not None and cheapest is not None
+                    else None
+                ),
                 minutes_saved=slowest - o.minutes,
                 leave_by=(o.departs - ARRIVAL_MARGIN) if o.departs and arrive_by else (
-                    (arrive_by - timedelta(minutes=o.minutes) - ARRIVAL_MARGIN) if arrive_by else None
+                    (arrive_by - timedelta(minutes=o.minutes) - ARRIVAL_MARGIN)
+                    if arrive_by
+                    else None
                 ),
             )
         )
@@ -94,7 +104,12 @@ def weigh(
     candidates = affordable or weighed
     best = min(
         candidates,
-        key=lambda w: (w.option.changes, w.option.walking_minutes, w.option.minutes, w.option.fare_paise or 0),
+        key=lambda w: (
+            w.option.changes,
+            w.option.walking_minutes,
+            w.option.minutes,
+            w.option.fare_paise or 0,
+        ),
     )
 
     reasons: list[str] = []
@@ -122,5 +137,8 @@ def weigh(
 
     ordered = sorted(weighed, key=lambda w: (w is not best, w.option.changes, w.option.minutes))
     return Guidance(
-        options=tuple(ordered), recommended_id=best.option.id, reasons=tuple(reasons), room_paise=room_paise
+        options=tuple(ordered),
+        recommended_id=best.option.id,
+        reasons=tuple(reasons),
+        room_paise=room_paise,
     )

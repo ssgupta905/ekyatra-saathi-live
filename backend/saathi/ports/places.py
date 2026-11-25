@@ -20,7 +20,13 @@ class PlaceFinder(Protocol):
     name: str
 
     async def nearby(
-        self, kind: PlaceKind, latitude: float, longitude: float, *, radius_m: int = 3000, language: str = "en"
+        self,
+        kind: PlaceKind,
+        latitude: float,
+        longitude: float,
+        *,
+        radius_m: int = 3000,
+        language: str = "en",
     ) -> list[Place]: ...
 
     async def close(self) -> None: ...

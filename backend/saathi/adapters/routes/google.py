@@ -194,7 +194,9 @@ class GoogleRoutes:
                 o.model_copy(
                     update={
                         "steps": tuple(
-                            s.model_copy(update={"mode": StepMode.TAXI}) if s.mode is not StepMode.WALK else s
+                            s.model_copy(update={"mode": StepMode.TAXI})
+                            if s.mode is not StepMode.WALK
+                            else s
                             for s in o.steps
                         )
                     }
