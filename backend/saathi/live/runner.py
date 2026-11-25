@@ -65,6 +65,7 @@ from ..language.questions import AskReason, AskTopic, compose_question
 from ..planner import options as options_module
 from ..planner.graph import VisitPlanner
 from ..planner.process_facts import resolve_process_fact
+from ..planner.search import Search
 from ..ports.fhir import prioritise_task
 from ..ports.ledger import EvidenceLedger
 from ..ports.records import StoredOptionSet
@@ -332,6 +333,10 @@ class LiveRunner:
     #: is a proposal until `confirmed_by` is set; the planner never sees one
     #: before that. Keyed by patient id, newest last.
     requests: dict[str, list[PatientRequest]] = field(default_factory=dict)
+    #: The last option search per patient — every candidate the planner tried
+    #: and why each lived or died. Kept so the Console can answer "what else
+    #: did you consider?" after the decision, which the plan alone cannot.
+    searches: dict[str, Search] = field(default_factory=dict)
     approvals: list[ApprovalDecision] = field(default_factory=list)
     ivr_confirmations: dict[str, IVRConfirmation] = field(default_factory=dict)
     #: "press advance" progress per scripted story — see `advance_story`.
@@ -508,6 +513,7 @@ class LiveRunner:
             self.approvals.clear()
             self.conversation.reset()
             self.requests.clear()
+            self.searches.clear()
             # The connectors too, or a rehearsed scenario shows nothing the
             # second time: they act once per leave and once per open order.
             for sync in self.hospital_syncs.values():
@@ -1033,10 +1039,12 @@ class LiveRunner:
         target_kind: StepKind,
         cycle,
         round_trip_hours: float | None = None,
+        search: Search | None = None,
     ) -> tuple[PlanOption, ...]:
         direct = options_module.enumerate_candidates(
             patient, steps, disruption, target_kind, self.planner.graph_for(patient),
             self.planner.predictor, self.world.today, cycle=cycle,
+            search=search,
             # The hospital's saved rules, when it has saved any; None keeps the
             # built-in behaviour.
             policy=self.planner.rules_for(patient.hospital_id),
@@ -1049,7 +1057,7 @@ class LiveRunner:
             return direct
         return options_module.opportunistic_bundle_candidates(
             patient, steps, disruption, target_kind, self.planner.graph_for(patient),
-            self.planner.predictor, self.world.today, cycle=cycle,
+            self.planner.predictor, self.world.today, cycle=cycle, search=search,
         )
 
     async def _resolve_disruption_for_patient(
@@ -1073,6 +1081,7 @@ class LiveRunner:
         ):
             round_trip = await asyncio.to_thread(self.journey_hours, patient)
 
+        search = Search(patient_id=patient_id, step_kind=target_kind.value)
         started = perf_counter()
         async with self.working(
             "Working out the options",
@@ -1081,9 +1090,23 @@ class LiveRunner:
         ):
             candidates = await asyncio.to_thread(
                 self._enumerate_options_sync,
-                patient, steps, disruption, target_kind, cycle, round_trip,
+                patient, steps, disruption, target_kind, cycle, round_trip, search,
             )
         elapsed = (perf_counter() - started) * 1000
+
+        # What the planner looked at, not only what it chose. The filtering is
+        # unchanged — a family is still never offered a date the rules would
+        # then refuse — but the discarding is now on the record, which is the
+        # only way to answer "what else did you consider?" after the fact.
+        self.searches[patient_id] = search
+        self.bus.publish(
+            EventKind.PLAN_SEARCHED,
+            self.world.today.isoformat(),
+            patient_id=patient_id,
+            summary=f"{patient_id}: {search.summary()}",
+            duration_ms=elapsed,
+            search=search.to_json(),
+        )
 
         if len(candidates) <= 1:
             # Simple case: nothing to choose between, so there is nothing for

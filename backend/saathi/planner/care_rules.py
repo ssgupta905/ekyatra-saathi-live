@@ -16,6 +16,7 @@ from datetime import date
 from ..domain.enums import StepKind
 from ..domain.models import MaintenanceCycle, PlanOption
 from . import tools
+from .search import Considered, Search, Verdict
 
 
 def echo_before_every_fourth_dose(option: PlanOption, cycle: MaintenanceCycle) -> bool:
@@ -38,13 +39,40 @@ CARE_RULES: tuple = (echo_before_every_fourth_dose,)
 
 
 def filter_options(
-    options: Sequence[PlanOption], cycle: MaintenanceCycle | None
+    options: Sequence[PlanOption],
+    cycle: MaintenanceCycle | None,
+    search: Search | None = None,
 ) -> tuple[PlanOption, ...]:
     """Drop any option a hard rule rejects, silently — never shown, never
-    presented-then-blocked."""
-    if cycle is None:
-        return tuple(options)
-    return tuple(o for o in options if echo_before_every_fourth_dose(o, cycle))
+    presented-then-blocked.
+
+    Silent to the *family*, which is the point: offering a date and then
+    refusing it is worse than never offering it. But silent to everybody was
+    an accident. Pass a `Search` and every candidate is recorded with the
+    rule that killed it, for the reasoning log and the Console — two views of
+    one search, and the filtering itself is unchanged.
+    """
+    kept = []
+    for option in options:
+        allowed = cycle is None or echo_before_every_fourth_dose(option, cycle)
+        if allowed:
+            kept.append(option)
+        if search is not None:
+            # `target_on` is the day the step itself lands on, which is what a
+            # reader compares. `travel_on` answers a different question — when
+            # they may set out — and for an unblocked plan is simply tomorrow,
+            # so a log built on it would show every candidate as the same day.
+            search.note(
+                Considered(
+                    ref=option.target_step_id,
+                    on=option.target_on or option.travel_on,
+                    verdict=Verdict.OFFERED if allowed else Verdict.CARE_RULE,
+                    detail="" if allowed else "an echo is due before the next dose",
+                    nights_added=getattr(option, "nights_added", None),
+                    trips_added=getattr(option, "extra_trips", None),
+                )
+            )
+    return tuple(kept)
 
 
 

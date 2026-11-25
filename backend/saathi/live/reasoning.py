@@ -77,6 +77,7 @@ _STEPS: dict[str, Step] = {
     EventKind.REQUEST_RAISED: Step.INFER,
     # Enumerating what could be done.
     EventKind.OPTIONS_READY: Step.SEARCH,
+    EventKind.PLAN_SEARCHED: Step.SEARCH,
     # Deciding what to do.
     EventKind.PLAN_RECOMPUTED: Step.PLAN,
     # Refusing.

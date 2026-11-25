@@ -33,6 +33,7 @@ the connector reads a hospital full of strangers.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import logging
 import sys
 from dataclasses import dataclass
@@ -401,6 +402,23 @@ def _realign(store, booked: dict, when) -> bool:
     return bool(moved)
 
 
+def _abha_for(identifier: str) -> str:
+    """A stable, obviously-fake ABHA number for a demo family.
+
+    The 14-digit shape ABDM uses, always starting 99 — a prefix the authority
+    does not issue, so one of these can never collide with a real person's
+    health id however far this database travels. Derived from the patient id
+    so it is the same on every reseed, which matters because a consent grant
+    recorded yesterday has to still match tomorrow.
+    """
+    # sha256, not `hash()`: Python salts the built-in per process, so a
+    # reseed tomorrow would mint a different number and orphan every consent
+    # grant recorded today — the precise failure this docstring promises not
+    # to have. Checked, and it did exactly that before this line changed.
+    digest = hashlib.sha256(identifier.encode()).hexdigest()
+    return f"99{int(digest, 16) % 10**12:012d}"
+
+
 def seed_local_cast(
     store,
     today: date,
@@ -501,6 +519,14 @@ def seed_local_cast(
                 home_distance_km=km,
                 language=Language.HINDI,
                 caregiver_phone="",
+                # A made-up ABHA number in the 14-digit shape ABDM uses, in
+                # the 99 range that is not issued to anybody. Without one
+                # these families cannot be matched to a consent grant at all
+                # — consent is keyed on ABHA, as ABDM requires — so the
+                # research export silently excluded every one of them and
+                # reported "no consent" for a cohort that had never been
+                # asked. A demo cast with no health id is not a demo cast.
+                abha_number=_abha_for(identifier),
                 hospital_id=hospital_id,
                 pathway_id=pathway,
             ),

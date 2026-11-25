@@ -27,6 +27,8 @@ from pydantic import BaseModel, Field
 
 from ..live.knowledge import build as build_graph
 from ..live.reasoning import reasoning_log
+from ..research.burden import COLUMNS as RESEARCH_COLUMNS
+from ..research.collect import build as build_release
 from .access import DeskWork, PrincipalDep
 from .deps import ContainerDep
 
@@ -140,6 +142,52 @@ async def reasoning(
             state.runner.bus.recent(limit=600), patient_id=patient_id, limit=limit
         )
     ]
+
+
+@router.get("/research/release", dependencies=[DeskWork])
+async def research_release(state: ContainerDep) -> dict:
+    """What this system could contribute to cancer research, right now.
+
+    Returns the dataset *and* the manifest: the columns, what was removed
+    before export and why, how many families consented, and how many were
+    left out. Read-only — nothing is written and nothing is sent. An export
+    that posted itself would be the wrong shape for something leaving an
+    institution; a person looks at this and then decides.
+
+    India has cancer registries with staging and survival. What it has almost
+    none of is why patients stop coming, and the answer is usually a bus fare
+    and a lost working day. That is what this contributes.
+    """
+    release = build_release(state.runner, state.consent)
+    return {
+        "manifest": release.manifest(),
+        "csv": release.to_csv(),
+        "rows": [
+            dict(zip(RESEARCH_COLUMNS, row.as_csv_row(), strict=True))
+            for row in release.rows
+        ],
+    }
+
+
+@router.get("/patients/{patient_id}/search", dependencies=[DeskWork])
+async def plan_search(state: ContainerDep, patient_id: str) -> dict:
+    """Every date the planner tried for this family, and what became of each.
+
+    The question nobody can answer from a plan alone: *what else did you look
+    at?* The filtering itself is unchanged — a family is still never offered
+    a date the rules would then refuse — but the discarding is on the record.
+
+    Empty until a disruption has made the planner search. A family whose plan
+    has never been challenged has no search, and saying so is better than an
+    invented one.
+    """
+    found = state.runner.searches.get(patient_id)
+    return found.to_json() if found else {
+        "patient_id": patient_id,
+        "step_kind": "",
+        "summary": "nothing has forced a re-plan for this family yet",
+        "considered": [],
+    }
 
 
 @router.get("/patients/{patient_id}/graph", dependencies=[DeskWork])

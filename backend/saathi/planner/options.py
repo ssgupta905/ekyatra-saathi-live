@@ -22,6 +22,7 @@ from ..graph.dependencies import DependencyGraph
 from ..readiness.conformal import ConformalReadinessPredictor
 from . import care_rules, itinerary, schedule, tools
 from .care_rules import filter_options
+from .search import Search
 
 
 def _build_option(
@@ -143,6 +144,7 @@ def enumerate_candidates(
     policy: HospitalPolicy | None = None,
     round_trip_hours: float | None = None,
     means: Means = Means.NOT_STATED,
+    search: Search | None = None,
 ) -> tuple[PlanOption, ...]:
     """Ranked candidates for one patient hit by `disruption`.
 
@@ -197,7 +199,7 @@ def enumerate_candidates(
             candidates.append(_under_rules(split_option, policy))
 
     candidates.sort(key=lambda o: _rank_key(o, means))
-    return filter_options(tuple(candidates), cycle)
+    return filter_options(tuple(candidates), cycle, search)
 
 
 def _moved(
@@ -264,6 +266,7 @@ def opportunistic_bundle_candidates(
     today: date,
     *,
     cycle: MaintenanceCycle | None = None,
+    search: Search | None = None,
 ) -> tuple[PlanOption, ...]:
     """When the family is already booked for a *different* nearby visit,
     propose moving the delayed step onto it instead of a fresh trip.
@@ -306,7 +309,7 @@ def opportunistic_bundle_candidates(
     )
     if option is None:
         return ()
-    return filter_options((option,), cycle)
+    return filter_options((option,), cycle, search)
 
 
 def candidates_for_request(
@@ -323,6 +326,7 @@ def candidates_for_request(
     cycle: MaintenanceCycle | None = None,
     round_trip_hours: float | None = None,
     means: Means = Means.NOT_STATED,
+    search: Search | None = None,
 ) -> tuple[PlanOption, ...]:
     """Re-plan around what a family said they cannot do.
 
@@ -404,4 +408,4 @@ def candidates_for_request(
         candidates.append(option)
 
     candidates.sort(key=lambda o: _rank_key(o, means))
-    return filter_options(tuple(candidates), cycle)
+    return filter_options(tuple(candidates), cycle, search)

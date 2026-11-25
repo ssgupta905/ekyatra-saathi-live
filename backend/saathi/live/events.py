@@ -50,6 +50,11 @@ class EventKind:
     DISRUPTION_RAISED = "disruption.raised"
     #: Sent to an affected family before any new date is computed.
     HOLDING_MESSAGE_SENT = "holding_message.sent"
+    #: Every candidate the planner tried, and why each lived or died. Distinct
+    #: from `options.ready`, which carries only the survivors: this is the
+    #: search, and it is the only thing that can answer "what else did you
+    #: look at?" once a decision has been made.
+    PLAN_SEARCHED = "plan.searched"
     #: Ranked options are ready for a navigator/doctor to choose from.
     OPTIONS_READY = "options.ready"
     #: A navigator/doctor picked an option; the approval itself was logged.
