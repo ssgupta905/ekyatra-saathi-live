@@ -78,6 +78,12 @@ const HER_REPLY =
   "Amar sathe ami jabo. Trainer tickets 900 taka hobe. " +
   "1 tarikher age noy, salary tokhon ase.";
 
+//: The second family's reply, in romanised Hindi. The sentence that turns a
+//: decision: two travelling, fourteen hundred already spent, non-refundable.
+const ORDER_REPLY =
+  "Hum do log aa rahe hain. Raat ki bus ka ticket 1400 ka le liya hai, " +
+  "paisa wapas nahi milega.";
+
 const VIEWPORT = { width: 1600, height: 900 };
 const BEAT = Number(process.env.SAATHI_DEMO_BEAT ?? 1100);
 const DB = process.env.SAATHI_OPENEMR_DB_CONTAINER ?? "hms-eval-mysql-1";
@@ -262,10 +268,12 @@ async function main() {
   await ready();
   clearLeave();
 
-  // The connector remembers which leave it has already acted on, so a restart
-  // is part of resetting, not a workaround.
-  console.log("  waiting for the connector to settle…");
-  await new Promise((r) => setTimeout(r, 4000));
+  // Make the running system forget it has seen any of this. A connector acts
+  // once per leave and once per outstanding order — correct in a hospital,
+  // useless on a stage, where the second rehearsal would show nothing.
+  await post("/live/control", { action: "reset" }).catch(() => {});
+  console.log("  reset; waiting for the connectors to prime…");
+  await new Promise((r) => setTimeout(r, 9000));
 
   mkdirSync(OUT, { recursive: true });
   const browser = await chromium.launch({
@@ -363,7 +371,7 @@ async function main() {
     );
     await demo.shot("03-question");
 
-    // ---------- act four: she answers ----------
+    // ---------- act four: she answers, by voice ----------
     await demo.title("Four · she answers", "By voice, in Bengali");
     await post("/live/inject", { patient_id: AWAY_FAMILY, text: HER_REPLY });
     await demo.say(
@@ -375,16 +383,11 @@ async function main() {
     let reading = [];
     for (let attempt = 0; attempt < 20 && reading.length === 0; attempt += 1) {
       await page.waitForTimeout(1500);
-      reading = (await api("/requests/waiting")).filter(
-        (row) => row.patient_id === AWAY_FAMILY,
-      );
+      reading = (await api("/requests/waiting")).filter((r) => r.patient_id === AWAY_FAMILY);
     }
-    if (!reading.length) throw new Error("the reply was never read into a request");
-    const travel = reading[0].travel;
-    if (!travel || travel.stated_cost_inr !== 900)
-      throw new Error(
-        `expected her own figure of 900 on the record, got ${JSON.stringify(travel)}`,
-      );
+    if (!reading.length) throw new Error("her reply was never read into a request");
+    if (reading[0].travel?.stated_cost_inr !== 900)
+      throw new Error(`expected her own figure of 900, got ${JSON.stringify(reading[0].travel)}`);
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForTimeout(2500);
@@ -394,7 +397,7 @@ async function main() {
       "Nine hundred rupees is on the record because SHE said it — with the " +
         "sentence it came from. Saathi never proposes a fare: there is no fare " +
         "source behind this, and a number we invented would read as the hospital's.",
-      4600,
+      4800,
     );
     await demo.shot("04-reading");
 
@@ -408,45 +411,116 @@ async function main() {
     await demo.say(
       "A language model read her words. A person agreed with the reading. " +
         "Only now may the planner act on it.",
-      3600,
+      3800,
     );
     await demo.shot("05-approved");
 
-    // ---------- act six: the working ----------
-    await demo.title("Six · the working", "Measured, not narrated");
-    await section(page, demo, "Families");
-    await page.waitForTimeout(2000);
-    await demo.say(
-      "Every line here was published by the code that did the work, " +
-        "carrying the time that work actually took.",
-      3600,
-    );
-    await demo.shot("06-reasoning");
-
-    // ---------- act seven: the other two signals ----------
+    // ---------- act six: the second story, and the decision that turns ----------
     await demo.title(
-      "Seven · the other two",
-      "A pending report, and a clinic running late",
+      "Six · a different signal",
+      "A report still pending, and whose money is already spent",
     );
+    let askedAbout = [];
+    for (let attempt = 0; attempt < 15 && askedAbout.length === 0; attempt += 1) {
+      askedAbout = (await api("/questions/waiting")).filter(
+        (q) => q.reason === "report_pending",
+      );
+      if (!askedAbout.length) await page.waitForTimeout(2000);
+    }
+    if (!askedAbout.length) throw new Error("nobody was asked about a pending report");
+
+    await demo.say(
+      "A different family, a different signal. Her creatinine is still open, " +
+        "and her visit depends on it. Saathi asks about the one thing the " +
+        "hospital cannot know: the travel they have already booked.",
+      5000,
+    );
+
+    await post("/live/inject", { patient_id: ORDER_FAMILY, text: ORDER_REPLY });
+    await demo.say(
+      "She says: two of us, the night bus, fourteen hundred — and we do not " +
+        "get the money back.",
+      4200,
+    );
+
+    // The claim act seven makes, verified before it is made.
+    let escalated = null;
+    for (let attempt = 0; attempt < 25 && !escalated; attempt += 1) {
+      await page.waitForTimeout(1500);
+      const now = await api("/hospital/now");
+      const feed = [
+        ...(now.feed ?? []),
+        ...(now.hospitals?.[0]?.recent ?? []),
+      ];
+      escalated = feed.find(
+        (row) => row.kind === "escalation" && row.patient_id === ORDER_FAMILY,
+      );
+    }
+    if (!escalated) throw new Error("the non-refundable answer never changed the decision");
+    if (escalated.summary.includes("no task could be filed"))
+      throw new Error("the decision changed but the hospital was never actually asked");
+    console.log(`  escalation: ${escalated.summary}`);
+
     await section(page, demo, "Hospitals right now");
-    const flow = await api("/hospital/now");
-    const counts = flow.hospitals?.[0]?.connector?.counts ?? {};
-    console.log("  connector counts:", JSON.stringify(counts));
     await demo.say(
-      "The lab order's status moves without its timestamp moving, so a cursor " +
-        "would never see it — we compare snapshots instead.",
-      4000,
+      "That answer turns the decision over. Moving her visit would spend her " +
+        "fourteen hundred rupees twice — so Saathi keeps the date and asks the " +
+        "hospital to bring the report forward instead, in the hospital's own record.",
+      5400,
     );
+    await demo.shot("06-decision-turned");
+
+    // ---------- act seven: the working, and what it was built from ----------
+    await demo.title("Seven · the working", "Measured, not narrated");
+    await section(page, demo, "Approvals");
+    await page.waitForTimeout(2500);
+
+    // Open her working. Earlier takes narrated this over a screen that did
+    // not contain it, which is precisely the failure this script exists to
+    // prevent — so the drawer is opened and checked before anything is said.
+    const name = page.getByRole("button", { name: /Devi|Kumari|Begum/ }).first();
+    if (!(await name.isVisible().catch(() => false)))
+      throw new Error("no family in the queue to open the working for");
+    await demo.click(name, { label: "pick this family" });
+    await page.waitForTimeout(2000);
+
+    // Selecting reveals the bar; the drawer is a second, deliberate click.
+    const why = page.getByRole("button", { name: /Why this family/ }).first();
+    if (!(await why.isVisible().catch(() => false)))
+      throw new Error("selecting a family did not offer its working");
+    await demo.click(why, { label: "open the working" });
+    await page.waitForTimeout(3000);
+    await page
+      .getByText("How this was worked out")
+      .first()
+      .waitFor({ state: "visible", timeout: 20000 });
+
     await demo.say(
-      "And nobody records that a clinic is running late. There is no such field. " +
-        "It is derived from the arrival times a clerk's ordinary saves leave behind.",
+      "Every line was published by the code that did the work, carrying the " +
+        "time that work actually took. Nothing here was written to describe it.",
       4400,
     );
-    await demo.shot("07-signals");
+    await demo.shot("07-reasoning");
+
+    // Scroll until the graph's own heading is in view, rather than by a
+    // fixed distance. A fixed scroll overshot on one take and undershot on
+    // another: the drawer's height depends on how much evidence this family
+    // has, which is different for every family and every run.
+    const graph = page.getByText("What this is built from").first();
+    await graph.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(1800);
+    await graph.waitFor({ state: "visible", timeout: 15000 });
+    await demo.say(
+      "And underneath it, what the working was built from. Every node is a " +
+        "record this system is holding, and every one says where it came from " +
+        "— a hospital's calendar and a family's sentence are different claims.",
+      5400,
+    );
+    await demo.shot("08-graph");
 
     await demo.title(
       "Nothing here was mocked",
-      "Three signals, three mechanisms, one hospital that never changed",
+      "Two families, three signals, one hospital that never changed",
     );
     await page.waitForTimeout(1500);
   } finally {

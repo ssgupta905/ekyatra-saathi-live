@@ -1029,7 +1029,25 @@ export interface ReasoningLine {
   duration_ms: number | null;
   kind: string;
   seq: number;
+  /** How many times in a row this same line occurred. 1 is the usual case. */
+  repeated: number;
   line: string;
+}
+
+export interface GraphNode {
+  id: string;
+  /** patient | visit | leave | order | question | constraint | budget | plan */
+  kind: string;
+  label: string;
+  detail: string;
+  /** Where this came from: "OpenEMR calendar", "the family, in their own words". */
+  source: string;
+}
+
+export interface GraphEdge {
+  from: string;
+  to: string;
+  verb: string;
 }
 
 export const requests = {
@@ -1045,6 +1063,8 @@ export const requests = {
       `/patients/${patientId}/requests/${requestId}/reject`,
       { method: "POST", body: JSON.stringify({ reason }) },
     ),
+  graph: (patientId: string) =>
+    request<{ nodes: GraphNode[]; edges: GraphEdge[] }>(`/patients/${patientId}/graph`),
   reasoning: (patientId?: string, limit = 200) =>
     request<ReasoningLine[]>(
       `/reasoning?limit=${limit}` + (patientId ? `&patient_id=${patientId}` : ""),

@@ -438,3 +438,55 @@ a.cc-card { flex-direction: column; align-items: flex-start; gap: 2px; }
 .reasoning .step-guard { background: var(--uncertain-tint, transparent); }
 .reasoning .step-guard .step-text { color: var(--ink); font-weight: 500; }
 .reasoning .step-human .step-text { color: var(--ink); font-weight: 500; }
+
+/* ── the knowledge graph ─────────────────────────────────────────────────── */
+
+.kg { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px; align-items: flex-start; }
+.kg-col { display: flex; flex-direction: column; gap: 8px; min-width: 190px; flex: 0 0 auto; }
+.kg-col h4 {
+  margin: 0 0 2px; font-size: 11px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-4);
+}
+
+.kg-node {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 9px 11px; border: 1px solid var(--line); border-left-width: 3px;
+  border-radius: var(--r-sm); background: var(--surface); font-size: 13px;
+}
+.kg-node strong { font-weight: 550; line-height: 1.35; }
+.kg-detail { font-size: 12px; color: var(--ink-2); }
+
+/* The provenance line. Quiet, always present, and the reason the graph is
+   worth more than a sentence: a hospital's record and a family's sentence are
+   different kinds of claim. */
+.kg-source { font-size: 11px; color: var(--ink-4); font-style: italic; }
+
+/* Left border by kind, so what came from the hospital and what came from the
+   family are distinguishable before anything is read. */
+.kg-patient    { border-left-color: var(--ink-3); }
+.kg-visit      { border-left-color: var(--go); }
+.kg-leave      { border-left-color: var(--critical); }
+.kg-order      { border-left-color: var(--uncertain); }
+.kg-question   { border-left-color: var(--ink-4); }
+.kg-constraint { border-left-color: var(--blue-500, #3b82f6); }
+.kg-budget     { border-left-color: var(--blue-500, #3b82f6); }
+.kg-plan       { border-left-color: var(--go); }
+
+.kg-edges { margin-top: 12px; }
+.kg-edges summary { cursor: pointer; font-size: 12.5px; color: var(--ink-3); }
+.kg-edges ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.kg-edges li { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; flex-wrap: wrap; }
+.kg-edges em {
+  font-style: normal; font-size: 11px; padding: 1px 7px; border-radius: var(--r-pill);
+  background: var(--sunken); color: var(--ink-3);
+}
+
+/* A name that opens that family's working. Styled as text rather than a
+   button because it is a name first and an action second. */
+.queue-head .linklike {
+  padding: 0; border: 0; background: none; font: inherit; font-weight: 600;
+  color: var(--ink); cursor: pointer; text-decoration: underline;
+  text-decoration-color: var(--line); text-underline-offset: 3px;
+}
+.queue-head .linklike:hover { text-decoration-color: var(--ink-3); }
+.reasoning .step-again { font-style: normal; color: var(--ink-4); font-size: 11.5px; }

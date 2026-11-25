@@ -57,6 +57,7 @@ from ..domain.models import (
 )
 from ..domain.requests import PatientRequest, RequestIntent
 from ..language import guard
+from ..language.advice import already_travelling, leave_later
 from ..language.guard import InboundCategory
 from ..language.holding import render_holding_message
 from ..language.process_answers import render_process_answer
@@ -64,6 +65,7 @@ from ..language.questions import AskReason, AskTopic, compose_question
 from ..planner import options as options_module
 from ..planner.graph import VisitPlanner
 from ..planner.process_facts import resolve_process_fact
+from ..ports.fhir import prioritise_task
 from ..ports.ledger import EvidenceLedger
 from ..ports.records import StoredOptionSet
 from ..readiness.conformal import TurnaroundSample
@@ -506,6 +508,10 @@ class LiveRunner:
             self.approvals.clear()
             self.conversation.reset()
             self.requests.clear()
+            # The connectors too, or a rehearsed scenario shows nothing the
+            # second time: they act once per leave and once per open order.
+            for sync in self.hospital_syncs.values():
+                sync.forget()
             self.ivr_confirmations.clear()
             self.story_progress.clear()
         self.bus.publish(
@@ -2039,6 +2045,186 @@ class LiveRunner:
                 await self._answer_process_question(patient, record)
         return record
 
+    async def advise_leave_later(
+        self, patient_id: str, *, due_at: datetime, delay: timedelta
+    ) -> str | None:
+        """Tell a family to set out later, because the clinic is behind.
+
+        Generic on purpose: any family with an appointment today who has not
+        yet arrived, any delay the clinic's own timestamps show, any of the
+        five languages. Nothing here knows which story it is in.
+
+        Returns the message sent, or None when there was nothing worth saying
+        — too small a delay, an unknown journey, or text the guard refused.
+        None is a normal outcome and most of the time it is the right one.
+        """
+        patient = self.world.patient(patient_id)
+        if patient is None:
+            return None
+
+        # When they would have had to set out, from the real routing estimate
+        # rather than an assumption. Without it there is no "instead of", so
+        # there is no advice — a family told to "leave a bit later" has been
+        # given a guess to make, not an answer.
+        hours = await asyncio.to_thread(self.journey_hours, patient)
+        if not hours:
+            logger.info("no journey estimate for %s; not advising a departure", patient_id)
+            return None
+        leaving_at = due_at - timedelta(hours=float(hours))
+
+        # Which of the two true things to say depends on whether they could
+        # still act on the first. A family six hours away from a morning slot
+        # left before dawn; "leave later" would be nonsense to them, and the
+        # useful fact is that a full corridor does not mean they missed their
+        # turn.
+        now_leave: datetime | None = None
+        if leaving_at > datetime.now(leaving_at.tzinfo):
+            advice = leave_later(
+                language=patient.language, leaving_at=leaving_at, delay=delay
+            )
+            if advice is not None:
+                body, now_leave = advice
+            else:
+                return None
+        else:
+            body = already_travelling(language=patient.language, delay=delay) or ""
+            if not body:
+                return None
+
+        # The same guard every outbound message goes through. This one carries
+        # clock times rather than dates, so there is no date for it to check —
+        # what it is here for is the clinical and reassurance rules, which
+        # apply to anything a family reads.
+        verdict = guard.check_question(body, dates_given=())
+        if not verdict.allowed:
+            logger.error("refusing to advise %s: %s", patient_id, verdict.reason)
+            self.bus.publish(
+                EventKind.GUARD_BLOCKED,
+                self.world.today.isoformat(),
+                patient_id=patient_id,
+                summary=f"Guard held delay advice to {patient_id}: {verdict.reason}",
+                triggers=list(verdict.triggers),
+            )
+            return None
+
+        self._record_outbound(
+            patient_id,
+            kind="advice",
+            body=body,
+            language=patient.language.value,
+            channel=Channel.WHATSAPP.value,
+        )
+        self._bump("advice_sent")
+        minutes = int(delay.total_seconds() // 60)
+        summary = (
+            f"Told {patient_id} to leave at {now_leave:%H:%M} rather than "
+            f"{leaving_at:%H:%M} — the clinic is {minutes} min behind"
+            if now_leave is not None
+            else (
+                f"Told {patient_id} the clinic is {minutes} min behind; "
+                "they had already set out"
+            )
+        )
+        self.bus.publish(
+            EventKind.ADVICE_SENT,
+            self.world.today.isoformat(),
+            patient_id=patient_id,
+            summary=summary,
+            leave_at=now_leave.isoformat() if now_leave else None,
+            was_leaving_at=leaving_at.isoformat(),
+            delay_minutes=minutes,
+        )
+        return body
+
+    def travel_already_paid_for(self, patient_id: str) -> PatientRequest | None:
+        """The family's most recent statement that their travel cannot change.
+
+        Only from a reading that carries the sentence it came from — the same
+        attribution rule the Console applies. A claim that somebody's money is
+        already spent, with nothing behind it, must not be what decides whether
+        their visit moves.
+
+        Returns the whole request rather than a bare flag so a caller can quote
+        the family on it. "They said the bus cannot be changed" is a reason a
+        navigator can act on; `refundable=False` is not.
+        """
+        for request in reversed(self.requests.get(patient_id, [])):
+            if request.rejected_reason is not None:
+                continue
+            if request.travel.refundable is False and request.travel_is_attributable:
+                return request
+        return None
+
+    async def escalate_pending_order(
+        self,
+        patient_id: str,
+        *,
+        order_ref: str,
+        what: str,
+        needed_by: date,
+        because: str,
+        patient_ref: str = "",
+        system: object | None = None,
+    ) -> str | None:
+        """Ask the hospital to bring a report forward, in its own record.
+
+        Returns the task reference, or None when there is no hospital to ask
+        or it refused. None is survivable: the Console still shows the family
+        as at risk and a navigator can pick up the phone, which is what
+        happens today without any of this.
+        """
+        patient = self.world.patient(patient_id)
+        if patient is None:
+            return None
+        # The caller's own hospital when it has one. A connector that read an
+        # order from a hospital *is* holding that hospital, and asking it
+        # directly is both simpler and more correct than looking the patient's
+        # hospital id back up — those can differ while a family is being
+        # transferred, and the order belongs to the one that published it.
+        if system is None:
+            # `hospitals` is a callable keyed on hospital id, not a dict: an
+            # unknown hospital answers with the desk adapter rather than None.
+            system = self.hospitals(patient.hospital_id) if self.hospitals else None
+        if system is None or not getattr(system, "live", False):
+            return None
+        if not hasattr(system, "create_task"):
+            # An adapter that cannot write a task is not a failure. It is a
+            # hospital we can read and not ask, which the Console already says.
+            return None
+
+        # The hospital's own reference for this patient, which the caller has
+        # because the order carries it. OpenEMR refuses a Task whose `for`
+        # does not resolve — "Task.for must reference a Patient on this
+        # server" — and our internal id means nothing to it.
+        task = prioritise_task(
+            patient_ref=patient_ref,
+            patient_display=patient.name or patient_id,
+            order_ref=order_ref,
+            what=what,
+            needed_by=needed_by.isoformat(),
+            because=because,
+            requested_at=datetime.now(UTC),
+        )
+        try:
+            ref = await asyncio.to_thread(system.create_task, task)
+        except Exception as exc:  # noqa: BLE001 — any failure is the same answer
+            logger.warning("could not ask %s to prioritise %s: %s", patient.hospital_id, what, exc)
+            return None
+
+        self._bump("escalations")
+        self.bus.publish(
+            EventKind.ESCALATION_WRITTEN,
+            self.world.today.isoformat(),
+            patient_id=patient_id,
+            summary=(
+                f"Asked {patient.hospital_id} to bring {what} forward for "
+                f"{patient_id} — their travel cannot be changed"
+            ),
+            task_ref=ref,
+            order_ref=order_ref,
+        )
+        return ref
+
     # ---------------- a person agreeing with a reading ----------------
 
     def confirm_request(
@@ -2156,6 +2342,17 @@ class LiveRunner:
             language=patient.language,
             about_day=about_day.isoformat(),
             disruption_id=disruption_id,
+        )
+        # Into the family's own thread, not only into the event log. A question
+        # that exists only in `questions/waiting` is a question the family
+        # cannot see: both apps read the thread, and a family who was never
+        # shown what they were asked will never answer it.
+        self._record_outbound(
+            patient_id,
+            kind="question",
+            body=text,
+            language=patient.language.value,
+            channel=Channel.WHATSAPP.value,
         )
         self._bump("questions_asked")
         self.bus.publish(

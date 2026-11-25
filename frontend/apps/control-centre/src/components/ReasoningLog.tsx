@@ -117,7 +117,10 @@ export function ReasoningLog({
               <span title={MEANING[line.step]}>
                 <Chip tone={TONE[line.step]}>{line.step}</Chip>
               </span>
-              <span className="step-text">{line.summary}</span>
+              <span className="step-text">
+                {line.summary}
+                {line.repeated > 1 && <em className="step-again"> ×{line.repeated}</em>}
+              </span>
               {/* Measured, or absent. Never a zero standing in for unknown. */}
               {line.duration_ms !== null && (
                 <span className="step-cost">{Math.round(line.duration_ms)}ms</span>

@@ -172,6 +172,77 @@ def approval_task(
     return task
 
 
+def prioritise_task(
+    *,
+    patient_ref: str,
+    patient_display: str,
+    order_ref: str,
+    what: str,
+    needed_by: str,
+    because: str,
+    requested_at: datetime,
+    requester_ref: str | None = None,
+) -> dict[str, Any]:
+    """A FHIR `Task` asking the hospital to bring a report forward.
+
+    The counterpart to `approval_task`, and the one that makes a pending
+    report actionable rather than merely visible. A family with travel they
+    have already paid for and cannot change does not need the visit moved —
+    moving it spends their money twice. What they need is the report in time,
+    and asking for that is a request a hospital can act on.
+
+    **Why this is `Task` and not a message.** OpenEMR has an internal Messages
+    module and it is not reachable: there is no `Communication` resource, and
+    its non-FHIR API refuses system-level credentials. `Task` is the standard
+    way to ask a named party to do something, it lands in the hospital's own
+    record, and it is queryable by anyone auditing later. The honest caveat,
+    which belongs on a slide and not only here: OpenEMR does not surface
+    `Task`s in its UI, so this is auditable rather than visible to a clerk.
+
+    **`priority: urgent`, not `stat`.** `stat` in a hospital means something
+    clinical. This is a logistics request about a family's bus ticket, and
+    borrowing clinical urgency for it would be a lie told in a vocabulary
+    clinicians trust.
+
+    The reason given is the family's own circumstance — non-refundable travel,
+    a date they cannot move — and never a clinical one. This system does not
+    know and may not assert why a report matters medically.
+    """
+    task: dict[str, Any] = {
+        "resourceType": "Task",
+        "status": "requested",
+        "intent": "proposal",
+        "priority": "urgent",
+        "authoredOn": instant(requested_at),
+        "lastModified": instant(requested_at),
+        "code": {
+            "coding": [{"system": TASK_CODE_SYSTEM, "code": "fulfill", "display": "Fulfill"}],
+            "text": f"Bring forward if possible: {what} (asked by Saathi)",
+        },
+        "description": (
+            f"{what} is still outstanding and a visit on {needed_by} depends on it. "
+            f"{because} Rescheduling would cost this family money they have already "
+            f"spent, so the request is to prioritise the report rather than move the "
+            f"visit. Logistics only: no clinical urgency is being asserted."
+        ),
+    }
+    if requester_ref:
+        task["requester"] = {"reference": requester_ref}
+    if patient_ref:
+        task["for"] = {
+            "reference": _as_reference(patient_ref, "Patient"),
+            "display": patient_display or patient_ref,
+        }
+    if order_ref:
+        # The order this is about, named in a field the server will take. A
+        # `focus` would be the natural home and OpenEMR constrains it to its
+        # own workflow types, so this goes where it cannot be refused.
+        task["input"] = [
+            {"type": {"text": "order"}, "valueString": order_ref},
+        ]
+    return task
+
+
 def completed_task(task: dict[str, Any], *, outcome: str, by: str, at: datetime) -> dict[str, Any]:
     """The same Task, closed, with who decided and what they decided.
 
@@ -205,5 +276,6 @@ __all__ = [
     "appointment_to_fhir",
     "approval_task",
     "completed_task",
+    "prioritise_task",
     "instant",
 ]

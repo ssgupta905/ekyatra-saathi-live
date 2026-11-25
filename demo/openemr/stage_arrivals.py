@@ -139,7 +139,17 @@ def stage(now: datetime, *, write: bool) -> int:
         )
         return 1
 
-    print(f"  {len(booked)} appointment(s) today; staging {min(len(booked), len(MORNING))}")
+    # Everybody except the last one. Two reasons, and both matter: a clinic
+    # at mid-morning has not seen its whole day yet, so staging every patient
+    # as arrived is the unrealistic version; and a family who has *not* turned
+    # up is the only one the "the clinic is behind" message can help. Staging
+    # all of them left that path with nobody to talk to.
+    staging = booked[:-1] if len(booked) > 1 else booked
+    still_to_come = booked[len(staging):]
+    print(
+        f"  {len(booked)} appointment(s) today; staging {min(len(staging), len(MORNING))} "
+        f"as arrived, leaving {len(still_to_come)} still to come"
+    )
 
     # Clear only today's tracker, so running this twice does not stack two
     # mornings on top of each other and report a four-hour delay.
@@ -153,7 +163,7 @@ def stage(now: datetime, *, write: bool) -> int:
         write=write,
     )
 
-    for (eid, pid), session in zip(booked, MORNING, strict=False):
+    for (eid, pid), session in zip(staging, MORNING, strict=False):
         appointment_at = now - timedelta(minutes=session.appointment_minutes_ago)
         arrived_at = now - timedelta(minutes=session.arrived_minutes_ago)
 
