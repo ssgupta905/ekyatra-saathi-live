@@ -26,7 +26,7 @@ export interface FamilyMember {
   name: string;
   phone: string;
   preferred_channel: "whatsapp" | "ivr";
-  language: "hi" | "bn" | "or" | "en";
+  language: "hi" | "bn" | "or" | "ta" | "en";
 }
 
 export interface Patient {
@@ -36,7 +36,7 @@ export interface Patient {
   family_members?: FamilyMember[];
   home_distance_km: number;
   home_district: string;
-  language: "hi" | "bn" | "or" | "en";
+  language: "hi" | "bn" | "or" | "ta" | "en";
   caregiver_phone: string;
   caregiver_email?: string | null;
   hospital_id: string;
@@ -154,6 +154,7 @@ export const LANGUAGE_NAMES: Record<Patient["language"], string> = {
   hi: "Hindi",
   bn: "Bengali",
   or: "Odia",
+  ta: "Tamil",
   en: "English",
 };
 
