@@ -289,10 +289,10 @@ def _latest_plan_message(runner, patient_id: str) -> dict | None:
 
 
 async def _guide(state: ContainerDep, patient_id: str) -> dict | None:
-    from .guide import guide_for
+    from .guide import guide_for, guide_json
 
     found = await guide_for(state, patient_id)
-    return found.model_dump(mode="json") if found else None
+    return guide_json(state, patient_id, found) if found else None
 
 
 @router.get("/patients/{patient_id}/home", dependencies=[FamilyOrStaff])

@@ -69,6 +69,10 @@ class Container:
     #: not indexed: an unknown hospital gets the desk adapter rather than a
     #: KeyError, because "this hospital has no system" is an ordinary state.
     hospitals: HospitalSystems | None = None
+    #: Where buses and trains go. None when no route service is set up.
+    routes: object | None = None
+    #: What is around a point. None when no map service is set up.
+    places: object | None = None
 
     @property
     def cohort(self) -> SyntheticCohort:
@@ -225,7 +229,7 @@ class HospitalRules:
 
 def build_registry(settings: Settings) -> RegistryStore:
     """The network's reference data: in the database for real, in memory for the demo."""
-    from .seed import seed_registry
+    from .seed import seed_registry, top_up_entrances
 
     if settings.real_world:
         from ..adapters.records.sql import migrate
@@ -239,6 +243,7 @@ def build_registry(settings: Settings) -> RegistryStore:
         store = MemoryRegistryStore()
     seed_registry(store, settings, demo=not settings.real_world)
     if settings.seed_demo or not settings.real_world:
+        top_up_entrances(store)
         from .demo_directory import seed_directory
 
         seed_directory(store)
@@ -260,6 +265,44 @@ def _geocoder(runner):
         return (hit.lat, hit.lon) if hit else None
 
     return geocode
+
+
+def build_routes(settings: Settings):
+    """The route planner the family's "how do I get there" reads, or None."""
+    kind = settings.routes_provider.strip().lower()
+    if kind == "google":
+        if not settings.google_maps_api_key:
+            logger.error("SAATHI_ROUTES_PROVIDER=google but SAATHI_GOOGLE_MAPS_API_KEY is not set")
+            return None
+        from ..adapters.routes import GoogleRoutes
+
+        return GoogleRoutes(settings.google_maps_api_key)
+    if kind == "demo":
+        from ..adapters.routes import DemoRoutes
+
+        return DemoRoutes()
+    return None
+
+
+def build_places(settings: Settings):
+    """The place finder "near you" reads, or None."""
+    kind = settings.places_provider.strip().lower()
+    if kind == "google":
+        if not settings.google_maps_api_key:
+            logger.error("SAATHI_PLACES_PROVIDER=google but SAATHI_GOOGLE_MAPS_API_KEY is not set")
+            return None
+        from ..adapters.places import GooglePlaces
+
+        return GooglePlaces(settings.google_maps_api_key)
+    if kind == "osm":
+        from ..adapters.places import OsmPlaces
+
+        return OsmPlaces(settings.overpass_url)
+    if kind == "demo":
+        from ..adapters.places import DemoPlaces
+
+        return DemoPlaces()
+    return None
 
 
 def build_networks(settings: Settings) -> dict:
@@ -719,4 +762,6 @@ def build_container(settings: Settings | None = None, today: date | None = None)
         consent=consent,
         onboarding=onboarding,
         hospitals=hospitals,
+        routes=build_routes(settings),
+        places=build_places(settings),
     )

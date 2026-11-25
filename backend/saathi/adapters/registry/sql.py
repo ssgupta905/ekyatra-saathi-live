@@ -35,6 +35,7 @@ class SqlRegistryStore:
                 Hospital(
                     id=r.id, name=r.name, place=r.place, timezone=r.timezone,
                     departments=tuple(json.loads(r.departments_json or "[]")), active=r.active,
+                    latitude=r.latitude, longitude=r.longitude, address=r.address,
                 )  # fmt: skip
                 for r in db.scalars(select(HospitalRow).order_by(HospitalRow.id))
             )
@@ -45,6 +46,8 @@ class SqlRegistryStore:
             row.name, row.place, row.timezone = hospital.name, hospital.place, hospital.timezone
             row.departments_json = json.dumps(list(hospital.departments))
             row.active = hospital.active
+            row.latitude, row.longitude = hospital.latitude, hospital.longitude
+            row.address = hospital.address
             db.merge(row)
 
     # ---------------- centres ----------------

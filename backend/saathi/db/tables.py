@@ -94,6 +94,9 @@ class HospitalRow(Base):
     timezone: Mapped[str] = mapped_column(String(64), default="Asia/Kolkata")
     departments_json: Mapped[str] = mapped_column(Text, default="[]")
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    address: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
 
 class CentreRow(Base):

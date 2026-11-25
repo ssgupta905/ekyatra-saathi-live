@@ -20,12 +20,52 @@ async def guide_for(state: ContainerDep, patient_id: str) -> JourneyGuide | None
     return await compute_guide(state.runner, patient_id)
 
 
+def trip_for(state: ContainerDep, patient_id: str, found: JourneyGuide) -> dict | None:
+    """What a ride or stay app needs to be opened on this family's trip.
+
+    Only what the apps ask for, and nothing about the family: where the hospital's
+    entrance is, and the day they arrive. The day appears only when the plan is a
+    GO, like every other date a family is shown; before that the apps open with
+    a destination and no date, which is all that is known.
+
+    The pickup is never here. The ride app is told "my location" and works it
+    out from the phone, so where a family is staying never passes through us.
+    """
+    patient = state.world.patient(patient_id)
+    if patient is None or state.registry is None:
+        return None
+    hospital = next((h for h in state.registry.hospitals() if h.id == patient.hospital_id), None)
+    if hospital is None:
+        return None
+    visit = next((s for s in found.stages if s.kind.value == "visit"), None)
+    destination = None
+    if hospital.latitude is not None and hospital.longitude is not None:
+        destination = {
+            "name": hospital.name,
+            "latitude": hospital.latitude,
+            "longitude": hospital.longitude,
+            "address": hospital.address or f"{hospital.name}, {hospital.place}",
+        }
+    return {
+        "destination": destination,
+        "city": hospital.place,
+        "arrive_on": visit.on.isoformat() if visit is not None and visit.on else None,
+    }
+
+
+def guide_json(state: ContainerDep, patient_id: str, found: JourneyGuide) -> dict:
+    """The guide as the apps read it, with the trip the apps it leads to are opened on."""
+    body = found.model_dump(mode="json")
+    body["trip"] = trip_for(state, patient_id, found)
+    return body
+
+
 @router.get("/patients/{patient_id}/guide", dependencies=[FamilyOrStaff])
 async def guide(state: ContainerDep, patient_id: str) -> dict:
     found = await guide_for(state, patient_id)
     if found is None:
         raise HTTPException(404, "unknown patient")
-    return found.model_dump(mode="json")
+    return guide_json(state, patient_id, found)
 
 
 @router.get("/network", dependencies=[AnyStaff])

@@ -23,6 +23,12 @@ class Hospital(_Record):
     timezone: str = "Asia/Kolkata"
     departments: tuple[str, ...] = ()
     active: bool = True
+    #: Where the main entrance is. A family's ride and stay apps are opened with
+    #: this as the destination, so a hospital without it opens them blank.
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+    #: The address as a driver would say it, for the apps that take one.
+    address: str | None = Field(default=None, max_length=200)
 
 
 class NetworkCentre(_Record):

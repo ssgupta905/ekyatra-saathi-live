@@ -74,6 +74,9 @@ class HospitalPatch(BaseModel):
     timezone: str | None = None
     departments: tuple[str, ...] | None = None
     active: bool | None = None
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+    address: str | None = Field(default=None, max_length=200)
 
 
 @router.patch("/registry/hospitals/{hospital_id}", dependencies=[AdminOnly])

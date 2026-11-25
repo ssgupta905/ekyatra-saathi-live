@@ -260,6 +260,18 @@ class Settings(BaseSettings):
     #: production.
     payment_accounts: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
+    # --- getting there: which bus, boarded where ---
+    #: "google" reads Google's Directions API (needs `google_maps_api_key`, billing on);
+    #: "demo" shows invented timetables labelled as such. Empty: no route planning,
+    #: and the app falls back to opening Maps.
+    routes_provider: str = ""
+    google_maps_api_key: str | None = None
+    #: What is around a point: shops, labs, clinics. "osm" (OpenStreetMap, no key),
+    #: "google" (Places API, same key) or "demo" (invented shops, labelled). Empty: not offered.
+    places_provider: str = ""
+    #: The Overpass endpoint for `places_provider=osm` (OpenStreetMap's open data, no key).
+    overpass_url: str = "https://overpass-api.de/api/interpreter"
+
     # --- reaching the family ---
     whatsapp_phone_number_id: str | None = None
     whatsapp_token: str | None = None
@@ -286,6 +298,11 @@ class Settings(BaseSettings):
                     f"{pretend} pretend to be a network or a gateway; "
                     "never in SAATHI_ENVIRONMENT=production"
                 )
+        if self.environment.lower() == "production" and "demo" in {
+            self.routes_provider.strip().lower(),
+            self.places_provider.strip().lower(),
+        }:
+            raise ValueError("invented timetables or shops must never run in SAATHI_ENVIRONMENT=production")
         if self.sim_mode and self.world == "real":
             raise ValueError(
                 "SAATHI_SIM_MODE is on while SAATHI_WORLD=real: the simulator's "

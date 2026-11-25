@@ -71,3 +71,32 @@ def seed_registry(store: RegistryStore, settings: Settings, *, demo: bool) -> No
         )
     for clinician in DEMO_CLINICIANS:
         store.save_clinician(clinician)
+
+
+#: Where the demo hospitals' main entrances are, so a family's ride and stay apps
+#: open at the right door. Public coordinates, looked up once; a hospital added
+#: through the console is given its own. The Muzaffarpur centre has none yet: its
+#: families' apps open without a destination rather than at a guess.
+DEMO_ENTRANCES: dict[str, tuple[float, float, str]] = {
+    "TMH-MUM": (19.004984, 72.8432125, "Tata Memorial Hospital, Dr E Borges Marg, Parel, Mumbai"),
+}
+
+#: What a hospital is called when nobody has named it: a real deployment starts
+#: with the id, which is no label to show in a driver's app.
+DEMO_NAME = {"TMH-MUM": "Tata Memorial Hospital, Mumbai"}
+
+
+def top_up_entrances(store: RegistryStore) -> int:
+    """Give a known hospital its entrance if it has none. Additive: never overwrites one."""
+    added = 0
+    for hospital in store.hospitals():
+        known = DEMO_ENTRANCES.get(hospital.id)
+        if known is None or hospital.latitude is not None:
+            continue
+        lat, lng, address = known
+        update = {"latitude": lat, "longitude": lng, "address": address}
+        if hospital.name == hospital.id and hospital.id in DEMO_NAME:
+            update["name"] = DEMO_NAME[hospital.id]  # only ever an unedited one
+        store.save_hospital(hospital.model_copy(update=update))
+        added += 1
+    return added

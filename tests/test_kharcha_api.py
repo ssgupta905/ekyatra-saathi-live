@@ -180,6 +180,10 @@ def test_no_module_outside_the_books_reads_a_family_s_spends():
         "live/network.py",
         "live/payments.py",
         "api/kharcha.py",
+        # Reads only how much of the family's own monthly limit is free, to weigh routes for them.
+        "api/trip.py",
+        # Reads only whether a limit was stated, to put cheaper shops first.
+        "api/nearby.py",
         "api/partner.py",
         "api/demo.py",
         "bootstrap/container.py",
