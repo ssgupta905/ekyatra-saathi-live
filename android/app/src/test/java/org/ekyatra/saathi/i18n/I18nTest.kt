@@ -9,8 +9,8 @@ class I18nTest {
     private val allLangs = Lang.entries
 
     @Test
-    fun `all four languages are registered`() {
-        assertEquals(setOf("hi", "bn", "or", "en"), allLangs.map { it.code }.toSet())
+    fun `all five languages are registered`() {
+        assertEquals(setOf("hi", "bn", "or", "ta", "en"), allLangs.map { it.code }.toSet())
     }
 
     @Test

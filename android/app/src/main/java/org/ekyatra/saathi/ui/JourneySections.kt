@@ -2,6 +2,7 @@ package org.ekyatra.saathi.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.ekyatra.saathi.data.GuideStage
 import org.ekyatra.saathi.data.JourneyGuide
+import org.ekyatra.saathi.data.Trip
 import org.ekyatra.saathi.i18n.Lang
 import org.ekyatra.saathi.i18n.Strings
 import org.ekyatra.saathi.i18n.localDate
@@ -109,6 +112,7 @@ fun DoNowCard(guide: JourneyGuide?, lang: Lang, s: Strings) {
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
+        OpenInApp(now.kind, now.party, guide.trip, s)
         now.window?.takeIf { it.size == 2 }?.let {
             Text(
                 "${s.expectedBetween} ${localDateShort(it[0], lang)} – ${localDateShort(it[1], lang)}",
@@ -153,12 +157,12 @@ fun JourneyChain(guide: JourneyGuide?, lang: Lang, s: Strings) {
     }
     Box(Modifier.height(14.dp))
     guide.stages.forEachIndexed { index, stage ->
-        StageRow(index + 1, stage, lang, s, last = index == guide.stages.lastIndex)
+        StageRow(index + 1, stage, guide.trip, lang, s, last = index == guide.stages.lastIndex)
     }
 }
 
 @Composable
-private fun StageRow(number: Int, stage: GuideStage, lang: Lang, s: Strings, last: Boolean) {
+private fun StageRow(number: Int, stage: GuideStage, trip: Trip?, lang: Lang, s: Strings, last: Boolean) {
     val (fill, edge, ink) = when {
         stage.isNow && stage.state != "problem" -> Triple(Tokens.blue500, Tokens.blue500, Color.White)
         stage.state == "done" -> Triple(Tokens.goTint, Tokens.go, Tokens.go)
@@ -189,11 +193,119 @@ private fun StageRow(number: Int, stage: GuideStage, lang: Lang, s: Strings, las
             if (stage.state == "problem") {
                 action(stage.action, s)?.let { Text(it, fontSize = 13.sp, color = Tokens.ink2, modifier = Modifier.padding(top = 3.dp)) }
             }
+            OpenInApp(stage.kind, stage.party, trip, s)
             if (stage.kind == "visit" && stage.firstStop != null) {
                 Text("${s.firstStop}: ${stage.firstStop}", fontSize = 13.sp, color = Tokens.ink2, modifier = Modifier.padding(top = 3.dp))
             }
             if (stage.kind == "documents" && stage.bring.isNotEmpty()) {
                 Text(stage.bring.joinToString(" · "), fontSize = 13.sp, color = Tokens.ink2, modifier = Modifier.padding(top = 3.dp))
+            }
+        }
+    }
+}
+
+
+/**
+ * The apps this step runs through, one tap away. The one Saathi asked is first.
+ * Nothing about the family goes with the tap: it opens the app, or its store page.
+ */
+@Composable
+fun OpenInApp(kind: String, party: String?, trip: Trip?, s: Strings) {
+    val apps = appsFor(kind, party)
+    if (apps.isEmpty()) return
+    val context = LocalContext.current
+    val where = if (kind == "ride" || kind == "stay") destinationText(trip) else null
+    Column(Modifier.padding(top = 8.dp)) {
+        Text(s.openInApp, fontSize = 12.sp, color = Tokens.ink3)
+        if (where != null) {
+            // Shown, and copied when an app is tapped: the apps will not take it from us.
+            Text(
+                "${s.handoffWhere}: $where",
+                fontSize = 13.sp,
+                color = Tokens.ink2,
+                modifier = Modifier.padding(top = 4.dp).testTag("handoff-address"),
+            )
+            Text(s.handoffCopied, fontSize = 12.sp, color = Tokens.ink3, modifier = Modifier.padding(top = 2.dp))
+        }
+        // Rows of two, not a wrapping row: the journey chain sizes each stage to
+        // its tallest child, and a wrapping layout reports one line's height, so
+        // a third button was clipped away without a trace.
+        apps.chunked(2).forEach { pair ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 6.dp),
+            ) {
+                pair.forEach { app ->
+                    Text(
+                        s.openApp.replace("{app}", app.name),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Tokens.blue700,
+                        modifier = Modifier
+                            .testTag("open-${app.name.lowercase().replace(' ', '-')}")
+                            .clip(RoundedCornerShape(Tokens.radiusPill))
+                            .border(1.dp, Tokens.line, RoundedCornerShape(Tokens.radiusPill))
+                            .clickable { openPartnerApp(context, app, kind, trip) }
+                            .padding(14.dp, 10.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+/**
+ * How to actually get there. Two legs, because the realistic answer differs:
+ * the long way from home to the hospital's city (train, bus or a car), and the
+ * last few kilometres from where the family stands to the hospital door (metro,
+ * taxi or on foot). Each button opens Maps for that mode with the time shown.
+ */
+@Composable
+fun RouteCard(api: org.ekyatra.saathi.data.SaathiApi, patientId: String, home: String, trip: Trip?, s: Strings) {
+    val destination = tripDestination(trip) ?: return
+    val context = LocalContext.current
+    SaathiCard(Modifier.testTag("route-card")) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            GlyphBadge(Glyph.Route, Tokens.blue600, Tokens.blue100)
+            Text(s.routeTitle, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Tokens.ink)
+        }
+        trip?.destination?.let {
+            Text("${s.handoffWhere}: ${it.address}", fontSize = 13.sp, color = Tokens.ink2, modifier = Modifier.padding(top = 8.dp))
+        }
+        Leg(s.routeFar.replace("{city}", trip?.city?.ifBlank { null } ?: trip?.destination?.name.orEmpty()),
+            listOf(TravelMode.TRANSIT to s.modeTransit, TravelMode.DRIVING to s.modeDrive), "far") { mode ->
+            openMaps(context, destination, home, mode)
+        }
+        WayPlanner(api, patientId, "far", s)
+        Leg(s.routeNear, listOf(
+            TravelMode.TRANSIT to s.modeTransit, TravelMode.DRIVING to s.modeDrive, TravelMode.WALKING to s.modeWalk,
+        ), "near") { mode -> openMaps(context, destination, null, mode) }
+        WayPlanner(api, patientId, "near", s)
+        Text(s.routeNote, fontSize = 12.sp, color = Tokens.ink3, modifier = Modifier.padding(top = 10.dp))
+    }
+}
+
+@Composable
+private fun Leg(title: String, modes: List<Pair<TravelMode, String>>, tag: String, open: (TravelMode) -> Unit) {
+    Column(Modifier.padding(top = 12.dp)) {
+        Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Tokens.ink)
+        modes.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                pair.forEach { (mode, label) ->
+                    Text(
+                        label,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Tokens.blue700,
+                        modifier = Modifier
+                            .testTag("route-$tag-${mode.param}")
+                            .clip(RoundedCornerShape(Tokens.radiusPill))
+                            .border(1.dp, Tokens.line, RoundedCornerShape(Tokens.radiusPill))
+                            .clickable { open(mode) }
+                            .padding(14.dp, 10.dp),
+                    )
+                }
             }
         }
     }

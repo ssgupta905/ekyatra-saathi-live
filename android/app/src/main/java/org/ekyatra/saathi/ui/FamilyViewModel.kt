@@ -16,6 +16,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.ekyatra.saathi.data.ApiException
 import org.ekyatra.saathi.data.FamilyHome
+import org.ekyatra.saathi.data.Kharcha
 import org.ekyatra.saathi.data.LiveState
 import org.ekyatra.saathi.data.SaathiApi
 import org.ekyatra.saathi.data.StreamSignal
@@ -26,7 +27,7 @@ import org.ekyatra.saathi.data.events
 import org.ekyatra.saathi.i18n.Lang
 import java.io.File
 
-enum class Tab { TODAY, PLAN, MESSAGES }
+enum class Tab { TODAY, PLAN, MESSAGES, KHARCHA }
 
 data class FamilyUiState(
     val home: FamilyHome? = null,
@@ -35,6 +36,10 @@ data class FamilyUiState(
     val switching: Boolean = false,
     val live: LiveState = LiveState(),
     val tab: Tab = Tab.TODAY,
+    /** The family's books. Null until read, and where nothing is kept. */
+    val kharcha: Kharcha? = null,
+    /** A line in the family's own words when an action on their books failed. */
+    val kharchaError: String? = null,
 )
 
 /**
@@ -45,7 +50,7 @@ data class FamilyUiState(
  * so what is on screen is always a thing the backend said.
  */
 class FamilyViewModel(
-    private val api: SaathiApi,
+    val api: SaathiApi,
     val patientId: String,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(FamilyUiState())
@@ -67,10 +72,39 @@ class FamilyViewModel(
                     home.await() to thread.await()
                 }
                 mutable.update { it.copy(home = home, thread = thread, error = null) }
+                loadKharcha()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: ApiException) {
                 mutable.update { it.copy(error = e.message) }
+            }
+        }
+    }
+
+    /** Read apart from the rest: a service with no books must not stop the journey showing. */
+    private suspend fun loadKharcha() {
+        val books = try {
+            api.kharcha(patientId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+        mutable.update { it.copy(kharcha = books) }
+    }
+
+    /** Do something to the books, then read them again. A failure is said, not hidden. */
+    fun kharchaAction(failed: String, work: suspend () -> Unit) {
+        viewModelScope.launch {
+            try {
+                work()
+                mutable.update { it.copy(kharchaError = null) }
+                loadKharcha()
+                refresh()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                mutable.update { it.copy(kharchaError = failed) }
             }
         }
     }

@@ -108,6 +108,25 @@ data class JourneyGuide(
     @SerialName("now_stage_id") val nowStageId: String? = null,
     val done: Int = 0,
     val total: Int = 0,
+    /** What the apps this journey leads to are opened on. Never the family's own place. */
+    val trip: Trip? = null,
+)
+
+/** The hospital's door, as a driver would say it. Null when the hospital has none on record. */
+@Serializable
+data class TripPlace(
+    val name: String,
+    val latitude: Double,
+    val longitude: Double,
+    val address: String,
+)
+
+@Serializable
+data class Trip(
+    val destination: TripPlace? = null,
+    val city: String = "",
+    /** Only when the plan is a GO. */
+    @SerialName("arrive_on") val arriveOn: String? = null,
 )
 
 @Serializable
@@ -164,3 +183,154 @@ data class Transcript(
 
 @Serializable
 data class LanguageChange(val language: String, val changed: Boolean = false)
+
+/* ── Kharcha: what the journey costs this family ───────────────────────────
+   Amounts are whole paise and each one comes from somebody: the family's own
+   words, a provider's quote or payment, or arithmetic over those. */
+
+@Serializable
+data class SpendEntry(
+    val id: String,
+    val category: String,
+    @SerialName("amount_paise") val amountPaise: Long,
+    val status: String,
+    val source: String = "",
+    @SerialName("stated_in") val statedIn: String? = null,
+    val party: String? = null,
+    val on: String = "",
+)
+
+@Serializable
+data class ProjectionLine(
+    val category: String,
+    @SerialName("amount_paise") val amountPaise: Long? = null,
+    val basis: String = "",
+    @SerialName("visits_used") val visitsUsed: Int = 0,
+)
+
+@Serializable
+data class MonthOutlook(
+    val month: String,
+    @SerialName("spent_paise") val spentPaise: Long = 0,
+    @SerialName("booked_paise") val bookedPaise: Long = 0,
+    /** Null when there are visits ahead and nothing recorded to say what they will cost. */
+    @SerialName("expected_paise") val expectedPaise: Long? = null,
+    @SerialName("visits_ahead") val visitsAhead: List<String> = emptyList(),
+    val lines: List<ProjectionLine> = emptyList(),
+    @SerialName("by_category") val byCategory: Map<String, Long> = emptyMap(),
+)
+
+@Serializable
+data class KharchaNudge(
+    val kind: String,
+    @SerialName("organisation_name") val organisationName: String? = null,
+)
+
+@Serializable
+data class KharchaLimit(
+    @SerialName("monthly_paise") val monthlyPaise: Long,
+    @SerialName("stated_in") val statedIn: String = "",
+)
+
+/** A seller's firm price for a ride, waiting for the family's Book. */
+@Serializable
+data class Bookable(
+    @SerialName("item_id") val itemId: String,
+    val need: String = "",
+    val provider: String = "",
+    @SerialName("amount_paise") val amountPaise: Long? = null,
+)
+
+@Serializable
+data class Kharcha(
+    val months: List<MonthOutlook> = emptyList(),
+    val limit: KharchaLimit? = null,
+    @SerialName("over_limit") val overLimit: Boolean = false,
+    val nudges: List<KharchaNudge> = emptyList(),
+    @SerialName("to_confirm") val toConfirm: List<SpendEntry> = emptyList(),
+    val bookable: List<Bookable> = emptyList(),
+    val payable: List<SpendEntry> = emptyList(),
+)
+
+@Serializable
+data class SpendReply(val entry: SpendEntry)
+
+@Serializable
+data class PayLink(@SerialName("pay_url") val payUrl: String? = null)
+
+/* ── How to get there: which bus, boarded where, and which way suits the family ── */
+
+@Serializable
+data class WayStep(
+    val mode: String,
+    val line: String? = null,
+    val towards: String? = null,
+    @SerialName("board_at") val boardAt: String? = null,
+    @SerialName("get_off_at") val getOffAt: String? = null,
+    val stops: Int? = null,
+    val departs: String? = null,
+    val arrives: String? = null,
+    val minutes: Int = 0,
+    val note: String? = null,
+)
+
+@Serializable
+data class WayOption(
+    val id: String,
+    val steps: List<WayStep> = emptyList(),
+    val minutes: Int = 0,
+    val departs: String? = null,
+    val arrives: String? = null,
+    /** Only when someone gave it: the route service or a seller's quote. */
+    @SerialName("fare_paise") val farePaise: Long? = null,
+    @SerialName("fare_basis") val fareBasis: String = "none",
+    val source: String = "service",
+)
+
+@Serializable
+data class WeighedWay(
+    val option: WayOption,
+    val tags: List<String> = emptyList(),
+    /** "within", "over" or "unknown". */
+    val fit: String = "unknown",
+    @SerialName("extra_over_cheapest_paise") val extraOverCheapestPaise: Long? = null,
+    @SerialName("leave_by") val leaveBy: String? = null,
+)
+
+@Serializable
+data class WayGuidance(
+    val options: List<WeighedWay> = emptyList(),
+    @SerialName("recommended_id") val recommendedId: String? = null,
+    val reasons: List<String> = emptyList(),
+    @SerialName("room_paise") val roomPaise: Long? = null,
+)
+
+@Serializable
+data class WayOptions(val leg: String, val source: String, val guidance: WayGuidance)
+
+/* ── Near you: shops, labs and clinics around where the family will be ── */
+
+@Serializable
+data class NearPlace(
+    val id: String,
+    val name: String,
+    val kind: String,
+    val address: String = "",
+    val latitude: Double,
+    val longitude: Double,
+    val phone: String? = null,
+    @SerialName("maps_uri") val mapsUri: String? = null,
+    val source: String = "google",
+)
+
+@Serializable
+data class NearRanked(
+    val place: NearPlace,
+    val metres: Int,
+    /** Open at the time they will be there. Null when the hours are not known. */
+    @SerialName("open_then") val openThen: Boolean? = null,
+    val reasons: List<String> = emptyList(),
+)
+
+@Serializable
+data class NearResult(val need: String, val near: String, val source: String, val places: List<NearRanked> = emptyList())

@@ -84,6 +84,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
     implementation(libs.okhttp.sse)
+    implementation(libs.osmdroid)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 

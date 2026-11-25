@@ -71,7 +71,9 @@ fun FamilyScreen(vm: FamilyViewModel, onBack: () -> Unit) {
     val messageCount = ui.thread?.thread?.size ?: 0
 
     BackHandler(onBack = onBack)
+    var showMap by remember { mutableStateOf(false) }
 
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(Tokens.plane).safeDrawingPadding()) {
         TopBar(ui, lang, onBack, vm::chooseLanguage)
 
@@ -114,6 +116,10 @@ fun FamilyScreen(vm: FamilyViewModel, onBack: () -> Unit) {
                         Boundary(lang, s)
                     }
                     Tab.PLAN -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+                        RouteCard(vm.api, vm.patientId, ui.home?.patient?.district.orEmpty(), ui.home?.guide?.trip, s)
+                        Box(Modifier.height(12.dp))
+                        NearYouCard(vm.api, vm.patientId, s) { showMap = true }
+                        Box(Modifier.height(12.dp))
                         SaathiCard {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 GlyphBadge(Glyph.Route, Tokens.blue600, Tokens.blue100)
@@ -134,11 +140,14 @@ fun FamilyScreen(vm: FamilyViewModel, onBack: () -> Unit) {
                         Boundary(lang, s)
                     }
                     Tab.MESSAGES -> Messages(ui, lang, s, messageCount, vm)
+                    Tab.KHARCHA -> KharchaTab(ui.kharcha, ui.kharchaError, lang, s, vm::kharchaAction, vm.api, vm.patientId)
                 }
             }
         }
 
         BottomBar(ui.tab, messageCount, s, vm::selectTab)
+    }
+    if (showMap) TripMap(vm.api, vm.patientId, ui.home?.guide?.trip, s) { showMap = false }
     }
 }
 
@@ -255,6 +264,7 @@ private fun BottomBar(selected: Tab, messageCount: Int, s: Strings, onSelect: (T
             NavItem(Modifier.weight(1f), s.todayTab, Glyph.Home, selected == Tab.TODAY, null, "tab-today") { onSelect(Tab.TODAY) }
             NavItem(Modifier.weight(1f), s.planTab, Glyph.Route, selected == Tab.PLAN, null, "tab-plan") { onSelect(Tab.PLAN) }
             NavItem(Modifier.weight(1f), s.messages, Glyph.Chat, selected == Tab.MESSAGES, messageCount.takeIf { it > 0 }, "tab-messages") { onSelect(Tab.MESSAGES) }
+            NavItem(Modifier.weight(1f), s.kharchaTab, Glyph.Doc, selected == Tab.KHARCHA, null, "tab-kharcha") { onSelect(Tab.KHARCHA) }
         }
     }
 }

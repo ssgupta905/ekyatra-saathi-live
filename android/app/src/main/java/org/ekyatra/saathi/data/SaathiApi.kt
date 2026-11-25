@@ -93,6 +93,62 @@ class SaathiApi(
     suspend fun thread(patientId: String): Thread =
         SaathiJson.decodeFromString(get("/patients/$patientId/notifications"))
 
+    /** Which bus, boarded where, weighed against what the family can manage. `origin` only for the near leg. */
+    suspend fun wayOptions(patientId: String, leg: String, origin: String): WayOptions {
+        val q = "leg=$leg" + if (origin.isNotBlank()) "&origin=" + java.net.URLEncoder.encode(origin, "UTF-8") else ""
+        return SaathiJson.decodeFromString(get("/patients/$patientId/trip/options?$q"))
+    }
+
+    /** Shops, labs and clinics near the hospital or home, ordered with the reasons. */
+    suspend fun nearby(patientId: String, need: String, near: String): NearResult =
+        SaathiJson.decodeFromString(get("/patients/$patientId/nearby?need=$need&near=$near"))
+
+    // ---- Kharcha: the family's own books. Only the family can open these. ----
+
+    suspend fun kharcha(patientId: String): Kharcha =
+        SaathiJson.decodeFromString(get("/patients/$patientId/kharcha"))
+
+    /** Words ("₹450 auto") or a typed amount; comes back as a proposal for the family to confirm. */
+    suspend fun addSpend(patientId: String, text: String, amountRupees: Int?, category: String?): SpendEntry =
+        SaathiJson.decodeFromString<SpendReply>(
+            send(
+                "POST",
+                "/patients/$patientId/kharcha/entries",
+                json {
+                    if (text.isNotBlank()) put("text", text)
+                    if (amountRupees != null) put("amount", amountRupees)
+                    if (category != null) put("category", category)
+                },
+            ),
+        ).entry
+
+    suspend fun confirmSpend(patientId: String, entryId: String) {
+        send("POST", "/patients/$patientId/kharcha/entries/$entryId/confirm", json {})
+    }
+
+    suspend fun removeSpend(patientId: String, entryId: String) {
+        send("POST", "/patients/$patientId/kharcha/entries/$entryId/void", json {})
+    }
+
+    suspend fun setLimit(patientId: String, rupees: Int) {
+        send("PUT", "/patients/$patientId/kharcha/limit", json { put("amount", rupees) })
+    }
+
+    /** Book the ride a seller quoted. Only with the family's yes to sharing their first name and phone. */
+    suspend fun book(patientId: String, itemId: String, shareContact: Boolean) {
+        send(
+            "POST",
+            "/patients/$patientId/book/$itemId",
+            json { put("share_contact", shareContact) },
+        )
+    }
+
+    /** The vendor's own pay link. The money goes to the vendor, never to Saathi. */
+    suspend fun payLink(patientId: String, entryId: String): String? =
+        SaathiJson.decodeFromString<PayLink>(
+            send("POST", "/patients/$patientId/kharcha/entries/$entryId/pay", json {}),
+        ).payUrl
+
     suspend fun chooseLanguage(patientId: String, language: String): LanguageChange =
         SaathiJson.decodeFromString(
             send(
