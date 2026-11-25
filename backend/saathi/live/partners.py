@@ -58,6 +58,7 @@ class PartnerDesk:
         rules_for: Callable[[str], HospitalPolicy | None],
         journey_hours: Callable[[Patient], float | None],
         auto: bool = True,
+        answer_within: timedelta = timedelta(hours=6),
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._world = world
@@ -67,6 +68,8 @@ class PartnerDesk:
         self._rules_for = rules_for
         self._journey_hours = journey_hours
         self._now = now
+        #: How long an organisation has to answer before its silence reads as UNKNOWN.
+        self._answer_within = answer_within
         #: Whether the desk asks for a journey's needs by itself. Staff can always ask.
         self.auto = auto
 
@@ -167,6 +170,7 @@ class PartnerDesk:
             due_at=now + timedelta(seconds=org.delay_seconds)
             if org.mode is PartnerMode.SIMULATED
             else None,
+            answer_by=now + self._answer_within,
         )
         return self._world.set_readiness_item(item)
 
@@ -228,6 +232,37 @@ class PartnerDesk:
                     found.append((patient.id, item))
         return found
 
+    def overdue(self) -> list[tuple[str, ReadinessItem]]:
+        """Requests nobody has answered in time, whatever kind of organisation was asked.
+
+        Without this a request to a person who never opens the partner app stays
+        "asked" for ever, and the family is told to wait for an answer nobody is
+        writing.
+        """
+        now = self._now()
+        return [
+            (patient.id, item)
+            for patient in self._world.patients()
+            for item in self._world.readiness_for(patient.id)
+            if item.status is ReadinessStatus.PENDING
+            and item.partner_id
+            and item.answer_by is not None
+            and item.answer_by <= now
+        ]
+
+    def expire(self, item: ReadinessItem) -> ReadinessItem:
+        """Silence past the deadline is UNKNOWN: not a yes, not a no. The planner says UNCERTAIN."""
+        return self._world.set_readiness_item(
+            item.model_copy(
+                update={
+                    "status": ReadinessStatus.UNKNOWN,
+                    "detail": f"no answer from {item.party}",
+                    "due_at": None,
+                    "answer_by": None,
+                }
+            )
+        )
+
     def settle(self, item: ReadinessItem) -> ReadinessItem | None:
         """A simulated organisation's answer. None for one that is not simulated."""
         org = next((o for o in self._organisations() if o.id == item.partner_id), None)
@@ -239,6 +274,7 @@ class PartnerDesk:
                     "status": ReadinessStatus.READY,
                     "detail": f"confirmed by {org.name}",
                     "due_at": None,
+                    "answer_by": None,
                 }
             )
         else:
@@ -251,6 +287,7 @@ class PartnerDesk:
                     "detail": f"{org.name} cannot do it",
                     "alternative_available": alternate is not None,
                     "due_at": None,
+                    "answer_by": None,
                 }
             )
         return self._world.set_readiness_item(answered)

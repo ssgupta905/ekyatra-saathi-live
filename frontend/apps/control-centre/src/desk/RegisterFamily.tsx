@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ApiError, pathways, records, type Language, type PathwayInfo } from "@saathi/api-client";
 import { Card, Notice } from "@saathi/ui-web";
 
-const LANGUAGES: Record<Language, string> = { hi: "Hindi", bn: "Bengali", or: "Odia", en: "English" };
+const LANGUAGES: Record<Language, string> = { hi: "Hindi", bn: "Bengali", or: "Odia", ta: "Tamil", en: "English" };
 
 /**
  * Putting a family on record. The fields are the ones the planner and the

@@ -29,6 +29,9 @@ const day = (iso: string | null) =>
       }).format(new Date(`${iso}T00:00:00`))
     : null;
 
+/** The needs a family pays for themselves, where a vendor's price goes into their books. */
+const PRICED = new Set(["transport", "stay", "medicine"]);
+
 export function Job({
   job,
   onAnswered,
@@ -40,6 +43,7 @@ export function Job({
 }) {
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");
+  const [price, setPrice] = useState("");
   const [busy, setBusy] = useState<PartnerAnswer | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,9 +55,16 @@ export function Job({
     setBusy(answer);
     setError(null);
     try {
-      await partner.answer(job.item_id, answer, reason.trim());
+      const quote = Number(price);
+      await partner.answer(
+        job.item_id,
+        answer,
+        reason.trim(),
+        answer !== "cannot" && quote > 0 ? Math.round(quote) : undefined,
+      );
       setAsking(false);
       setReason("");
+      setPrice("");
       onAnswered();
     } catch (e) {
       setError(e instanceof Error ? e.message : "that did not send");
@@ -109,6 +120,18 @@ export function Job({
                 placeholder="no car in that district tonight"
                 onChange={(event) => setReason(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && send("cannot")}
+              />
+            </label>
+          )}
+
+          {PRICED.has(job.need) && (
+            <label className="pt-reason">
+              Your price for this, in rupees (optional)
+              <input
+                inputMode="numeric"
+                value={price}
+                placeholder="450"
+                onChange={(event) => setPrice(event.target.value.replace(/[^\d]/g, ""))}
               />
             </label>
           )}

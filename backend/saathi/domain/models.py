@@ -152,6 +152,14 @@ class ReadinessItem(Base):
     partner_id: str | None = None
     #: When a simulated organisation will answer. Cleared once it has.
     due_at: datetime | None = None
+    #: When silence stops meaning "asked" and starts meaning "nobody knows".
+    #: Set for every organisation asked, whoever answers for it; cleared once it has.
+    answer_by: datetime | None = None
+    #: For an organisation reached over an open network: the seller's firm
+    #: price, waiting for the family to tap Book. Booking nothing yet.
+    network_quote_id: str | None = None
+    #: The booked ride, once the family has tapped Book.
+    network_order_id: str | None = None
 
 
 class VisitPlan(Base):

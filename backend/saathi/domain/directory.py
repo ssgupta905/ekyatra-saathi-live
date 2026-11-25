@@ -33,6 +33,9 @@ class PartnerMode(StrEnum):
     SIMULATED = "simulated"
     #: Waits for a person at the organisation to answer.
     PEOPLE = "people"
+    #: Reached over an open network (Beckn/ONDC): searched, quoted by the
+    #: seller itself, and booked only when the family taps Book.
+    LIVE = "live"
 
 
 class Organisation(BaseModel):
@@ -65,6 +68,11 @@ class Organisation(BaseModel):
     alternate_id: str | None = None
     #: Other organisations it is linked to: a distributor supplies a pharmacy.
     linked_ids: tuple[str, ...] = ()
+    #: For a LIVE organisation: which configured network it is reached through.
+    provider: str | None = Field(default=None, max_length=64)
+    #: The vendor's own payment gateway account, when it takes payment by link.
+    #: Money goes from the family to the vendor through it, never through Saathi.
+    payment_account: str | None = Field(default=None, max_length=64)
     active: bool = True
 
 

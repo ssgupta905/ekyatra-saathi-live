@@ -100,6 +100,8 @@ class OrganisationPatch(BaseModel):
     alternate_id: str | None = None
     linked_ids: tuple[str, ...] | None = None
     active: bool | None = None
+    provider: str | None = Field(default=None, max_length=64)
+    payment_account: str | None = Field(default=None, max_length=64)
 
 
 @router.patch("/directory/{organisation_id}", dependencies=[AdminOnly])

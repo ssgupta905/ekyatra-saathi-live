@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from ..adapters.clock import SystemClock
@@ -243,6 +243,118 @@ def build_registry(settings: Settings) -> RegistryStore:
 
         seed_directory(store)
     return store
+
+
+def _geocoder(runner):
+    """A place name to (lat, lng), through the same cached geocoder the journeys use."""
+
+    def geocode(place: str) -> tuple[float, float] | None:
+        tools = runner.tools
+        if tools is None:
+            return None
+        try:
+            hit = tools.geo.geocode(place)
+        except Exception:  # noqa: BLE001 - an unplaceable journey is UNKNOWN, not a crash
+            logger.exception("could not geocode %r", place)
+            return None
+        return (hit.lat, hit.lon) if hit else None
+
+    return geocode
+
+
+def build_networks(settings: Settings) -> dict:
+    """The open networks LIVE organisations are reached through, by id.
+
+    `ID=demo` is a seller inside this process; `ID=beckn|gateway|registry|bap_id|
+    bap_uri|unique_key_id|signing_key_path|city` is a real network. A malformed
+    entry is logged and skipped, like a hospital system: one typo must not stop
+    the hospital's other work.
+    """
+    networks: dict = {}
+    for entry in settings.network_providers:
+        network_id, _, spec = entry.partition("=")
+        parts = [p.strip() for p in spec.split("|")]
+        kind = parts[0].lower() if parts else ""
+        try:
+            if kind == "demo":
+                from ..adapters.beckn.demo import DemoNetwork
+
+                networks[network_id.strip()] = DemoNetwork()
+            elif kind == "beckn" and len(parts) == 8:
+                import httpx
+
+                from ..adapters.beckn import BecknProvider, RegistryLookup, SubscriberRegistry
+                from ..adapters.beckn.signing import load_private_key
+
+                _, gateway, registry_url, bap_id, bap_uri, key_id, key_path, city = parts
+                lookup = RegistryLookup(base_url=registry_url, client=httpx.AsyncClient())
+                networks[network_id.strip()] = BecknProvider(
+                    bap_id=bap_id,
+                    bap_uri=bap_uri,
+                    unique_key_id=key_id,
+                    private_key=load_private_key(key_path),
+                    registry=SubscriberRegistry(lookup),
+                    gateway_url=gateway,
+                    city_code=city,
+                )
+            else:
+                logger.error("SAATHI_NETWORK_PROVIDERS entry not understood: %r", network_id)
+        except Exception:  # noqa: BLE001
+            logger.exception("could not set up network %r", network_id)
+    return networks
+
+
+def build_gateways(settings: Settings) -> dict:
+    """Vendors' own payment gateways, by account id. Keys come from named env vars."""
+    import os
+
+    from ..live.payments import Gateway
+    from ..ports.payments import MerchantAccount
+
+    gateways: dict = {}
+    for entry in settings.payment_accounts:
+        account_id, _, spec = entry.partition("=")
+        parts = [p.strip() for p in spec.split("|")]
+        kind = parts[0].lower() if parts else ""
+        account_id = account_id.strip()
+        try:
+            if kind == "fake":
+                from ..adapters.payments import FakePayments
+
+                secret = os.urandom(16).hex()
+                gateways[account_id] = Gateway(
+                    FakePayments(),
+                    MerchantAccount("fake", f"fake_{account_id}", secret, secret),
+                )
+            elif kind in {"razorpay", "cashfree"} and len(parts) >= 4:
+                values = [os.environ.get(name, "") for name in parts[1:4]]
+                if not all(values):
+                    logger.error("payment account %r: its key variables are not set", account_id)
+                    continue
+                if kind == "razorpay":
+                    from ..adapters.payments import RazorpayPayments as Provider
+                else:
+                    from ..adapters.payments import CashfreePayments as Provider
+                phone = os.environ.get(parts[4], "") if len(parts) > 4 else ""
+                gateways[account_id] = Gateway(
+                    Provider(), MerchantAccount(kind, values[0], values[1], values[2], phone)
+                )
+            else:
+                logger.error("SAATHI_PAYMENT_ACCOUNTS entry not understood: %r", account_id)
+        except Exception:  # noqa: BLE001
+            logger.exception("could not set up payment account %r", account_id)
+    return gateways
+
+
+def build_spends(settings: Settings):
+    """Where a family's spends are kept: the database for real, memory for the demo."""
+    if settings.real_world:
+        from ..adapters.spends import SqlSpendStore
+
+        return SqlSpendStore(settings.records_url)
+    from ..adapters.spends import MemorySpendStore
+
+    return MemorySpendStore()
 
 
 def build_onboarding(settings: Settings) -> OnboardingStore:
@@ -560,9 +672,37 @@ def build_container(settings: Settings | None = None, today: date | None = None)
             rules_for=rules,
             journey_hours=runner.journey_hours,
             auto=settings.partners_on,
+            answer_within=timedelta(minutes=settings.partner_answer_minutes),
         )
         if settings.partners_on:
             logger.info("the network answers: journeys ask the directory's organisations")
+
+    from ..live.kharcha import KharchaDesk
+    from ..live.network import NetworkDesk
+    from ..live.payments import PaymentsDesk
+
+    runner.kharcha = KharchaDesk(
+        store=build_spends(settings),
+        world=world,
+        ledger=ledger,
+        registry=registry,
+        onboarding=onboarding,
+        alerts=runner.alerts,
+    )
+    networks = build_networks(settings)
+    if networks:
+        runner.network = NetworkDesk(
+            providers=networks,
+            world=world,
+            registry=registry,
+            kharcha=runner.kharcha,
+            geocode=_geocoder(runner),
+        )
+        logger.info("open networks: %s", ", ".join(sorted(networks)))
+    gateways = build_gateways(settings)
+    if gateways:
+        runner.payments = PaymentsDesk(gateways=gateways, kharcha=runner.kharcha, registry=registry)
+        logger.info("vendor gateways: %s", ", ".join(sorted(gateways)))
 
     return Container(
         settings=settings,

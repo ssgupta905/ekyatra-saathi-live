@@ -72,6 +72,24 @@ def ensure_may_see(principal: Principal | None, patient_id: str) -> None:
 
 #: Staff, or a caregiver looking at their own family.
 FamilyOrStaff = Depends(require_patient)
+
+
+def require_own_family(patient_id: str, principal: PrincipalDep) -> Principal | None:
+    """The family themselves, and nobody at the hospital.
+
+    For a family's money. Staff are told when a family needs help (an alert,
+    with no figures in it), never what they spend; that is theirs. With login
+    off — the demo — there is nobody to tell apart, and it is open like every
+    other route.
+    """
+    if principal is not None and principal.is_staff:
+        raise HTTPException(403, "a family's spends are theirs to see")
+    ensure_may_see(principal, patient_id)
+    return principal
+
+
+#: Only the family whose page this is.
+FamilyOnly = Depends(require_own_family)
 AnyStaff = require(*STAFF)
 Desk = require(Role.DESK, Role.ADMIN)
 DeskWork = require(Role.DESK, Role.NAVIGATOR, Role.ADMIN)
@@ -85,6 +103,7 @@ __all__ = [
     "Approver",
     "Desk",
     "DeskWork",
+    "FamilyOnly",
     "FamilyOrStaff",
     "PrincipalDep",
     "current_principal",

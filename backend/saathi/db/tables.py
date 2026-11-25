@@ -366,3 +366,28 @@ class AccessAttemptRow(Base):
     abha_number: Mapped[str] = mapped_column(String(32), index=True)
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     payload_json: Mapped[str] = mapped_column(Text)
+
+
+class SpendEntryRow(Base):
+    """One amount a family spent or was quoted, with who gave the figure.
+
+    The payload is the whole entry; `source` and `source_ref` are columns so a
+    provider delivering the same payment twice finds the entry it already made.
+    """
+
+    __tablename__ = "spend_entries"
+
+    id: Mapped[str] = mapped_column(String(96), primary_key=True)
+    patient_id: Mapped[str] = mapped_column(String(32), index=True)
+    source: Mapped[str] = mapped_column(String(32))
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    payload_json: Mapped[str] = mapped_column(Text)
+
+
+class StatedLimitRow(Base):
+    """What a family said they can manage in a month, in their own words."""
+
+    __tablename__ = "stated_limits"
+
+    patient_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    payload_json: Mapped[str] = mapped_column(Text)

@@ -51,7 +51,7 @@ function useSpeech(patientId: string | undefined, text: string | null, lang: Lan
   const speakInBrowser = () => {
     if (!browserVoices || !text) return;
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = { hi: "hi-IN", bn: "bn-IN", or: "or-IN", en: "en-IN" }[lang];
+    utterance.lang = { hi: "hi-IN", bn: "bn-IN", or: "or-IN", ta: "ta-IN", en: "en-IN" }[lang];
     utterance.rate = 0.9;
     utterance.onend = () => setSpeaking(false);
     utterance.onerror = () => setSpeaking(false);

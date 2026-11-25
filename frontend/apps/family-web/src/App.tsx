@@ -9,7 +9,8 @@ import { PlanStrip } from "./PlanStrip";
 import { Thread } from "./Thread";
 import { Budget } from "./Budget";
 import { Composer } from "./Composer";
-import { Inbox, Pin, Shield, Spark } from "@saathi/ui-web";
+import { Kharcha } from "./Kharcha";
+import { Doc, Inbox, Pin, Shield, Spark } from "@saathi/ui-web";
 
 /**
  * The family's app. A separate application from the hospital console, not a
@@ -50,7 +51,7 @@ export default function FamilyApp() {
   // the conversation were stacked, which put the conversation permanently below
   // the fold — a family could not find the messages they were sent without
   // scrolling past their whole care pathway.
-  const [tab, setTab] = useState<"journey" | "plan" | "messages">("journey");
+  const [tab, setTab] = useState<"journey" | "plan" | "messages" | "kharcha">("journey");
   const [error, setError] = useState<string | null>(null);
   const world = useLiveWorld();
 
@@ -169,6 +170,15 @@ export default function FamilyApp() {
           {s.messages}
           {messageCount > 0 && <span className="fx-tab-count">{messageCount}</span>}
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "kharcha"}
+          onClick={() => setTab("kharcha")}
+        >
+          <Doc size={14} />
+          {s.kharchaTab}
+        </button>
       </nav>
 
       <main className="fx-scroll">
@@ -195,6 +205,8 @@ export default function FamilyApp() {
               </p>
             )}
           </>
+        ) : tab === "kharcha" ? (
+          <Kharcha patientId={patientId} lang={lang} s={s} />
         ) : (
           <Thread entries={thread?.thread ?? []} lang={lang} s={s} />
         )}

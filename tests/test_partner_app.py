@@ -13,7 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 from saathi.config import get_settings
 from saathi.domain.directory import PartnerMode
-from saathi.domain.enums import ReadinessStatus, Role
+from saathi.domain.enums import ReadinessKind, ReadinessStatus, Role
 from saathi.main import create_app
 
 PASSWORD = "correct horse battery"
@@ -48,7 +48,7 @@ def _as(client, username: str) -> dict:
     return {"authorization": f"Bearer {token}"}
 
 
-def _give_ola_a_job(net) -> tuple[str, str]:
+def _give_ola_a_job(net, kind=None) -> tuple[str, str]:
     """Ask Ola for a ride, as a navigator would when Uber has failed."""
     world = net.container.world
     desk = net.container.runner.partners
@@ -63,7 +63,9 @@ def _give_ola_a_job(net) -> tuple[str, str]:
         if not patient.name:
             continue
         for item in world.readiness_for(patient.id):
-            if item.partner_id and item.status is ReadinessStatus.PENDING:
+            if item.partner_id and item.status is ReadinessStatus.PENDING and (
+                kind is None or item.kind is kind
+            ):
                 moved = desk.ask(patient.id, item.kind, OLA)
                 return patient.id, moved.id
     raise AssertionError("no named family is waiting on anybody")
@@ -193,3 +195,35 @@ def test_an_account_bound_to_nobody_sees_nothing(net):
 def test_staff_cannot_use_the_partner_queue(net):
     """It is not a second way into the same data for people who already have one."""
     assert net.get("/api/partner/jobs", headers=_as(net, "neha")).status_code == 403
+
+
+# ---------------------------------------------------------------- a vendor's price
+
+
+def test_a_vendor_s_price_goes_into_the_family_s_books_as_that_vendor_s_quote(net):
+    patient_id, item_id = _give_ola_a_job(net, ReadinessKind.TRANSPORT)
+
+    answered = net.post(
+        f"/api/partner/jobs/{item_id}",
+        json={"answer": "ready", "quote_inr": 450},
+        headers=_as(net, "ola"),
+    )
+
+    assert answered.status_code == 200
+    books = net.container.runner.kharcha.store.entries(patient_id)
+    quoted = [e for e in books if e.source.value == "provider_quote"]
+    assert len(quoted) == 1
+    assert quoted[0].amount_paise == 45_000 and quoted[0].organisation_id == OLA
+    assert quoted[0].status.value == "quoted" and quoted[0].category.value == "travel"
+
+
+def test_a_vendor_that_cannot_leaves_no_price_behind(net):
+    patient_id, item_id = _give_ola_a_job(net, ReadinessKind.TRANSPORT)
+
+    net.post(
+        f"/api/partner/jobs/{item_id}",
+        json={"answer": "cannot", "reason": "no car tonight", "quote_inr": 450},
+        headers=_as(net, "ola"),
+    )
+
+    assert net.container.runner.kharcha.store.entries(patient_id) == ()

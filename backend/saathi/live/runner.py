@@ -264,6 +264,12 @@ class LiveRunner:
     #: The network answering journeys: asks the directory's organisations and hears
     #: back. None when partners are off.
     partners: object | None = None
+    #: The family's books (`live/kharcha.py`). None where nothing is kept.
+    kharcha: object | None = None
+    #: Open networks (Beckn/ONDC) a LIVE organisation is reached through.
+    network: object | None = None
+    #: Vendors' own payment gateways.
+    payments: object | None = None
     #: False until the first full plan has run. Learning the state of a
     #: hospital is not news to anybody in it: nothing has changed yet, so
     #: nothing is written. See `plan_all`.
@@ -332,6 +338,7 @@ class LiveRunner:
     _task: asyncio.Task | None = None
     _inbound_task: asyncio.Task | None = None
     _partner_task: asyncio.Task | None = None
+    _kharcha_task: asyncio.Task | None = None
     _hospital_tasks: list = field(default_factory=list)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     _rng: random.Random = field(default_factory=lambda: random.Random(7))
@@ -374,6 +381,9 @@ class LiveRunner:
         elif self.partners is None:
             logger.info("no partner desk: nothing will answer on the network's behalf")
         self._start_hospital_sync()
+        run_books = getattr(self.kharcha, "run", None)
+        if run_books is not None and (self._kharcha_task is None or self._kharcha_task.done()):
+            self._kharcha_task = asyncio.create_task(run_books(), name="saathi-kharcha")
         # Plan once up front so a console that connects before the first tick
         # still sees real decisions rather than an empty page.
         await self.plan_all()
@@ -384,6 +394,7 @@ class LiveRunner:
             self._task,
             self._inbound_task,
             self._partner_task,
+            self._kharcha_task,
             *self._hospital_tasks,
         ):
             if task is not None:
@@ -393,6 +404,7 @@ class LiveRunner:
         self._task = None
         self._inbound_task = None
         self._partner_task = None
+        self._kharcha_task = None
         self._hospital_tasks = []
 
     @contextlib.asynccontextmanager
@@ -614,6 +626,15 @@ class LiveRunner:
         answered = 0
         for patient_id, item in desk.due():
             if desk.settle(item) is not None:
+                answered += 1
+                await self.plan_patient(patient_id, allow_render=True)
+        for patient_id, item in desk.overdue():
+            desk.expire(item)
+            answered += 1
+            await self.plan_patient(patient_id, allow_render=True)
+        network = self.network
+        if network is not None:
+            for patient_id in await network.tick():
                 answered += 1
                 await self.plan_patient(patient_id, allow_render=True)
         return answered

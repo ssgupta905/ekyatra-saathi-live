@@ -17,7 +17,7 @@ interface Resolved {
 }
 
 const NAMED: Record<string, string> = {
-  hi: "Hindi", bn: "Bengali", or: "Odia", en: "English",
+  hi: "Hindi", bn: "Bengali", or: "Odia", ta: "Tamil", en: "English",
   whatsapp: "WhatsApp", ivr: "Voice call", opd: "Outpatient visit", day_care: "Day care",
   not_stated: "Prefer not to say", apl: "APL", bpl: "BPL", aay: "AAY (Antyodaya)",
 };  // prettier-ignore

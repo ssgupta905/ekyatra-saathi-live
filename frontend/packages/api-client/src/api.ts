@@ -26,7 +26,7 @@ export interface FamilyMember {
   name: string;
   phone: string;
   preferred_channel: "whatsapp" | "ivr";
-  language: "hi" | "bn" | "or" | "en";
+  language: "hi" | "bn" | "or" | "ta" | "en";
 }
 
 export interface Patient {
@@ -36,7 +36,7 @@ export interface Patient {
   family_members?: FamilyMember[];
   home_distance_km: number;
   home_district: string;
-  language: "hi" | "bn" | "or" | "en";
+  language: "hi" | "bn" | "or" | "ta" | "en";
   caregiver_phone: string;
   caregiver_email?: string | null;
   hospital_id: string;
@@ -154,6 +154,7 @@ export const LANGUAGE_NAMES: Record<Patient["language"], string> = {
   hi: "Hindi",
   bn: "Bengali",
   or: "Odia",
+  ta: "Tamil",
   en: "English",
 };
 
@@ -839,6 +840,113 @@ export const family = {
 };
 
 /* ──────────────────────────────────────────────────────────────────────────
+   Kharcha: a family's own spends, and what the coming month will cost
+   --------------------------------------------------------------------------
+   Family-only. Every amount carries where it came from: the family's own
+   words, a provider's quote or payment, or arithmetic over those with the
+   entries it was worked from. Amounts are whole paise.
+   ────────────────────────────────────────────────────────────────────────── */
+
+export type SpendCategory = "travel" | "stay" | "food" | "medicine" | "hospital" | "other";
+export type SpendStatus = "proposed" | "quoted" | "paid" | "refunded" | "void";
+export type SpendSource =
+  | "family_stated"
+  | "provider_quote"
+  | "provider_estimate"
+  | "payment_webhook"
+  | "hospital_bill";
+
+export interface SpendEntry {
+  id: string;
+  patient_id: string;
+  category: SpendCategory;
+  amount_paise: number;
+  amount_high_paise: number | null;
+  status: SpendStatus;
+  source: SpendSource;
+  source_ref: string | null;
+  stated_in: string | null;
+  covered_by: "self" | "scheme" | "insurance" | "unknown";
+  on: string;
+  visit_on: string | null;
+  organisation_id: string | null;
+  party: string | null;
+  created_at: string;
+}
+
+export interface ProjectionLine {
+  category: SpendCategory;
+  amount_paise: number | null;
+  basis: "quoted" | "repeat_of_visits" | "nothing_to_go_on";
+  visits_used: number;
+  based_on: string[];
+}
+
+export interface MonthOutlook {
+  month: string;
+  spent_paise: number;
+  booked_paise: number;
+  expected_paise: number | null;
+  visits_ahead: string[];
+  lines: ProjectionLine[];
+  by_category: Partial<Record<SpendCategory, number>>;
+}
+
+export type NudgeKind = "stay_costs_more" | "scheme_may_cover" | "rail_concession" | "over_what_you_said";
+
+export interface Kharcha {
+  patient_id: string;
+  months: [MonthOutlook, MonthOutlook];
+  limit: { patient_id: string; monthly_paise: number; stated_in: string; set_at: string } | null;
+  over_limit: boolean;
+  nudges: { kind: NudgeKind; organisation_id: string | null; organisation_name: string | null }[];
+  to_confirm: SpendEntry[];
+  /** A seller's firm price for a ride, waiting for the family's Book. */
+  bookable: { item_id: string; need: string; provider: string; amount_paise: number | null; entry_id: string | null }[];
+  /** Vendors' quotes the family can pay through the vendor's own link. */
+  payable: SpendEntry[];
+}
+
+export const kharcha = {
+  get: (patientId: string) => request<Kharcha>(`/patients/${patientId}/kharcha`),
+  entries: (patientId: string, month?: string) =>
+    request<{ entries: SpendEntry[] }>(
+      `/patients/${patientId}/kharcha/entries${month ? `?month=${month}` : ""}`,
+    ),
+  /** The family's words, or a typed amount and kind. Comes back as a proposal to confirm. */
+  add: (patientId: string, spend: { text?: string; amount?: number; category?: SpendCategory }) =>
+    request<{ entry: SpendEntry }>(`/patients/${patientId}/kharcha/entries`, {
+      method: "POST",
+      body: JSON.stringify(spend),
+    }),
+  confirm: (patientId: string, entryId: string) =>
+    request<{ entry: SpendEntry }>(`/patients/${patientId}/kharcha/entries/${entryId}/confirm`, {
+      method: "POST",
+    }),
+  remove: (patientId: string, entryId: string) =>
+    request<{ entry: SpendEntry }>(`/patients/${patientId}/kharcha/entries/${entryId}/void`, {
+      method: "POST",
+    }),
+  /** The vendor's own pay link. The money goes to the vendor, never to Saathi. */
+  pay: (patientId: string, entryId: string) =>
+    request<{ entry: SpendEntry; pay_url: string | null }>(
+      `/patients/${patientId}/kharcha/entries/${entryId}/pay`,
+      { method: "POST" },
+    ),
+  /** Book the ride a seller quoted. Only with the family's yes to sharing their contact. */
+  book: (patientId: string, itemId: string, shareContact: boolean) =>
+    request<{ item: { id: string; status: string; detail: string } }>(
+      `/patients/${patientId}/book/${encodeURIComponent(itemId)}`,
+      { method: "POST", body: JSON.stringify({ share_contact: shareContact }) },
+    ),
+  setLimit: (patientId: string, amount: number, said = "") =>
+    request<{ limit: Kharcha["limit"] }>(`/patients/${patientId}/kharcha/limit`, {
+      method: "PUT",
+      body: JSON.stringify({ amount, said }),
+    }),
+};
+
+/* ──────────────────────────────────────────────────────────────────────────
    What a family asked for, and what Saathi asked them
    --------------------------------------------------------------------------
    Two queues that belong on one screen. A *reading* is what the system
@@ -987,9 +1095,10 @@ export interface PartnerQueue {
 
 export const partner = {
   jobs: () => request<PartnerQueue>("/partner/jobs"),
-  answer: (itemId: string, answer: PartnerAnswer, reason = "") =>
+  /** `quoteInr`: the vendor's own price in whole rupees, kept as their quote in the family's books. */
+  answer: (itemId: string, answer: PartnerAnswer, reason = "", quoteInr?: number) =>
     request<{ item_id: string; status: string; detail: string }>(
       `/partner/jobs/${encodeURIComponent(itemId)}`,
-      { method: "POST", body: JSON.stringify({ answer, reason }) },
+      { method: "POST", body: JSON.stringify({ answer, reason, quote_inr: quoteInr ?? null }) },
     ),
 };

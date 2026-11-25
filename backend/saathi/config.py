@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     #: moves by itself; "off" leaves every party to be recorded by a person. Left
     #: unset it follows `seed_demo`.
     partners: str | None = None
+    #: How long an asked organisation has to answer before its silence reads as
+    #: UNKNOWN. Six hours: long enough for a dharamshala clerk to see the job,
+    #: short enough that a family is not told "asked" for a day.
+    partner_answer_minutes: int = Field(default=360, ge=1)
     seed_demo_phone: str | None = None
     #: With no SMS provider the one-time code only reaches the log. Setting this to
     #: six digits makes `seed_demo_phone` (that phone alone) accept it, so a
@@ -236,6 +240,26 @@ class Settings(BaseSettings):
     #: but not the reason — see `_comma_separated` below.
     hospital_systems: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
+    # --- the open networks and the vendors' own gateways ---
+    #: Networks a LIVE organisation books through, one per entry:
+    #:
+    #:     ondc=beckn|<gateway_url>|<bap_id>|<bap_uri>|<unique_key_id>|<signing_key_path>|<city>
+    #:     demo=demo
+    #:
+    #: `demo` is a seller running inside this process (`adapters/beckn/demo.py`),
+    #: for showing the flow without a network. Refused in production.
+    network_providers: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    #: Vendors' own payment gateways, one per entry. The values after the kind
+    #: are the NAMES of environment variables holding the keys, never the keys:
+    #:
+    #:     tmh-pharmacy=razorpay|TMH_RZP_KEY_ID|TMH_RZP_SECRET|TMH_RZP_WEBHOOK_SECRET
+    #:     demo-pay=fake
+    #:
+    #: Saathi never holds money: each account is the vendor's, and the family
+    #: pays the vendor through it. `fake` is for showing the flow; refused in
+    #: production.
+    payment_accounts: Annotated[list[str], NoDecode] = Field(default_factory=list)
+
     # --- reaching the family ---
     whatsapp_phone_number_id: str | None = None
     whatsapp_token: str | None = None
@@ -251,6 +275,17 @@ class Settings(BaseSettings):
                 "SAATHI_SIM_MODE is on while SAATHI_ENVIRONMENT=production: "
                 "demo controls must never be reachable in production"
             )
+        if self.environment.lower() == "production":
+            pretend = [
+                entry
+                for entry in (*self.network_providers, *self.payment_accounts)
+                if entry.partition("=")[2].split("|")[0].strip().lower() in {"demo", "fake"}
+            ]
+            if pretend:
+                raise ValueError(
+                    f"{pretend} pretend to be a network or a gateway; "
+                    "never in SAATHI_ENVIRONMENT=production"
+                )
         if self.sim_mode and self.world == "real":
             raise ValueError(
                 "SAATHI_SIM_MODE is on while SAATHI_WORLD=real: the simulator's "
@@ -258,7 +293,7 @@ class Settings(BaseSettings):
             )
         return self
 
-    @field_validator("hospital_systems", mode="before")
+    @field_validator("hospital_systems", "network_providers", "payment_accounts", mode="before")
     @classmethod
     def _comma_separated(cls, raw: object) -> object:
         """Accept `A,B` as well as `["A","B"]` from the environment.

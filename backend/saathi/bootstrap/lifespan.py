@@ -25,6 +25,16 @@ async def start_runner(container: Container) -> None:
 async def stop_runner(container: Container) -> None:
     with contextlib.suppress(Exception):
         await container.runner.stop()
+    # The hospital connectors hold open HTTP clients; let them go cleanly.
+    if container.hospitals is not None:
+        with contextlib.suppress(Exception):
+            container.hospitals.close()
+    if container.runner.network is not None:
+        with contextlib.suppress(Exception):
+            await container.runner.network.close()
+    if container.runner.payments is not None:
+        with contextlib.suppress(Exception):
+            container.runner.payments.close()
 
 
 @asynccontextmanager

@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 from ..domain.consent import ConsentPurpose
 from ..domain.enums import ReadinessStatus, Role
 from ..domain.models import ReadinessItem
+from ..domain.spends import MOST_ONE_SPEND_PAISE, SpendSource, SpendStatus
 from .access import PrincipalDep, require
 from .deps import ContainerDep
 
@@ -52,6 +53,10 @@ class Answer(BaseModel):
     #: Why not, in the vendor's own words. Asked for on "cannot" because a
     #: navigator about to book someone else needs to know what went wrong.
     reason: str = Field(default="", max_length=200)
+    #: The vendor's own price, in whole rupees, for a ride, a stay or pharmacy
+    #: items. Goes into the family's books as this vendor's quote — the only way
+    #: a figure for this job may ever be shown to them.
+    quote_inr: int | None = Field(default=None, ge=1, le=MOST_ONE_SPEND_PAISE // 100)
 
 
 def _organisation(container, principal) -> str:
@@ -161,10 +166,33 @@ async def answer(
         "cannot": f"{principal.name} cannot: {body.reason.strip()}",
     }[body.answer]
     updated = container.world.set_readiness_item(
-        item.model_copy(update={"status": status, "detail": detail, "due_at": None})
+        item.model_copy(
+            update={"status": status, "detail": detail, "due_at": None, "answer_by": None}
+        )
     )
+    _record_quote(container, patient_id, item, body, principal.name)
     await container.runner.plan_patient(patient_id, allow_render=True)
     return {"item_id": updated.id, "status": updated.status.value, "detail": updated.detail}
+
+
+def _record_quote(container, patient_id: str, item: ReadinessItem, body: Answer, by: str) -> None:
+    """A vendor's price for something the family pays for, kept as that vendor's quote."""
+    from ..live.kharcha import CATEGORY_FOR_NEED
+
+    desk = container.runner.kharcha
+    category = CATEGORY_FOR_NEED.get(item.kind)
+    if desk is None or body.quote_inr is None or body.answer == "cannot" or category is None:
+        return
+    desk.from_provider(
+        patient_id,
+        source=SpendSource.PROVIDER_QUOTE,
+        source_ref=f"partner-quote:{item.id}:{item.partner_id}",
+        amount_paise=body.quote_inr * 100,
+        category=category,
+        status=SpendStatus.QUOTED,
+        party=by,
+        organisation_id=item.partner_id,
+    )
 
 
 __all__ = ["router"]

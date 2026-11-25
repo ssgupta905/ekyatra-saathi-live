@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from ..bootstrap.demo_cast import build_cast
 from ..bootstrap.demo_profiles import seed_demo_onboarding
+from ..bootstrap.demo_spends import seed_demo_spends
 from .access import AdminOnly, PrincipalDep
 from .deps import ContainerDep
 from .registry import ledger
@@ -82,6 +83,15 @@ async def load_cast(state: ContainerDep, principal: PrincipalDep, body: CastIn) 
             )
         loaded.append(patient.id)
 
+    _wire_open_network(state, cast)
+
+    # Their books start again too, with a few past trips so the page has a story.
+    books = state.runner.kharcha
+    if books is not None:
+        for patient_id in loaded:
+            books.store.clear(patient_id)
+        seed_demo_spends(books.store, state.world.today)
+
     for member in cast:
         await state.runner.plan_patient(member.patient.id, allow_render=True)
     ledger(state, principal, "demo/cast", f"demo cast loaded: {', '.join(loaded)}")
@@ -96,3 +106,46 @@ async def load_cast(state: ContainerDep, principal: PrincipalDep, body: CastIn) 
             for m in cast
         ]
     }
+
+
+#: The cab a dialysis family near home books over an open network in the demo.
+DEMO_NETWORK_CAB = "cab-open-network-demo"
+
+
+def _wire_open_network(state, cast) -> None:
+    """With a demo network and a demo gateway configured, show both in the story.
+
+    Meena's rides go to a cab on the open network (search, the seller's quote,
+    her Book), and the vendors on Anita's trip take payment by link. Without
+    them configured, the stories run exactly as before.
+    """
+    registry = state.registry
+    runner = state.runner
+    network = runner.network
+    if network is not None and "demo" in network.providers:
+        from ..domain.affordability import CostTier
+        from ..domain.directory import Organisation, OrgType, PartnerMode
+
+        registry.save_organisation(
+            Organisation(
+                id=DEMO_NETWORK_CAB,
+                name="Open-network cab (demo)",
+                type=OrgType.CAB,
+                services=("auto", "cab", "booked over the open network"),
+                cost_tier=CostTier.MODEST,
+                districts=("Varanasi",),
+                mode=PartnerMode.LIVE,
+                provider="demo",
+                alternate_id="cab-regional",
+            )
+        )
+        for member in cast:
+            if member.patient.id == "DEMO-3":
+                state.onboarding.save_section(
+                    "DEMO-3", "partners", {"transport": DEMO_NETWORK_CAB}, "demo cast"
+                )
+    payments = runner.payments
+    if payments is not None and "demo-pay" in payments.gateways:
+        for org in registry.organisations():
+            if org.id in {"ho-oyo-parel", "ph-daycare-mum"} and org.payment_account != "demo-pay":
+                registry.save_organisation(org.model_copy(update={"payment_account": "demo-pay"}))

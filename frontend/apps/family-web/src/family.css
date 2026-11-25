@@ -19,6 +19,7 @@
 }
 
 .fx-app {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -35,6 +36,7 @@
 .fx-top {
   flex: 0 0 auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -590,7 +592,7 @@
 .fx-tabs {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
@@ -614,6 +616,11 @@
 }
 
 .fx-tabs button:hover { color: var(--ink-2); }
+/* Four tabs on a 375px phone: let each label shrink and truncate rather than
+   widen the whole page. */
+.fx-tabs button { min-width: 0; gap: 4px; font-size: 15px; white-space: nowrap; overflow: hidden; }
+.fx-tabs button svg { flex: 0 0 auto; }
+
 
 .fx-tabs button[aria-selected="true"] {
   color: var(--ink);
@@ -819,3 +826,138 @@
   font-size: 14px;
   color: var(--go);
 }
+
+
+/* ── Kharcha: the family's own spends ─────────────────────────────────────
+   One column, words before numbers, colour never the only signal: the bars
+   have a legend and every figure is also written out. */
+.fx-kharcha { padding-bottom: 24px; }
+.fx-k-private {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-3);
+  background: var(--fill-quiet);
+}
+.fx-k-private svg { flex: 0 0 auto; margin-top: 2px; }
+.fx-k-nudges { list-style: none; margin: 0; padding: 12px 16px 0; display: grid; gap: 8px; }
+.fx-k-nudges li {
+  padding: 12px 14px;
+  border: 1px solid var(--blue-200);
+  border-radius: var(--r-md);
+  background: var(--blue-100);
+  font-size: 15px;
+  line-height: 1.45;
+}
+.fx-k-nudges li.fx-k-nudge-over { border-color: var(--wait); background: var(--wait-tint); }
+.fx-k-confirm-line { margin: 0 0 6px; font-size: 18px; }
+.fx-k-words { margin: 0 0 12px; font-size: 14px; color: var(--ink-3); }
+.fx-k-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.fx-k-actions button, .fx-k-primary {
+  appearance: none;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--blue-500);
+  color: #fff;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.fx-k-actions button.fx-k-secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+.fx-k-actions button:disabled, .fx-k-primary:disabled { opacity: .5; cursor: default; }
+.fx-k-bars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 24px;
+  padding: 18px 32px 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.fx-k-bar { display: grid; justify-items: center; gap: 4px; }
+.fx-k-bar-track {
+  display: flex;
+  flex-direction: column-reverse;
+  width: 44px;
+  height: 120px;
+  border-radius: 6px;
+  background: var(--sunken);
+  overflow: hidden;
+}
+.fx-k-bar-known { display: block; background: var(--blue-500); }
+.fx-k-bar-ahead {
+  display: block;
+  background: repeating-linear-gradient(135deg, var(--blue-200) 0 6px, var(--blue-100) 6px 12px);
+}
+.fx-k-bar-label { font-size: 13px; color: var(--ink-3); }
+.fx-k-bar-total { font-size: 16px; font-weight: 600; }
+.fx-k-legend {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.fx-k-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; }
+.fx-k-dot-known { background: var(--blue-500); }
+.fx-k-dot-ahead { background: var(--blue-200); }
+.fx-k-sums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 10px; }
+.fx-k-sums div { display: grid; gap: 2px; }
+.fx-k-sums dt { font-size: 12px; color: var(--ink-3); }
+.fx-k-sums dd { margin: 0; font-size: 18px; font-weight: 600; }
+.fx-k-ahead, .fx-k-note { margin: 0 0 10px; font-size: 14px; color: var(--ink-2); line-height: 1.45; }
+.fx-k-cats { list-style: none; margin: 0 0 10px; padding: 0; }
+.fx-k-cats li {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-top: 1px solid var(--line-soft);
+  font-size: 15px;
+}
+.fx-k-why {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--blue-700);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.fx-k-working { list-style: none; margin: 0 0 12px; padding: 0; font-size: 14px; }
+.fx-k-working li { display: grid; gap: 2px; padding: 6px 0; border-top: 1px solid var(--line-soft); }
+.fx-k-basis { color: var(--ink-3); font-size: 13px; }
+.fx-k-add { display: grid; gap: 10px; padding-bottom: 18px; }
+.fx-k-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.fx-k-field { display: grid; gap: 4px; flex: 1 1 140px; font-size: 13px; color: var(--ink-3); }
+.fx-k-field input, .fx-k-field select {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+.fx-k-limit { margin: 0; font-size: 18px; font-weight: 600; }
+.fx-k-share { display: flex; gap: 10px; align-items: flex-start; margin: 4px 0 12px; font-size: 15px; line-height: 1.4; }
+.fx-k-share input { width: 22px; height: 22px; margin: 0; flex: 0 0 auto; }
+
+/* The page root is a flex item of body; without this it grows to its widest
+   child (the header) and a 375px phone scrolls sideways. */
+#root { min-width: 0; }
