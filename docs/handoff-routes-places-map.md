@@ -212,3 +212,89 @@ returned a real Parel pharmacy with `opening_hours` and a `mobile` tag (and took
 - Prototype stance for demos: real sign-ins and OTPs are typed by the human; nobody makes real
   payments or bookings during a demo.
 - Secrets: API keys are pasted by the account owner into Render, never into chat, code or the repo.
+
+---
+
+# Picked up 25 Nov 2026: the local places table, and what a device still has to prove
+
+Written by the next pair of hands, against the handoff above.
+
+## What is now done
+
+**§6.1, the local places table — built and running.** This was the top of your
+own priority list and it removes the Overpass blocker entirely.
+
+- Migration `0015` creates `places` (osm id, kind, name, address, lat, lon,
+  phone, opening_hours, loaded_at) with an index on `(kind, latitude, longitude)`.
+- `adapters/places/sql.py:SqlPlaces` implements `PlaceFinder` against it.
+  `SAATHI_PLACES_PROVIDER=local`.
+- `python -m saathi.tools.load_places FILE --write` loads a GeoJSON export,
+  upserting on OpenStreetMap's own id so a monthly reload updates rather than
+  duplicates. Nothing is ever deleted: a place missing from this month's
+  extract is far more often a mapping edit than a closed shop.
+- `tests/test_sql_places.py` — 25 tests, each one teeth-checked by breaking
+  the behaviour it protects.
+
+Measured against 428 real places around Tata Memorial: **13 ms**, where
+Overpass was taking thirty to forty seconds. A pharmacy 941 m away with its
+real Dadar address now renders on the Tamil phone.
+
+Three things worth knowing if you touch it:
+
+1. **It reads `records_url`, not `database_url`.** They are two different
+   SQLite files. The first version used `db.session.get_sessionmaker()` and
+   wrote to the app database — a full table and an empty screen, with nothing
+   to say why. The adapter follows `adapters/spends/sql.py`: take a URL, own a
+   synchronous engine, run the one query in a thread.
+2. **The bounding box scales longitude by `cos(latitude)`.** A degree of
+   longitude is about 5% shorter at Mumbai than at the equator, and a box that
+   forgets it silently misses places at the edge of the radius. The exact
+   radius is then applied in Python, because a box drawn round a 3 km circle
+   reaches 4.2 km at its corners.
+3. **`open_now` is always `None` from this adapter.** It means "open at the
+   instant the service was asked", and this table was written weeks ago.
+   `Place.open_at(when)` answers from the stored hours instead, parsed by
+   `osm.parse_opening_hours` — the same function the live reader uses, because
+   two parsers for one format drift and the day they disagree a family is told
+   a shop is open when it is closed.
+
+**Your Jan Aushadhi matcher was missing about a third of them.** `jan\s?aushadhi`
+allows one space; real entries carry "Jan  Aushadhi" with two, "JanAushadhi"
+with none, and both spellings of the last syllable. Now `jan\s*aushadh?i`.
+Each miss was a government generic-medicine shop a family was never offered,
+which is exactly the kind they should be offered first.
+
+## What a real device still has to prove
+
+The emulator was used, and it genuinely proved these: all four tabs render in
+Tamil, "Near you" returns real places at real distances from the live API,
+Spends shows the honest "cannot say yet" rather than a fabricated figure, the
+language switcher works, and the app builds and installs clean.
+
+It cannot prove the following, and nobody should claim it has:
+
+| Needs a handset | Why the emulator cannot |
+|---|---|
+| `google.navigation:` hand-off | The emulator's Maps app crashes on launch |
+| Location permission flow and the GPS fix | No real fix; the mock provider does not exercise the prompt |
+| Dial (`tel:`) from a place card | No dialler |
+| Map tiles under a moving position | Emulator network is too slow to judge |
+| Kharcha "add a spend" and Book/pay end to end | Never tapped through on hardware (your §6.4) |
+
+`./demo/phone-tour.sh` drives the four tabs and records them, so a device pass
+is: plug in a phone, `adb install -r`, run the tour, then do the five rows
+above by hand.
+
+## Still open from your list
+
+§6.2 (Google) is still blocked on the billing upgrade — unchanged, and the
+local table means it is no longer on the demo's critical path. §6.3 map
+polish, §6.5 ABDM and §6.6 curation are untouched. The family **web** app
+still lacks the route planner, Near you and the map; that was a deliberate
+call, since the phone is the family's surface and a second copy of three
+screens is a second place for every future change to be made twice.
+
+One housekeeping note: `ruff check backend` reports 39 long-line errors in
+`adapters/routes/demo.py`, `adapters/places/osm.py`, `orchestrator/trip_options.py`,
+`api/trip.py` and `api/nearby.py`. They pre-date this work and were left alone
+rather than reformatted underneath you.

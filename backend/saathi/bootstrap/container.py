@@ -294,6 +294,17 @@ def build_places(settings: Settings):
         from ..adapters.places import GooglePlaces
 
         return GooglePlaces(settings.google_maps_api_key)
+    if kind == "local":
+        # Our own table, loaded monthly from OpenStreetMap. The public
+        # Overpass servers answer in thirty to forty seconds when they answer
+        # at all, which a family tapping "Near you" experiences as the
+        # feature being broken. Same data, read in milliseconds, and it
+        # cannot be taken away by somebody else's server being busy.
+        from ..adapters.places.sql import SqlPlaces
+
+        # The records database, not the app one: that is where migration
+        # 0015 creates the table and where the loader writes.
+        return SqlPlaces(settings.records_url)
     if kind == "osm":
         from ..adapters.places import OsmPlaces
 

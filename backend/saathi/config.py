@@ -268,6 +268,10 @@ class Settings(BaseSettings):
     google_maps_api_key: str | None = None
     #: What is around a point: shops, labs, clinics. "osm" (OpenStreetMap, no key),
     #: "google" (Places API, same key) or "demo" (invented shops, labelled). Empty: not offered.
+    #: "local" reads our own `places` table, loaded monthly from
+    #: OpenStreetMap (`python -m saathi.tools.load_places`). The one that
+    #: works without a key, without billing, and without a public server's
+    #: queue. "osm" reads Overpass live; "google" needs a key and billing.
     places_provider: str = ""
     #: The Overpass endpoint for `places_provider=osm` (OpenStreetMap's open data, no key).
     overpass_url: str = "https://overpass-api.de/api/interpreter"

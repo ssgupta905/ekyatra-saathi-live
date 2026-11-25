@@ -1,4 +1,4 @@
-.PHONY: demo-stories stage-arrivals demo-hospital openemr-seed openemr-seed-write demo-two-hospital bahmni-check bahmni-seed bahmni-seed-write android-release dev-users migrate api-real help install demo demo-audio demo-mov demo-video demo-video-headless demo-check fetch-reference test lint api web dev web-test web-typecheck emulator android-build android-test android-install android-run android-strings docker seed clean
+.PHONY: demo-phone demo-full load-places demo-stories stage-arrivals demo-hospital openemr-seed openemr-seed-write demo-two-hospital bahmni-check bahmni-seed bahmni-seed-write android-release dev-users migrate api-real help install demo demo-audio demo-mov demo-video demo-video-headless demo-check fetch-reference test lint api web dev web-test web-typecheck emulator android-build android-test android-install android-run android-strings docker seed clean
 
 PY ?= .venv/bin/python
 # Override when something else already owns 8000:  make api PORT=8001
@@ -89,6 +89,15 @@ demo-stories:  ## Film all three signals: leave, a pending order, a clinic runni
 
 stage-arrivals:  ## Put a clinic's morning into OpenEMR, so "running late" is a real number.
 	$(PY) demo/openemr/stage_arrivals.py --write
+
+demo-phone:  ## Record the family's phone: four tabs, in Tamil, against the live API.
+	./demo/phone-tour.sh
+
+demo-full:  ## Join the Console film and the phone tour into one file.
+	./demo/stitch.sh
+
+load-places:  ## Load healthcare places from a GeoJSON export. FILE=places.geojson
+	PYTHONPATH=backend $(PY) -m saathi.tools.load_places $(FILE) --write
 
 openemr-seed:  ## Say what the OpenEMR seed would change. Writes nothing.
 	PYTHONPATH=backend $(PY) -m saathi.bootstrap.openemr_seed

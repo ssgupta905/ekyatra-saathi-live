@@ -387,6 +387,38 @@ class SpendEntryRow(Base):
     payload_json: Mapped[str] = mapped_column(Text)
 
 
+class PlaceRow(Base):
+    """A healthcare place near somebody, loaded from OpenStreetMap monthly.
+
+    Held locally because the public Overpass servers answer in thirty to forty
+    seconds when they answer at all, and a family opening "Near you" cannot
+    wait for that. The data barely moves: a pharmacy does not relocate weekly.
+
+    The id is OpenStreetMap's own, prefixed by element type ("node/123456789"),
+    so a reload updates rows rather than duplicating them and a place can be
+    looked up by hand on osm.org.
+
+    **There is no rating column and there will not be one.** Nothing here
+    ranks a clinic by what strangers thought of it; a column that existed
+    would eventually be filled. Ordering is distance and opening hours, done
+    in `orchestrator/nearby_needs.py` with the reasons shown to the family.
+    """
+
+    __tablename__ = "places"
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(20), index=True)
+    name: Mapped[str] = mapped_column(String(200), default="")
+    address: Mapped[str] = mapped_column(String(300), default="")
+    latitude: Mapped[float] = mapped_column(Float)
+    longitude: Mapped[float] = mapped_column(Float)
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    #: OpenStreetMap's raw `opening_hours` string. Parsed by the adapter with
+    #: the same parser the live reader uses — two parsers would drift.
+    opening_hours: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    loaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class StatedLimitRow(Base):
     """What a family said they can manage in a month, in their own words."""
 

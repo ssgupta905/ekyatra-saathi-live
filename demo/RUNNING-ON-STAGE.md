@@ -233,6 +233,28 @@ delay would be worse than none — a family rearranges their day around it.
 
 ---
 
+## The family's phone
+
+The four tabs are **இன்று / Today**, **திட்டம் / Plan**, **செய்திகள் / Messages**
+and **செலவு / Spends**. Two of them are worth showing deliberately:
+
+- **Plan → Near you.** Real pharmacies, labs and medical suppliers around the
+  hospital, with distances and opening hours. Read from our own table in
+  milliseconds, not from a public server that takes thirty seconds — see
+  `docs/handoff-routes-places-map.md`. Reload it with
+  `python -m saathi.tools.load_places FILE --write`.
+- **Spends.** When nothing has been recorded yet it says *"cannot say right
+  now: no previous journey spend recorded"* rather than showing a number.
+  That is the rule, not an empty state waiting to be filled.
+
+`./demo/phone-tour.sh` drives all four and records them to
+`recordings/phone-tour.mp4`.
+
+**What the emulator has not proved**, and should not be claimed: the Maps
+hand-off, the location-permission flow, a real GPS fix, dialling from a place
+card, and the Kharcha add/pay forms. All five need a handset. Everything else
+on the phone has been verified.
+
 ## Re-recording the film
 
 ```bash
@@ -248,6 +270,18 @@ one stops instead.
 
 Output: `recordings/three-stories.webm`. `make demo-mov` converts the newest
 recording to a QuickTime `.mov` in `~/Documents`.
+
+For the full thing — Console and phone in one file:
+
+```bash
+make demo-stories        # the Console, two hospital stories
+./demo/phone-tour.sh     # the phone, four tabs in Tamil
+./demo/stitch.sh         # joins them -> recordings/ekyatra-demo.mp4
+```
+
+They are recorded separately because nothing sensible records a browser and an
+emulator at once, and a faked split screen would be the one small lie this
+project keeps not telling. The join puts a card between them saying so.
 
 ---
 
