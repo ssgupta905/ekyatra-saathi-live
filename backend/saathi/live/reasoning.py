@@ -35,7 +35,7 @@ who never sees a refusal has no reason to believe refusals happen.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 
 from .events import EventKind, WorldEvent
@@ -90,12 +90,14 @@ _STEPS: dict[str, Step] = {
     EventKind.DESK_CONFIRMED: Step.HUMAN,
     # Writing a record, ours or the hospital's.
     EventKind.LEDGER_APPENDED: Step.WRITE,
+    EventKind.ESCALATION_WRITTEN: Step.WRITE,
     # Saying something to a family, or asking them something.
     EventKind.MESSAGE_RENDERED: Step.NOTIFY,
     EventKind.HOLDING_MESSAGE_SENT: Step.NOTIFY,
     EventKind.PROCESS_ANSWERED: Step.NOTIFY,
     EventKind.QUESTION_ASKED: Step.NOTIFY,
     EventKind.QUESTION_EXPIRED: Step.NOTIFY,
+    EventKind.ADVICE_SENT: Step.NOTIFY,
 }
 
 #: Event kinds that are machinery rather than reasoning. A clock tick and a
@@ -136,11 +138,14 @@ class ReasoningLine:
     duration_ms: float | None
     kind: str
     seq: int
+    #: How many times in a row this same line occurred. 1 is the usual case.
+    repeated: int = 1
 
     def render(self) -> str:
         """The line as a judge reads it."""
         took = f" ({self.duration_ms:.0f}ms)" if self.duration_ms is not None else ""
-        return f"[{self.step.value}] {self.summary}{took}"
+        again = f" ×{self.repeated}" if self.repeated > 1 else ""
+        return f"[{self.step.value}] {self.summary}{took}{again}"
 
     def to_json(self) -> dict:
         return {
@@ -152,6 +157,7 @@ class ReasoningLine:
             "duration_ms": self.duration_ms,
             "kind": self.kind,
             "seq": self.seq,
+            "repeated": self.repeated,
             "line": self.render(),
         }
 
@@ -178,19 +184,32 @@ def reasoning_log(
     """Project events into the agent's working, oldest first.
 
     `patient_id` narrows to one family's decision, which is how a judge reads
-    it: "show me why she was told the 3rd". Events with no patient — a
-    hospital-wide signal, a ledger write — are kept even when narrowing,
-    because they are often the reason.
+    it: "show me why she was told the 3rd".
+
+    **Narrowing means narrowing.** An earlier version also kept events with no
+    patient on them, on the theory that a hospital-wide signal is often the
+    reason. In practice that put seven route lookups for a family in
+    Darbhanga into the log of a family in Gaya, which does not read as
+    context — it reads as the system having confused two people. Anything
+    that genuinely bears on one family is published carrying their id.
+
+    Consecutive identical lines are collapsed with a count. A poller that
+    consults the same route on every cycle is doing something real and
+    repetitive, and seven copies of one sentence buries the line that matters
+    underneath them.
     """
-    lines = []
+    lines: list[ReasoningLine] = []
     for event in events:
         if is_plumbing(event.kind):
             continue
-        if patient_id is not None and event.patient_id not in (None, patient_id):
+        if patient_id is not None and event.patient_id != patient_id:
             continue
         if not event.summary:
             # Nothing to show a reader. The event is still in the stream and
             # in the ledger; this log is the readable view, not the record.
+            continue
+        if lines and lines[-1].kind == event.kind and lines[-1].summary == event.summary:
+            lines[-1] = replace(lines[-1], repeated=lines[-1].repeated + 1)
             continue
         lines.append(
             ReasoningLine(

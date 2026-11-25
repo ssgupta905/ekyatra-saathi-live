@@ -25,6 +25,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from ..live.knowledge import build as build_graph
 from ..live.reasoning import reasoning_log
 from .access import DeskWork, PrincipalDep
 from .deps import ContainerDep
@@ -139,6 +140,18 @@ async def reasoning(
             state.runner.bus.recent(limit=600), patient_id=patient_id, limit=limit
         )
     ]
+
+
+@router.get("/patients/{patient_id}/graph", dependencies=[DeskWork])
+async def knowledge_graph(state: ContainerDep, patient_id: str) -> dict:
+    """One family's situation as a graph of things that actually exist.
+
+    Built by reading live state, not from a description: the hospital
+    snapshot, the questions asked, the readings waiting, the plan. A family
+    with nothing pending has no pending node — a four-node graph is the right
+    graph when there are four things.
+    """
+    return build_graph(state.runner, patient_id).to_json()
 
 
 @router.post("/patients/{patient_id}/requests/{request_id}/confirm", dependencies=[DeskWork])

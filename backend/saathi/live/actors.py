@@ -22,8 +22,10 @@ API does not, so nothing in here is allowed to raise into the tick loop.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -57,6 +59,28 @@ _MOST_A_JOURNEY_COSTS = 100_000
 #: Nobody travels to a hospital with more companions than this. A reading that
 #: says otherwise misread something, and dropping it costs one question.
 _MOST_COMPANIONS = 10
+
+
+#: Longest we will wait out a rate limit before giving the message to a
+#: person instead. Groq's own `Please try again in Ns` is usually under 20.
+_MOST_BACKOFF = 25.0
+
+
+def _retry_after(exc: Exception) -> float:
+    """How long the API asked us to wait, from its own message.
+
+    Read out of the text rather than guessed, because the number is right
+    there and a fixed sleep is either rude or too slow. Falls back to a few
+    seconds when the message is not in the shape we expect — a changed error
+    format should cost a retry, not an exception inside an error handler.
+    """
+    found = re.search(r"try again in ([0-9.]+)s", str(exc))
+    if not found:
+        return 5.0
+    try:
+        return min(float(found.group(1)) + 0.5, _MOST_BACKOFF)
+    except ValueError:
+        return 5.0
 
 
 def _as_count(raw: object, *, most: int = _MOST_COMPANIONS) -> int | None:
@@ -205,8 +229,12 @@ REQUEST_SCHEMA = _schema(
         "companions": {
             "type": ["integer", "null"],
             "description": (
-                "How many people are travelling with the patient, if the message "
-                "says. Null if it does not. Never guess from household size."
+                "How many people travel WITH the patient, NOT counting the patient. "
+                "\"I will go with him\" is 1. \"My brother and I will come\" is 2. "
+                "\"Two of us are coming\" is 1 when one of the two is the patient, "
+                "and the message usually makes that clear. \"I am coming alone\", "
+                "said by the patient, is 0. Null only when the message does not say. "
+                "Never guess from household size."
             ),
         },
         "single_day_trip": {
@@ -219,9 +247,14 @@ REQUEST_SCHEMA = _schema(
         "stated_cost_inr": {
             "type": ["integer", "null"],
             "description": (
-                "A rupee amount THE FAMILY STATES for the journey. Only a figure "
-                "they actually said. Never your own estimate of a fare, and never "
-                "a figure converted from anything else. Null if they said none."
+                "A money amount THE FAMILY STATES for travel or the trip, as a "
+                "plain number. Families say this in many words and all of them "
+                "count: rupees, rupaye, rupaiya, taka, taka, Rs, \u20b9, or just a "
+                "number next to tickets, fare, bus, train, kharcha or kharach. "
+                "\"Train tickets will be 900 taka\" is 900. \"Bus ka ticket 1400 ka\" "
+                "is 1400. Treat every one of these as the same field; do not "
+                "convert between currencies. Only a figure they actually said — "
+                "never your own estimate of a fare. Null if they stated none."
             ),
         },
         "refundable": {
@@ -438,6 +471,36 @@ class GroqActors:
                 response_format=response_format,
             )
             text = response.choices[0].message.content
+        except groq.RateLimitError as exc:
+            # The free tier is 8,000 tokens a minute, and this system can
+            # legitimately want several readings at once — a connector poll
+            # that finds three families affected by the same leave asks three
+            # times in a second. Measured on a real key: concurrent calls 429
+            # perfectly reliably, and the failure is indistinguishable
+            # downstream from "the family said nothing", which is the worst
+            # possible way to lose a reading.
+            #
+            # One retry, after the wait the API itself asks for. Not a loop:
+            # if the budget is genuinely gone, a person reading the message
+            # is the right outcome and a queue of retries only delays it.
+            wait = _retry_after(exc)
+            logger.warning("rate limited; retrying once in %.1fs", wait)
+            await asyncio.sleep(wait)
+            try:
+                response = await self._client.chat.completions.create(
+                    model=self.model,
+                    max_tokens=max_tokens or self.max_tokens,
+                    temperature=temperature,
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": prompt},
+                    ],
+                    response_format=response_format,
+                )
+                text = response.choices[0].message.content
+            except (groq.APIError, IndexError, AttributeError) as retry_exc:
+                logger.warning("actor call failed after a retry: %s", retry_exc)
+                return None
         except (groq.APIError, IndexError, AttributeError) as exc:
             logger.warning("actor call failed: %s", exc)
             return None

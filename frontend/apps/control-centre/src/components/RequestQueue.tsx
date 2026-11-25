@@ -36,7 +36,16 @@ import { SkeletonRows, useToast } from "../ui/kit";
  * turn up on the wrong day, or not at all, and a queue showing only answers
  * hides exactly them.
  */
-export function RequestQueue({ revision }: { revision: number }) {
+export function RequestQueue({
+  revision,
+  onSelect,
+}: {
+  revision: number;
+  /** Open this family's working beside the queue. A navigator deciding
+   *  whether a reading is right wants the evidence behind it, and until this
+   *  existed the only way to reach it was through a different screen. */
+  onSelect?: (patientId: string) => void;
+}) {
   const [rows, setRows] = useState<RequestWaiting[] | null>(null);
   const [questions, setQuestions] = useState<QuestionWaiting[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -107,7 +116,17 @@ export function RequestQueue({ revision }: { revision: number }) {
             {rows.map((row) => (
               <li key={row.id} className="queue-row">
                 <div className="queue-head">
-                  <strong>{row.name}</strong>
+                  {onSelect ? (
+                    <button
+                      type="button"
+                      className="linklike"
+                      onClick={() => onSelect(row.patient_id)}
+                    >
+                      {row.name}
+                    </button>
+                  ) : (
+                    <strong>{row.name}</strong>
+                  )}
                   <Chip tone={row.needs_a_person ? "uncertain" : "info"}>
                     {row.needs_a_person ? "needs a person" : row.intent.replace("_", " ")}
                   </Chip>

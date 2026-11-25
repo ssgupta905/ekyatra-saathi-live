@@ -5,6 +5,7 @@ import { Drawer } from "../ui/kit";
 import { Graph } from "../ui/icons";
 import { useWorld } from "../world";
 import { BudgetQueue } from "../components/BudgetQueue";
+import { KnowledgeGraph } from "../components/KnowledgeGraph";
 import { ReasoningLog } from "../components/ReasoningLog";
 import { RequestQueue } from "../components/RequestQueue";
 
@@ -34,7 +35,7 @@ export function Approvals() {
       {/* Highest first: a reading nobody has agreed to is blocking a re-plan
           that cannot be computed until it is agreed. Below it, a family who
           answered and was never confirmed has been asked for nothing. */}
-      <RequestQueue revision={world.cohortRevision} />
+      <RequestQueue revision={world.cohortRevision} onSelect={setFamily} />
       <BudgetQueue revision={world.cohortRevision} />
       {family && (
         <div className="approvals-bar">
@@ -56,11 +57,15 @@ export function Approvals() {
       <Drawer open={why && family !== null} title={`Why · ${family ?? ""}`} onClose={() => setWhy(false)} width={600}>
         {family && (
           <div className="stack">
-            <ExplainPane patientId={family} />
-            {/* The working, under the evidence. The evidence says what was
-                relied on; this says what was done, in order, with what each
-                step cost. */}
+            {/* Narrowest question first. "What did you do?" is what a reader
+                asks, and the answer is short. Then "what was that built
+                from?". The full evidence chain is last because it is the
+                deepest detail and the longest — put first, it pushed both of
+                the others off the screen, which is how a reader concludes
+                they are not there. */}
             <ReasoningLog patientId={family} revision={world.cohortRevision} />
+            <KnowledgeGraph patientId={family} revision={world.cohortRevision} />
+            <ExplainPane patientId={family} />
           </div>
         )}
       </Drawer>

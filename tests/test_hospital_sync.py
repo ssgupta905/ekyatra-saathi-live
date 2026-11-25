@@ -21,14 +21,17 @@ from saathi.bootstrap.container import build_container
 from saathi.config import Settings
 from saathi.domain.enums import ResourceKind, StepKind, StepStatus
 from saathi.domain.models import Resource
+from saathi.domain.requests import PatientRequest, RequestIntent, TravelFacts
 from saathi.language.questions import AskReason, AskTopic
 from saathi.live.events import EventKind
 from saathi.live.hospital_sync import HospitalSync
 from saathi.ports.hospital import (
     AppointmentState,
     HospitalAppointment,
+    HospitalOrder,
     HospitalService,
     HospitalUnavailable,
+    OrderState,
     ProviderAway,
 )
 
@@ -435,3 +438,198 @@ async def test_a_hospital_that_cannot_publish_leave_is_skipped_silently(rig):
 
 def _state_conversation(state):
     return state.runner.conversation
+
+
+# ---------------- a pending report, and whose money is already spent ----------------
+#
+# The branch that makes capturing refundability worth anything. The same
+# hospital signal — a report that is not ready — produces two different
+# decisions depending on one thing the family said, and nothing in the
+# hospital's record knows it.
+
+
+class OrderHospital(FakeHospital):
+    """A hospital that also publishes order status, and accepts a Task."""
+
+    def __init__(self, appointments, orders=()):
+        super().__init__(appointments)
+        self.orders = list(orders)
+        self.tasks: list[dict] = []
+
+    def open_orders(self, *, patient_refs=()):
+        return tuple(self.orders)
+
+    def create_task(self, task: dict) -> str:
+        self.tasks.append(task)
+        return f"task-{len(self.tasks)}"
+
+
+def _order(patient_ref="hms-patient-1", *, ref="sr-1"):
+    return HospitalOrder(
+        ref=ref,
+        patient_ref=patient_ref,
+        name="PET-CT",
+        state=OrderState.OPEN,
+        ordered_at=datetime.combine(START, datetime.min.time(), tzinfo=UTC),
+    )
+
+
+@pytest.fixture
+def order_rig():
+    state = build_container(Settings(_env_file=None, live_watched=4), today=START)
+    patient_id = state.world.patients()[0].id
+    booking = _appointment(patient_id, on=START + timedelta(days=2))
+    hms = OrderHospital([booking])
+    sync = HospitalSync(hospital=hms, runner=state.runner, window_days=30)
+    state.runner.hospital = hms
+    state.runner.hospital_sync = sync
+    return state, hms, sync, patient_id
+
+
+def _they_said_it_cannot_change(state, patient_id, *, refundable, attributed=True):
+    """Put a reading on the record, the way a family's reply would have."""
+    request = PatientRequest(
+        id=f"req-{patient_id}",
+        patient_id=patient_id,
+        raw_text="Bus ka ticket 1400 ka le liya hai, wo wapas nahi hoga",
+        intent=RequestIntent.UNCLEAR,
+        travel=TravelFacts(
+            stated_cost_inr=1400,
+            refundable=refundable,
+            stated_in="Bus ka ticket 1400 ka le liya hai" if attributed else "",
+        ),
+    )
+    state.runner.requests.setdefault(patient_id, []).append(request)
+    return request
+
+
+async def test_a_pending_report_asks_when_nothing_is_known_about_the_travel(order_rig):
+    state, hms, sync, patient_id = order_rig
+    await sync.poll_once()  # prime appointments
+    hms.orders.append(_order())
+    await sync.poll_once()  # prime orders
+    hms.orders[0] = replace(hms.orders[0], name="PET-CT (updated)")
+    await sync.poll_once()
+
+    assert state.runner.conversation.waiting(), "with nothing known, Saathi must ask"
+    assert hms.tasks == [], "and must not ask the hospital for anything yet"
+
+
+async def test_non_refundable_travel_keeps_the_date_and_escalates(order_rig):
+    """The decision turns on one sentence the family said.
+
+    Moving the visit would spend their money twice. So the request goes the
+    other way — keep the date, ask the hospital to bring the report forward —
+    and that request is written into the hospital's own record.
+    """
+    state, hms, sync, patient_id = order_rig
+    _they_said_it_cannot_change(state, patient_id, refundable=False)
+
+    await sync.poll_once()
+    hms.orders.append(_order())
+    await sync.poll_once()
+    hms.orders[0] = replace(hms.orders[0], name="PET-CT (updated)")
+    await sync.poll_once()
+
+    assert state.runner.conversation.waiting() == (), "nothing left to ask them"
+    assert sync.counts.get("kept:non_refundable") == 1
+    (task,) = hms.tasks
+    assert task["resourceType"] == "Task"
+    assert task["priority"] == "urgent"
+    assert "1400" in task["description"], "the family's own figure is the reason"
+    assert "cannot be changed" in task["description"]
+
+
+async def test_refundable_travel_does_not_escalate(order_rig):
+    """A ticket that can be changed is not a reason to push a hospital."""
+    state, hms, sync, patient_id = order_rig
+    _they_said_it_cannot_change(state, patient_id, refundable=True)
+
+    await sync.poll_once()
+    hms.orders.append(_order())
+    await sync.poll_once()
+    hms.orders[0] = replace(hms.orders[0], name="PET-CT (updated)")
+    await sync.poll_once()
+
+    assert hms.tasks == []
+    assert state.runner.conversation.waiting(), "ask them instead"
+
+
+async def test_an_unattributed_claim_never_escalates(order_rig):
+    """`refundable=False` with no sentence behind it is not evidence.
+
+    A claim that somebody's money is already spent, traceable to nothing,
+    must not be what decides whether their visit moves — and must certainly
+    not be what this system tells a hospital.
+    """
+    state, hms, sync, patient_id = order_rig
+    _they_said_it_cannot_change(state, patient_id, refundable=False, attributed=False)
+
+    await sync.poll_once()
+    hms.orders.append(_order())
+    await sync.poll_once()
+    hms.orders[0] = replace(hms.orders[0], name="PET-CT (updated)")
+    await sync.poll_once()
+
+    assert hms.tasks == [], "nothing attributable, nothing asserted to a hospital"
+
+
+async def test_a_rejected_reading_is_not_used_to_escalate(order_rig):
+    """A navigator who said the reading was wrong has overruled it."""
+    state, hms, sync, patient_id = order_rig
+    request = _they_said_it_cannot_change(state, patient_id, refundable=False)
+    state.runner.requests[patient_id][-1] = request.model_copy(
+        update={"rejected_reason": "she said it can be changed for a fee"}
+    )
+
+    await sync.poll_once()
+    hms.orders.append(_order())
+    await sync.poll_once()
+    hms.orders[0] = replace(hms.orders[0], name="PET-CT (updated)")
+    await sync.poll_once()
+
+    assert hms.tasks == []
+
+
+async def test_an_order_outstanding_long_before_the_visit_is_left_alone(order_rig):
+    """A report pending a month out is just a report.
+
+    Pushing a hospital about it would spend credibility that the week before
+    the visit is going to need, and would ask a family about a bus ticket
+    they have not booked yet.
+    """
+    state, hms, sync, patient_id = order_rig
+    _they_said_it_cannot_change(state, patient_id, refundable=False)
+    # Past the 7-day horizon but still inside the connector's 30-day window.
+    # At 40 days it fell outside the window entirely and the test passed for
+    # the wrong reason — the connector never saw the appointment at all.
+    far = datetime.combine(START + timedelta(days=20), datetime.min.time(), tzinfo=UTC)
+    hms.by_ref["appt-kamla"] = replace(
+        hms.by_ref["appt-kamla"], starts_at=far, ends_at=far + timedelta(minutes=30)
+    )
+
+    await sync.poll_once()
+    hms.orders.append(_order())
+    await sync.poll_once()
+    await sync.poll_once()
+
+    assert hms.tasks == []
+    assert state.runner.conversation.waiting() == ()
+
+
+async def test_a_standing_pending_order_is_acted_on_once(order_rig):
+    """It is a standing condition, so every cycle sees it again.
+
+    Without a memory of having acted, a report outstanding for a week would
+    ask the family every three seconds and file a task with it.
+    """
+    state, hms, sync, patient_id = order_rig
+    _they_said_it_cannot_change(state, patient_id, refundable=False)
+
+    await sync.poll_once()
+    hms.orders.append(_order())
+    for _ in range(5):
+        await sync.poll_once()
+
+    assert len(hms.tasks) == 1, "one request to the hospital, not five"
+    assert sync.counts.get("kept:non_refundable") == 1

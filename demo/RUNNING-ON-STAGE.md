@@ -156,6 +156,20 @@ source behind this system, and an invented number would read to a family as
 the hospital's own estimate. A figure that cannot be traced to the family is
 dropped before it reaches this screen.
 
+### Two and a half — the same signal, a different answer
+
+Kamla's creatinine is still open and her visit is near. Saathi asks about her
+travel; she replies that the night bus cost ₹1,400 and the money is gone.
+
+**That one sentence turns the decision over.** Moving her visit would spend
+her ₹1,400 twice, so EKYATRA keeps the date and asks the hospital to bring the
+report forward instead — written into OpenEMR's own record as a FHIR `Task`.
+Say the same scenario with a *refundable* ticket and watch it ask about dates
+instead; that is the contrast worth inviting a judge to try.
+
+The honest caveat: OpenEMR does not display `Task`s in its UI, so the request
+is auditable and queryable but a clerk would not see it there.
+
 ### Three — a person decides
 
 Click **Agree, and re-plan**. Only now does the planner see it.
@@ -210,6 +224,7 @@ instead of to the family.
 | "running about 0 min behind" | The staged morning is from another day, or the laptop slept | `make stage-arrivals` again |
 | Leave is entered and nothing happens | It is already in `_seen_leave` from an earlier run | Restart the API; a connector only acts on a leave once |
 | `401` on everything | Sign-in is on | `SAATHI_AUTH=off` is in `demo.env`; make sure it is sourced |
+| A family's reply reads as empty, or a figure goes missing | **Groq's free tier is 8,000 tokens a minute.** Several readings at once — one leave affecting three families — will 429. The actor retries once after the wait the API asks for, then gives the message to a person. | Space out injections by ~10s when rehearsing, or move the key to a paid tier before the day. Measured: sequential extraction is 5/5 on both stories; six concurrent calls 429 reliably. |
 | No arrival times at all | PyMySQL missing, or port 3307 not published | `pip install -e '.[openemr]'`, and use `demo/openemr/docker-compose.yml` |
 
 The Console reporting **arrival with no delay** is not a bug. It is what the

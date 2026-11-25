@@ -90,6 +90,13 @@ class EventKind:
     REQUEST_CONFIRMED = "request.confirmed"
     #: A navigator said the reading was wrong, with what they corrected.
     REQUEST_REJECTED = "request.rejected"
+    #: A family was told to set out later because the clinic is behind. Not a
+    #: re-plan: the visit is going ahead, and only the leaving time changes.
+    ADVICE_SENT = "advice.sent"
+    #: We asked the hospital to bring a report forward, rather than move a
+    #: visit, because the family's travel is already paid for and cannot be
+    #: changed. Written into the hospital's own record as a FHIR Task.
+    ESCALATION_WRITTEN = "escalation.written"
 
 
 @dataclass(frozen=True)

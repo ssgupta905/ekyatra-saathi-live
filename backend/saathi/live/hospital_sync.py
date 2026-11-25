@@ -64,6 +64,11 @@ _RECENT_LIMIT = 40
 #: family to ignore messages — which costs them the one that mattered.
 _WORTH_TELLING = timedelta(minutes=45)
 
+#: How close a visit has to be before an outstanding order is worth acting on.
+#: A report pending a month out is just a report; pushing a hospital about it
+#: would spend credibility the week before the visit will need.
+_PENDING_HORIZON_DAYS = 7
+
 #: Which kind of disruption a lost slot is, by what the resource is. A machine
 #: that stops is not the same event as a clinician on leave, and the family's
 #: holding message says so.
@@ -225,12 +230,41 @@ class HospitalSync:
     #: mechanism as `AppointmentSnapshot`, for exactly one reason to learn.
     orders: OrderSnapshot = field(default_factory=OrderSnapshot)
     _orders_primed: bool = False
+    #: Orders this connector has already acted on, so a report outstanding for
+    #: a week does not ask the family — or push the hospital — every cycle.
+    _acted_on_orders: set[str] = field(default_factory=set)
+    #: Orders already on the situation board, so a standing condition
+    #: re-checked every three seconds appears once rather than every cycle.
+    _noted_orders: set[str] = field(default_factory=set)
     #: How the clinic is running today, when a source can tell us. `None`
     #: means nobody can, and the Console must then claim no delay at all.
     flow: ClinicFlow | None = None
     #: Days a family has already been told the clinic is behind, so a slow
     #: morning does not become a message every three seconds.
     _told_behind: set[str] = field(default_factory=set)
+
+    def forget(self) -> None:
+        """Forget everything this connector has already acted on.
+
+        Only the demo reset calls this. A connector deliberately acts once per
+        leave and once per outstanding order, which is right in a hospital and
+        wrong on a stage: without this, rehearsing a scenario twice shows
+        nothing the second time, and the obvious workaround — restarting the
+        process — loses the rest of the world with it.
+
+        The snapshots are cleared too, so the next poll primes rather than
+        reporting every existing appointment as new.
+        """
+        self._seen_leave.clear()
+        self._acted_on_orders.clear()
+        self._noted_orders.clear()
+        self._told_behind.clear()
+        self._ours.clear()
+        self.recent.clear()
+        self.snapshot = AppointmentSnapshot()
+        self.orders = OrderSnapshot()
+        self._orders_primed = False
+        self.flow = None
 
     @property
     def links(self) -> HospitalLinks:
@@ -353,6 +387,7 @@ class HospitalSync:
                     f"{day:%d %b}; {patient_id} is booked at "
                     f"{appointment.starts_at:%H:%M}"
                 ),
+                day=day.isoformat(),
             )
             # Ask before planning. A new date needs to fit the family's week,
             # their money and who can come with them, and none of that is in
@@ -410,36 +445,138 @@ class HospitalSync:
 
         for order in changed:
             self._bump("order")
-            await self._act_on_order(order)
+            if not order.state.blocks_dependents:
+                # Finished. Whatever was waiting on it may now move.
+                finished_for = self._patient_for_ref(order.patient_ref)
+                if finished_for is not None:
+                    self._remember_signal(
+                        kind="order",
+                        patient_id=finished_for,
+                        summary=f"{order.name or 'an order'} is {order.state.value}",
+                    )
+                    await self.runner.plan_patient(finished_for)  # type: ignore[attr-defined]
 
-    async def _act_on_order(self, order: HospitalOrder) -> None:
-        """An order moved. Ask about the booking if a visit depends on it.
+        # An order *still being open* as the visit approaches is a standing
+        # condition, not an event. Nothing changes on the day it starts to
+        # matter — which is exactly why a diff could never catch it, and why
+        # "the report is still pending two days before the visit" needs its
+        # own check every cycle rather than a place in the diff above.
+        for pending in snapshot.orders.values():
+            if not pending.state.blocks_dependents or pending.ref in self._acted_on_orders:
+                continue
+            if await self._act_on_pending_order(pending):
+                self._acted_on_orders.add(pending.ref)
 
-        The question is about the *ticket*, not the date, and that is the
-        point of story two: whether the family can change travel they have
-        already paid for is what decides between moving the visit and keeping
-        it and chasing the report. Nothing in the hospital's record knows it.
+    async def _act_on_pending_order(self, order: HospitalOrder) -> bool:
+        """An outstanding order with a visit depending on it. Act once.
+
+        Returns whether anything was done, so the caller only remembers orders
+        it actually acted on — an order whose family we cannot match today may
+        be matchable tomorrow, and marking it done would mean never looking
+        again.
+
+        The question, when one is asked, is about the *ticket* rather than the
+        date. Whether a family can change travel they have already paid for is
+        what decides between moving the visit and keeping it while chasing the
+        report, and nothing in a hospital's record knows it.
         """
         patient_id = self._patient_for_ref(order.patient_ref)
         if patient_id is None:
-            return
-        self._remember_signal(
-            kind="order",
-            patient_id=patient_id,
-            summary=f"{order.name or 'an order'} is {order.state.value}",
-        )
-        if not order.state.blocks_dependents:
-            # Finished. Re-plan: a step that was waiting on it may now move.
-            await self.runner.plan_patient(patient_id)  # type: ignore[attr-defined]
-            return
+            return False
 
-        day = order.ordered_at.date() if order.ordered_at else self.runner.world.today  # type: ignore[attr-defined]
+        # Only once it is close enough to matter. An order outstanding a month
+        # before the visit is simply an order; pushing a hospital about it
+        # would spend credibility that the week before the visit will need.
+        upcoming = self._next_open_visit(patient_id)
+        if upcoming is None:
+            return False
+        days_away = (upcoming.starts_at.date() - self.runner.world.today).days  # type: ignore[attr-defined]
+        if days_away < 0 or days_away > _PENDING_HORIZON_DAYS:
+            return False
+
+        # Once per order, not once per cycle. This is a standing condition
+        # re-checked every three seconds, and recording it each time buried
+        # the board under the same line.
+        if order.ref not in self._noted_orders:
+            self._noted_orders.add(order.ref)
+            self._remember_signal(
+                kind="order",
+                patient_id=patient_id,
+                summary=(
+                    f"{order.name or 'an order'} is {order.state.value} and "
+                    f"{patient_id} is booked in {days_away} day(s)"
+                ),
+            )
+        day = upcoming.starts_at.date()
+
+        # **The branch this whole capture exists for.** If the family has told
+        # us their travel is already paid for and cannot be changed, moving
+        # the visit does not help them — it spends their money a second time.
+        # So the request goes the other way: ask the hospital to bring the
+        # report forward, and keep the date.
+        #
+        # If they have not said, or their booking *can* change, there is
+        # nothing to weigh yet and the honest move is to ask rather than
+        # assume which way they would rather have it.
+        paid_for = self.runner.travel_already_paid_for(patient_id)  # type: ignore[attr-defined]
+        if paid_for is not None:
+            stated = paid_for.travel
+            amount = (
+                f"They have already paid about ₹{stated.stated_cost_inr} for travel "
+                if stated.stated_cost_inr is not None
+                else "They have already paid for travel "
+            )
+            task_ref = await self.runner.escalate_pending_order(  # type: ignore[attr-defined]
+                patient_id,
+                order_ref=order.ref,
+                what=order.name or "an order",
+                needed_by=day,
+                because=f"{amount}that they say cannot be changed.",
+                patient_ref=order.patient_ref,
+                system=self.hospital,
+            )
+            self._bump("kept:non_refundable")
+            self._remember_signal(
+                kind="escalation",
+                patient_id=patient_id,
+                summary=(
+                    f"{order.name or 'an order'} is {order.state.value}; keeping "
+                    f"{patient_id}'s date and asking the hospital to prioritise — "
+                    f"their travel cannot be changed"
+                    + (f" (task {task_ref})" if task_ref else " (no task could be filed)")
+                ),
+                day=day.isoformat(),
+            )
+            return True
+
+        # Asking is not acting. The point of the question is that the answer
+        # may change the decision — so this deliberately does **not** mark the
+        # order as dealt with: once the family replies and the question
+        # closes, the next cycle looks again and may now escalate instead.
+        # Marking it here was a real bug: the family answered "the ticket
+        # cannot be changed" into a void, because nothing ever reconsidered.
+        if self.runner.conversation.pending(patient_id) is not None:  # type: ignore[attr-defined]
+            return False  # already waiting on them; asking twice is nagging
+
         await self.runner.ask_family(  # type: ignore[attr-defined]
             patient_id,
             reason=AskReason.REPORT_PENDING,
             topics=(AskTopic.BOOKING, AskTopic.TIMING),
             about_day=day,
         )
+        return False
+
+    def _next_open_visit(self, patient_id: str):
+        """Their soonest booked visit from today, or None."""
+        today = self.runner.world.today  # type: ignore[attr-defined]
+        upcoming = [
+            appointment
+            for appointment in self.snapshot.by_ref.values()
+            if appointment.state.is_open
+            and appointment.starts_at.date() >= today
+            and self.links.patient_for(appointment) == patient_id
+        ]
+        return min(upcoming, key=lambda a: a.starts_at) if upcoming else None
 
     # ---------------- how today is going ----------------
 
@@ -470,15 +607,37 @@ class HospitalSync:
         behind = flow.running_behind()
         assert behind is not None  # guaranteed by is_behind_by
         logger.info("hospital: %s", flow.summary())
+        # Who is already here. A family sitting in the waiting room cannot act
+        # on "leave later", and telling them would read as the system not
+        # knowing where they are.
+        told: set[str] = set()
         for arrival in flow.arrivals:
             patient_id = self._patient_for_ref(f"Patient/{arrival.patient_ref}")
             if patient_id is None:
                 continue
-            self._remember_signal(
-                kind="behind",
-                patient_id=patient_id,
-                summary=flow.summary(),
+            self._remember_signal(kind="behind", patient_id=patient_id, summary=flow.summary())
+            told.add(patient_id)
+
+        # The tracker holds only people already marked arrived, so anybody
+        # booked today and absent from it is still on their way — and they are
+        # exactly the ones this can help.
+        for appointment in self.snapshot.by_ref.values():
+            if appointment.starts_at.date() != today or not appointment.state.is_open:
+                continue
+            patient_id = self.links.patient_for(appointment)
+            if patient_id is None or patient_id in told:
+                continue
+            told.add(patient_id)
+            sent = await self.runner.advise_leave_later(  # type: ignore[attr-defined]
+                patient_id, due_at=appointment.starts_at, delay=behind
             )
+            if sent:
+                self._bump("advised")
+                self._remember_signal(
+                    kind="advice",
+                    patient_id=patient_id,
+                    summary=f"told {patient_id} to set out later — {flow.summary()}",
+                )
 
     def _patient_for_ref(self, patient_ref: str) -> str | None:
         """Our patient id for an HMS patient reference, or None.
@@ -503,7 +662,9 @@ class HospitalSync:
         self.last_error = str(exc)
         self._bump(f"unreachable:{what}")
 
-    def _remember_signal(self, *, kind: str, patient_id: str, summary: str) -> None:
+    def _remember_signal(
+        self, *, kind: str, patient_id: str, summary: str, day: str = ""
+    ) -> None:
         """Put a non-appointment signal on the live situation board."""
         self.recent.insert(
             0,
@@ -512,6 +673,11 @@ class HospitalSync:
                 "hospital_id": self.hospital_id,
                 "patient_id": patient_id,
                 "summary": summary,
+                # Which day this is about, when it is about one. The knowledge
+                # graph needs it to draw a conflict only against the visit the
+                # leave actually covers — without it, leave on one day was
+                # drawn as colliding with every open visit the family had.
+                "day": day,
                 "at": datetime.now(UTC).isoformat(),
             },
         )
