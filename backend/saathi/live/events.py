@@ -74,6 +74,22 @@ class EventKind:
     #: provider and the measured latency, so a number on screen can be traced
     #: back to the call that produced it.
     TOOL_CALLED = "tool.called"
+    #: Saathi asked a family something and is waiting — see `live/dialogue.py`.
+    #: Carries the question text, so the log shows both halves of an exchange
+    #: rather than an answer with nothing to answer.
+    QUESTION_ASKED = "question.asked"
+    #: A family's reply filled at least one thing the question asked about.
+    QUESTION_ANSWERED = "question.answered"
+    #: A question waited longer than a reply is worth and was closed. Not the
+    #: same as a family declining: nobody has heard from them.
+    QUESTION_EXPIRED = "question.expired"
+    #: A reading of what a family asked for, waiting on a navigator to agree
+    #: with it. The planner has not seen it yet.
+    REQUEST_RAISED = "request.raised"
+    #: A navigator agreed the reading was right; the planner may act on it.
+    REQUEST_CONFIRMED = "request.confirmed"
+    #: A navigator said the reading was wrong, with what they corrected.
+    REQUEST_REJECTED = "request.rejected"
 
 
 @dataclass(frozen=True)

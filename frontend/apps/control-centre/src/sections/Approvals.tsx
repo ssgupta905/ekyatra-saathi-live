@@ -5,13 +5,22 @@ import { Drawer } from "../ui/kit";
 import { Graph } from "../ui/icons";
 import { useWorld } from "../world";
 import { BudgetQueue } from "../components/BudgetQueue";
+import { ReasoningLog } from "../components/ReasoningLog";
+import { RequestQueue } from "../components/RequestQueue";
 
 /**
- * Everything waiting on a person. First what families have said they can
- * manage, then the re-plans: pick a family, see its ranked options and what
- * each costs the family, approve one. "Why" opens beside it rather than pushing
- * the options off the screen. A navigator sees what a navigator may approve; a
- * doctor sees what only a doctor may. The server enforces both.
+ * Everything waiting on a person, in the order a day actually works.
+ *
+ * First what families have *asked for* — a reading of their own words that
+ * nothing acts on until somebody agrees with it. Then what they said they can
+ * manage. Then the re-plans: pick a family, see its ranked options and what
+ * each costs them, approve one. "Why" opens beside it rather than pushing the
+ * options off the screen, and now carries the step-by-step working as well as
+ * the evidence, because "why the 3rd" and "how did you get to the 3rd" are
+ * different questions and a judge asks the second one.
+ *
+ * A navigator sees what a navigator may approve; a doctor sees what only a
+ * doctor may. The server enforces both.
  */
 export function Approvals() {
   const { persona } = usePersona();
@@ -22,8 +31,10 @@ export function Approvals() {
 
   return (
     <div className="stack">
-      {/* Above the re-plans: a family who answered and was never confirmed has
-          been asked a question for nothing. */}
+      {/* Highest first: a reading nobody has agreed to is blocking a re-plan
+          that cannot be computed until it is agreed. Below it, a family who
+          answered and was never confirmed has been asked for nothing. */}
+      <RequestQueue revision={world.cohortRevision} />
       <BudgetQueue revision={world.cohortRevision} />
       {family && (
         <div className="approvals-bar">
@@ -43,7 +54,15 @@ export function Approvals() {
         onSelect={setFamily}
       />
       <Drawer open={why && family !== null} title={`Why · ${family ?? ""}`} onClose={() => setWhy(false)} width={600}>
-        {family && <ExplainPane patientId={family} />}
+        {family && (
+          <div className="stack">
+            <ExplainPane patientId={family} />
+            {/* The working, under the evidence. The evidence says what was
+                relied on; this says what was done, in order, with what each
+                step cost. */}
+            <ReasoningLog patientId={family} revision={world.cohortRevision} />
+          </div>
+        )}
       </Drawer>
     </div>
   );

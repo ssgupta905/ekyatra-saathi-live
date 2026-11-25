@@ -1,4 +1,4 @@
-.PHONY: demo-hospital openemr-seed openemr-seed-write demo-two-hospital bahmni-check bahmni-seed bahmni-seed-write android-release dev-users migrate api-real help install demo demo-audio demo-mov demo-video demo-video-headless demo-check fetch-reference test lint api web dev web-test web-typecheck emulator android-build android-test android-install android-run android-strings docker seed clean
+.PHONY: demo-stories stage-arrivals demo-hospital openemr-seed openemr-seed-write demo-two-hospital bahmni-check bahmni-seed bahmni-seed-write android-release dev-users migrate api-real help install demo demo-audio demo-mov demo-video demo-video-headless demo-check fetch-reference test lint api web dev web-test web-typecheck emulator android-build android-test android-install android-run android-strings docker seed clean
 
 PY ?= .venv/bin/python
 # Override when something else already owns 8000:  make api PORT=8001
@@ -83,6 +83,12 @@ dev-users:
 # in Bahmni lands on a family this system knows.
 demo-hospital:  ## Film the OpenEMR flow: real HMS screen, agents, graph, approval.
 	cd demo && npm install --no-audit --no-fund && node hospital-demo.mjs
+
+demo-stories:  ## Film all three signals: leave, a pending order, a clinic running late.
+	cd demo && npm install --no-audit --no-fund && node three-stories.mjs
+
+stage-arrivals:  ## Put a clinic's morning into OpenEMR, so "running late" is a real number.
+	$(PY) demo/openemr/stage_arrivals.py --write
 
 openemr-seed:  ## Say what the OpenEMR seed would change. Writes nothing.
 	PYTHONPATH=backend $(PY) -m saathi.bootstrap.openemr_seed

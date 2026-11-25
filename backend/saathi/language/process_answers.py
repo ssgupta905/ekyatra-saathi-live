@@ -26,6 +26,10 @@ _TEMPLATES: dict[Language, str] = {
     ),
     Language.BENGALI: "এখনো কিছু ঠিক হয়নি। {awaiting}{by}। জানানো হবে যত তাড়াতাড়ি সম্ভব।",
     Language.ODIA: "ବର୍ତ୍ତମାନ କିଛି ସ୍ଥିର ହୋଇନାହିଁ। {awaiting}{by}। ଶୀଘ୍ର ଜଣାଇ ଦିଆଯିବ।",
+    Language.TAMIL: (
+        "இன்னும் எதுவும் முடிவாகவில்லை. {awaiting}{by}. "
+        "தெரிந்தவுடன் உங்களுக்கு தெரிவிக்கப்படும்."
+    ),
     Language.ENGLISH: (
         "Nothing is decided yet. {awaiting}{by}. "
         "You will be told as soon as it is."

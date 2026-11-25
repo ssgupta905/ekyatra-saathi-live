@@ -29,6 +29,10 @@ _TEMPLATES: dict[Language, str] = {
         "ଆଜିର ପରିଦର୍ଶନ ବର୍ତ୍ତମାନ ପାଇଁ ବନ୍ଦ ଅଛି। କେଉଁଠାକୁ ଯାଆନ୍ତୁ ନାହିଁ। "
         "{hours} ଘଣ୍ଟା ମଧ୍ୟରେ ନୂଆ ସମୟ କୁହାଯିବ।"
     ),
+    Language.TAMIL: (
+        "இன்றைய சந்திப்பு தற்போது நிறுத்தப்பட்டுள்ளது. எங்கும் செல்ல வேண்டாம். "
+        "{hours} மணி நேரத்திற்குள் புதிய நேரம் தெரிவிக்கப்படும்."
+    ),
     Language.ENGLISH: (
         "Today's visit is on hold. Please do not travel. "
         "A new time will reach you within {hours} hours."

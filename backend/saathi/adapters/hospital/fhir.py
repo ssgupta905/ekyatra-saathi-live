@@ -36,10 +36,14 @@ from datetime import UTC, date, datetime, timedelta
 import httpx
 
 from ...ports.hospital import (
+    AWAY_CODES,
     AppointmentState,
     HospitalAppointment,
+    HospitalOrder,
     HospitalService,
     HospitalUnavailable,
+    OrderState,
+    ProviderAway,
 )
 from ._tasks import FhirTasks
 
@@ -178,6 +182,14 @@ class FhirHospital:
 
         found = []
         for resource in appointments:
+            if _is_provider_event(resource):
+                # Leave and closures come back from the same search — the
+                # patient join is a LEFT JOIN with no NOT NULL filter — and
+                # they are not appointments. Letting one through produced an
+                # UNKNOWN-state slot with no patient on it, which is a thing
+                # the disruption detector should never have to think about.
+                # They are read deliberately, by `providers_away`.
+                continue
             appointment = _appointment(resource, patients)
             if appointment is not None:
                 found.append(appointment)
@@ -214,32 +226,72 @@ class FhirHospital:
                 patients[patient_ref] = fetched
         return _appointment(resource, patients)
 
-    def pending_orders(self, *, since: datetime | None = None) -> tuple[dict, ...]:
-        """Lab and imaging orders that have not been answered yet.
+    # ---------------- optional: who is away ----------------
 
-        This is the half Bahmni cannot give us: an `active` `ServiceRequest`
-        **is** "creatinine pending", and `_lastUpdated` makes it a cheap cursor
-        query rather than a full re-read.
+    def providers_away(self, *, start: date, end: date) -> tuple[ProviderAway, ...]:
+        """Leave, holidays and closures the hospital has published.
 
-        Status and timing only. The order's code is carried so a desk can see
-        which test is outstanding; nothing reads a result or a value.
+        There is no `Schedule` and no `Slot` on OpenEMR — both routes 404 —
+        so this reads the only place leave actually lives: the appointment
+        stream. A provider event is an ordinary calendar row with no patient
+        on it and an `appointmentType` naming the category, and the search
+        that feeds `GET /Appointment` left-joins patient data without
+        requiring it, which is why a patient-less event comes back at all.
+
+        Two things are deliberately not filtered on:
+
+        * **Status.** An all-day leave entered through the UI keeps the
+          default `pc_apptstatus` of `-`, which projects to `proposed`, not
+          `booked`. Filtering on a booked status would silently return no
+          leave at all — which looks exactly like nobody being away.
+        * **The category id.** `pc_catid` is auto-increment and differs
+          between installations; the `appointmentType` code is OpenEMR's
+          stable `pc_constant_id`. See `AWAY_CODES`.
         """
-        params: dict[str, object] = {"status": "active", "_count": _PAGE}
-        if since is not None:
-            params["_lastUpdated"] = f"gt{_instant(since)}"
+        bundle = self._get(
+            "/Appointment",
+            {
+                "date": [f"ge{start.isoformat()}", f"le{end.isoformat()}"],
+                "_count": _PAGE,
+            },
+        )
+        away = []
+        for resource in _resources(bundle, "Appointment"):
+            parsed = _provider_away(resource)
+            if parsed is not None:
+                away.append(parsed)
+        return tuple(away)
+
+    # ---------------- optional: what is still outstanding ----------------
+
+    def open_orders(
+        self, *, patient_refs: tuple[str, ...] = ()
+    ) -> tuple[HospitalOrder, ...]:
+        """Every lab or imaging order that is not finished.
+
+        **Read unfiltered, deliberately.** `ServiceRequest?status=` is
+        declared against the raw database column, with no mapping from FHIR's
+        vocabulary: `?status=pending` returns the order and `?status=active`
+        returns nothing, even though the resource reads back
+        `"status": "active"`. Passing the FHIR code a caller would reasonably
+        pass is the quiet failure — a clean 200 with an empty bundle, which
+        reads as "no orders outstanding".
+
+        **And never with a `_lastUpdated` cursor.** For `ServiceRequest` that
+        search parameter maps to `date_ordered`, which is written once and
+        never touched when the status changes. Compare snapshots instead —
+        `OrderSnapshot.diff`.
+        """
+        params: dict[str, object] = {"_count": _PAGE}
+        if patient_refs:
+            params["patient"] = ",".join(patient_refs)
         bundle = self._get("/ServiceRequest", params)
+
         orders = []
         for resource in _resources(bundle, "ServiceRequest"):
-            orders.append(
-                {
-                    "ref": str(resource.get("id") or ""),
-                    "status": str(resource.get("status") or ""),
-                    "code": _first_display(resource.get("code")),
-                    "patient_ref": _subject_reference(resource),
-                    "patient_display": (resource.get("subject") or {}).get("display", ""),
-                    "last_updated": (resource.get("meta") or {}).get("lastUpdated", ""),
-                }
-            )
+            order = _order(resource)
+            if order is not None and order.state.blocks_dependents:
+                orders.append(order)
         return tuple(orders)
 
     def results_since(self, since: datetime | None = None) -> tuple[dict, ...]:
@@ -512,9 +564,131 @@ def _appointment(resource: dict, patients: dict[str, dict]) -> HospitalAppointme
         starts_at=starts,
         ends_at=ends,
         state=_state(resource.get("status")),
-        provider=_participant_display(resource, "Practitioner"),
+        provider=_participant_display(resource, "Practitioner")
+        or _participant_display(resource, "Person"),
+        provider_ref=_participant_reference(resource, "Practitioner")
+        or _participant_reference(resource, "Person"),
         location=_participant_display(resource, "Location"),
         note=str(resource.get("description") or ""),
+    )
+
+
+#: OpenEMR's order vocabulary, and FHIR's, mapped onto the one distinction a
+#: logistics system needs. Both spellings are here because the same field is
+#: read back as `pending` by its own search parameter and as `active` in the
+#: resource body — see `FhirHospital.open_orders`.
+_ORDER_STATES: dict[str, OrderState] = {
+    "pending": OrderState.OPEN,
+    "routed": OrderState.OPEN,
+    "active": OrderState.OPEN,
+    "draft": OrderState.OPEN,
+    "on-hold": OrderState.OPEN,
+    "complete": OrderState.DONE,
+    "completed": OrderState.DONE,
+    "revoked": OrderState.REVOKED,
+    "canceled": OrderState.REVOKED,
+    "cancelled": OrderState.REVOKED,
+    "entered-in-error": OrderState.REVOKED,
+}
+
+
+def _provider_away(resource: dict) -> ProviderAway | None:
+    """One `Appointment` read as leave, or None if it is a patient's booking.
+
+    Both halves of the test matter. The appointment type says what kind of
+    event it is; the absence of a patient participant says it is not somebody's
+    visit. A patient booked into a slot the hospital happens to have labelled
+    "Out Of Office" is a booking, and treating it as leave would cancel a
+    family's appointment on the strength of a label.
+    """
+    if not _is_provider_event(resource):
+        return None
+    code = _away_code(resource)
+    assert code is not None  # guaranteed by _is_provider_event
+
+    starts = _moment(resource.get("start"))
+    if starts is None:
+        logger.warning("fhir: skipping a %s event with no start", code)
+        return None
+
+    # `end` is the end of the *first day*, never the end of the leave: OpenEMR
+    # does not project `pc_endDate`. Say so rather than implying a range.
+    ends = _moment(resource.get("end"))
+    if ends is None:
+        ends = starts + timedelta(days=1)
+
+    # An all-day event arrives as 00:00:00 to 23:59:59, not as a missing end,
+    # so this is read from the span. Inferring it from a missing `end` never
+    # fired once against a real instance.
+    whole_day = (
+        starts.hour == 0
+        and starts.minute == 0
+        and (ends - starts) >= timedelta(hours=23, minutes=59)
+    )
+
+    return ProviderAway(
+        ref=str(resource.get("id") or ""),
+        provider_ref=(
+            _participant_reference(resource, "Practitioner")
+            or _participant_reference(resource, "Person")
+        ),
+        provider_display=(
+            _participant_display(resource, "Practitioner")
+            or _participant_display(resource, "Person")
+        ),
+        kind=code,
+        starts_at=starts,
+        ends_at=ends,
+        # Always False against OpenEMR, and the field exists so that stays
+        # visible rather than becoming a silent assumption. An HMS that does
+        # publish an end can set it.
+        end_is_known=False,
+        whole_day=whole_day,
+    )
+
+
+def _is_provider_event(resource: dict) -> bool:
+    """Whether this is leave or a closure rather than somebody's appointment.
+
+    One definition, used by both the reader that wants these and the reader
+    that must skip them — so the two can never disagree about what a provider
+    event is.
+    """
+    return _away_code(resource) is not None and not _patient_reference(resource)
+
+
+def _away_code(resource: dict) -> str | None:
+    """The `appointmentType` code, when it is one that means "nobody is in"."""
+    for coding in (resource.get("appointmentType") or {}).get("coding") or []:
+        if not isinstance(coding, dict):
+            continue
+        code = str(coding.get("code") or "").strip().lower()
+        if code in AWAY_CODES:
+            return code
+    return None
+
+
+def _order(resource: dict) -> HospitalOrder | None:
+    ref = str(resource.get("id") or "")
+    if not ref:
+        return None
+    raw = str(resource.get("status") or "").strip().lower()
+    state = _ORDER_STATES.get(raw)
+    if state is None:
+        if raw not in _COMPLAINED:
+            _COMPLAINED.add(raw)
+            logger.warning(
+                "fhir: order status %r is not one this reads; treating every "
+                "occurrence as unknown, which never counts as finished",
+                raw,
+            )
+        state = OrderState.UNKNOWN
+    return HospitalOrder(
+        ref=ref,
+        patient_ref=_subject_reference(resource),
+        name=_first_display(resource.get("code")),
+        state=state,
+        ordered_at=_moment(resource.get("authoredOn")),
     )
 
 
@@ -553,6 +727,16 @@ def _patient_display(resource: dict) -> str:
         actor = participant.get("actor") or {}
         if str(actor.get("reference", "")).startswith("Patient/"):
             return str(actor.get("display") or "")
+    return ""
+
+
+def _participant_reference(resource: dict, kind: str) -> str:
+    """The reference of the first participant of a kind, if it has one."""
+    for participant in _participants(resource):
+        actor = participant.get("actor") or {}
+        reference = str(actor.get("reference") or "")
+        if reference.startswith(f"{kind}/"):
+            return reference
     return ""
 
 

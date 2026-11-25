@@ -20,6 +20,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import date
 
 from ..domain.enums import Decision
 from ..domain.models import CaregiverMessage, EvidenceRef, VisitPlan
@@ -55,7 +56,8 @@ PROHIBITED_PHRASES: tuple[str, ...] = (
 
 #: A message that promises a date must have come from a GO plan.
 DATE_PROMISE = re.compile(
-    r"\b(come|travel|reach|visit|aaiye|aayen|asun|ashben)\b",
+    r"\b(come|travel|reach|visit|aaiye|aayen|asun|ashben"
+    r"|வாருங்கள்|வரவும்|பயணம்|varungal|payanam)\b",
     re.IGNORECASE,
 )
 
@@ -64,7 +66,7 @@ DATE_PROMISE = re.compile(
 #: digits is blind in the three languages this pilot actually runs in.
 _DIGIT_TABLE = {
     ord(indic): ascii_digit
-    for group in ("०१२३४५६७८९", "০১২৩৪৫৬৭৮৯", "୦୧୨୩୪୫୬୭୮୯")
+    for group in ("०१२३४५६७८९", "০১২৩৪৫৬৭৮৯", "୦୧୨୩୪୫୬୭୮୯", "௦௧௨௩௪௫௬௭௮௯")
     for indic, ascii_digit in zip(group, "0123456789", strict=True)
 }
 
@@ -73,18 +75,18 @@ _DIGIT_TABLE = {
 #: logic, and a name that is *missing* makes the guard fail closed — it cannot
 #: verify the date, so it blocks — which is the safe direction to be wrong in.
 MONTH_NAMES: tuple[tuple[int, tuple[str, ...]], ...] = (
-    (1, ("january", "jan", "जनवरी", "জানুয়ারি", "ଜାନୁଆରୀ")),
-    (2, ("february", "feb", "फरवरी", "ফেব্রুয়ারি", "ଫେବୃଆରୀ")),
-    (3, ("march", "mar", "मार्च", "মার্চ", "ମାର୍ଚ୍ଚ")),
-    (4, ("april", "apr", "अप्रैल", "এপ্রিল", "ଅପ୍ରେଲ")),
-    (5, ("may", "मई", "মে", "ମଇ")),
-    (6, ("june", "jun", "जून", "জুন", "ଜୁନ")),
-    (7, ("july", "jul", "जुलाई", "জুলাই", "ଜୁଲାଇ")),
-    (8, ("august", "aug", "अगस्त", "আগস্ট", "ଅଗଷ୍ଟ")),
-    (9, ("september", "sept", "sep", "सितंबर", "सितम्बर", "সেপ্টেম্বর", "ସେପ୍ଟେମ୍ବର")),
-    (10, ("october", "oct", "अक्टूबर", "অক্টোবর", "ଅକ୍ଟୋବର")),
-    (11, ("november", "nov", "नवंबर", "नवम्बर", "নভেম্বর", "ନଭେମ୍ବର")),
-    (12, ("december", "dec", "दिसंबर", "दिसम्बर", "ডিসেম্বর", "ଡିସେମ୍ବର")),
+    (1, ("january", "jan", "जनवरी", "জানুয়ারি", "ଜାନୁଆରୀ", "ஜனவரி")),
+    (2, ("february", "feb", "फरवरी", "ফেব্রুয়ারি", "ଫେବୃଆରୀ", "பிப்ரவரி")),
+    (3, ("march", "mar", "मार्च", "মার্চ", "ମାର୍ଚ୍ଚ", "மார்ச்")),
+    (4, ("april", "apr", "अप्रैल", "এপ্রিল", "ଅପ୍ରେଲ", "ஏப்ரல்")),
+    (5, ("may", "मई", "মে", "ମଇ", "மே")),
+    (6, ("june", "jun", "जून", "জুন", "ଜୁନ", "ஜூன்")),
+    (7, ("july", "jul", "जुलाई", "জুলাই", "ଜୁଲାଇ", "ஜூலை")),
+    (8, ("august", "aug", "अगस्त", "আগস্ট", "ଅଗଷ୍ଟ", "ஆகஸ்ட்")),
+    (9, ("september", "sept", "sep", "सितंबर", "सितम्बर", "সেপ্টেম্বর", "ସେପ୍ଟେମ୍ବର", "செப்டம்பர்")),
+    (10, ("october", "oct", "अक्टूबर", "অক্টোবর", "ଅକ୍ଟୋବର", "அக்டோபர்")),
+    (11, ("november", "nov", "नवंबर", "नवम्बर", "নভেম্বর", "ନଭେମ୍ବର", "நவம்பர்")),
+    (12, ("december", "dec", "दिसंबर", "दिसम्बर", "ডিসেম্বর", "ଡିସେମ୍ବର", "டிசம்பர்")),
 )
 
 _MONTH_LOOKUP = {name: number for number, names in MONTH_NAMES for name in names}
@@ -263,6 +265,76 @@ def check_outbound(
                     "guard can read"
                 ),
             )
+
+    return GuardVerdict(allowed=True)
+
+
+def check_question(
+    body: str,
+    *,
+    dates_given: Iterable[date] = (),
+    evidence: tuple[EvidenceRef, ...] = (),
+    ledger: EvidenceLedger | None = None,
+) -> GuardVerdict:
+    """Validate a question Saathi is about to ask a family.
+
+    `check_outbound` cannot do this job: it validates text against a
+    `VisitPlan`, and a question is asked precisely when there is no plan yet —
+    that is why it is being asked. Without a check of its own, question text
+    would be the one thing leaving this system that nothing validated, which
+    is how the careful parts of a codebase quietly stop mattering.
+
+    What carries over from `check_outbound`, because the reasons carry over:
+    no clinical language, no prohibited reassurance, and evidence that
+    resolves when any is claimed.
+
+    What is different is the date rule, and it is inverted. A plan message
+    must state the planned date; a question must state **no date that was not
+    given to it**. A question is free to mention a date it was handed — "the
+    doctor is not available on the 27th" — and must never introduce one,
+    because a date inside a question reads to a family exactly like a date
+    inside an instruction. `dates_given` is that allowance, named explicitly
+    by the caller rather than inferred.
+
+    A question deliberately does **not** have to carry evidence. The holding
+    message does not either, and for the same reason: it is asked before
+    there is anything to cite. When evidence *is* claimed it must resolve,
+    which is the half of the rule that catches a fabricated citation.
+    """
+    clinical = _matches(body, CLINICAL_TERMS)
+    if clinical:
+        return GuardVerdict(
+            allowed=False,
+            reason="question contains clinical language",
+            triggers=clinical,
+        )
+
+    prohibited = _matches(body, PROHIBITED_PHRASES)
+    if prohibited:
+        return GuardVerdict(
+            allowed=False,
+            reason="question contains a prohibited reassurance",
+            triggers=prohibited,
+        )
+
+    if evidence:
+        if ledger is None:
+            return GuardVerdict(
+                allowed=False, reason="question claims evidence with no ledger to check it"
+            )
+        if not ledger.resolve_all(evidence):
+            return GuardVerdict(
+                allowed=False, reason="evidence ref does not resolve to a ledger entry"
+            )
+
+    allowed = {(given.day, given.month) for given in dates_given}
+    invented = stated_dates(body) - allowed
+    if invented:
+        return GuardVerdict(
+            allowed=False,
+            reason="question states a date it was not given",
+            triggers=tuple(f"{day}/{month}" for day, month in sorted(invented)),
+        )
 
     return GuardVerdict(allowed=True)
 

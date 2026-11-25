@@ -128,6 +128,8 @@ class Language(StrEnum):
     HINDI = "hi"
     BENGALI = "bn"
     ODIA = "or"
+    #: Sarvam serves Tamil as `ta-IN`; see `adapters/speech/sarvam.py`.
+    TAMIL = "ta"
     ENGLISH = "en"
 
 

@@ -838,6 +838,111 @@ export const family = {
     ),
 };
 
+/* ──────────────────────────────────────────────────────────────────────────
+   What a family asked for, and what Saathi asked them
+   --------------------------------------------------------------------------
+   Two queues that belong on one screen. A *reading* is what the system
+   believes a family asked for, waiting on a person to agree with it before
+   the planner may act — mishearing "after the 20th" as "on the 20th" costs a
+   family several hundred kilometres, and the cost of asking is one tap. An
+   *open question* is the other direction: something Saathi asked and has had
+   no answer to, which is the only place a family nobody has heard from is
+   visible at all.
+
+   `travel` is absent, not null, when the family's figures cannot be traced to
+   something they said. A rupee amount with no sentence behind it is
+   indistinguishable from one the system invented, so the server drops it
+   rather than letting a screen blur the two.
+   ────────────────────────────────────────────────────────────────────────── */
+
+export type RequestIntent =
+  | "move_visit" | "change_centre" | "ask_status" | "needs_help" | "unclear";
+
+export interface RequestConstraintView {
+  not_before: string | null;
+  not_after: string | null;
+  excluded_dates: string[];
+  reason: string;
+}
+
+export interface TravelFactsView {
+  companions: number | null;
+  single_day_trip: boolean | null;
+  /** The family's own figure. Never computed by this system. */
+  stated_cost_inr: number | null;
+  refundable: boolean | null;
+  /** The sentence the figures were read out of. Always present when they are. */
+  stated_in: string;
+}
+
+export interface RequestWaiting {
+  id: string;
+  patient_id: string;
+  name: string;
+  intent: RequestIntent;
+  summary: string;
+  /** The family's own words, in their own script. */
+  raw_text: string;
+  /** English, for a navigator who does not read the script. */
+  gloss: string | null;
+  step_kind: string | null;
+  confidence: string;
+  /** Money, papers or transport: the planner cannot help, a person must. */
+  needs_a_person: boolean;
+  received_at: string;
+  constraint: RequestConstraintView;
+  travel?: TravelFactsView;
+}
+
+export interface QuestionWaiting {
+  id: string;
+  patient_id: string;
+  name: string;
+  reason: "doctor_away" | "report_pending" | "clinic_behind" | "slot_changed";
+  topics: ("timing" | "companions" | "cost" | "booking")[];
+  /** Exactly what was sent, in the family's own language. */
+  asked_text: string;
+  language: string;
+  about_day: string;
+  asked_at: string;
+  summary: string;
+}
+
+export type ReasoningStep =
+  | "EVENT" | "CHECK" | "INFER" | "SEARCH" | "PLAN" | "GUARD" | "HUMAN" | "WRITE" | "NOTIFY";
+
+export interface ReasoningLine {
+  step: ReasoningStep;
+  at: string;
+  sim_date: string;
+  patient_id: string | null;
+  summary: string;
+  /** Measured, never estimated. Null when the work did not time itself. */
+  duration_ms: number | null;
+  kind: string;
+  seq: number;
+  line: string;
+}
+
+export const requests = {
+  waiting: () => request<RequestWaiting[]>("/requests/waiting"),
+  questions: () => request<QuestionWaiting[]>("/questions/waiting"),
+  confirm: (patientId: string, requestId: string) =>
+    request<{ request: RequestWaiting; decision: Decision | null }>(
+      `/patients/${patientId}/requests/${requestId}/confirm`,
+      { method: "POST" },
+    ),
+  reject: (patientId: string, requestId: string, reason: string) =>
+    request<{ request: RequestWaiting }>(
+      `/patients/${patientId}/requests/${requestId}/reject`,
+      { method: "POST", body: JSON.stringify({ reason }) },
+    ),
+  reasoning: (patientId?: string, limit = 200) =>
+    request<ReasoningLine[]>(
+      `/reasoning?limit=${limit}` + (patientId ? `&patient_id=${patientId}` : ""),
+    ),
+};
+
 /** The navigator's side of the same conversation. */
 export const budget = {
   waiting: () => request<BudgetWaiting[]>("/budget/waiting"),

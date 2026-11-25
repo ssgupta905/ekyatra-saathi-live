@@ -362,3 +362,79 @@ a.cc-card { flex-direction: column; align-items: flex-start; gap: 2px; }
   white-space: nowrap;
   border: 0;
 }
+
+/* ── what families asked for, and the working behind a decision ─────────────
+   Two queues and a log. The shared shape is "their words, then ours": the
+   family's own sentence is the widest, highest-contrast thing in a row,
+   because a navigator who reads our summary first reads the message looking
+   for agreement with it. */
+
+.queue { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+
+.queue-row {
+  padding: 14px; border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface); display: flex; flex-direction: column; gap: 9px;
+}
+
+.queue-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* The family's own words, in their own script. Given room to breathe and a
+   quoted left edge, so it reads as a quotation and not as our prose. */
+.queue-row .said {
+  margin: 0; padding: 9px 12px; border-left: 3px solid var(--line);
+  background: var(--sunken); border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  font-size: 15px; line-height: 1.55; color: var(--ink);
+}
+
+/* The English gloss, for a navigator who does not read the script. Quieter
+   than the original on purpose — it is a convenience, not the evidence. */
+.queue-row .gloss { margin: 0; font-size: 13px; font-style: italic; }
+
+.queue-row .reading { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+
+.queue-row .window { margin: 0; font-size: 13px; color: var(--ink-2); }
+
+/* Money the family stated. The attribution line is not optional decoration:
+   an amount shown without it would read as the hospital's own estimate. */
+.queue-row .travel {
+  padding: 9px 11px; border: 1px dashed var(--line); border-radius: var(--r-sm);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.queue-row .travel p { margin: 0; font-size: 13px; }
+.queue-row .travel .attribution { font-size: 12px; font-style: italic; }
+
+.queue-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.queue-actions input {
+  flex: 1 1 260px; padding: 8px 11px; border: 1px solid var(--line);
+  border-radius: var(--r-sm); background: var(--surface); color: var(--ink); font: inherit; font-size: 13.5px;
+}
+
+/* ── the reasoning log ───────────────────────────────────────────────────── */
+
+.log-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.log-filter button { font-size: 12px; padding: 4px 10px; }
+
+.reasoning { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+
+.reasoning .step {
+  display: grid; grid-template-columns: 78px 1fr auto; align-items: baseline; gap: 10px;
+  padding: 7px 0; border-bottom: 1px solid var(--line-soft);
+  font-size: 13px; line-height: 1.5;
+}
+.reasoning .step:last-child { border-bottom: 0; }
+
+.reasoning .step-text { color: var(--ink-2); }
+
+/* Measured, and shown as such. Monospace so a column of timings lines up and
+   an outlier is visible at a glance. */
+.reasoning .step-cost {
+  font: 400 11.5px/1 var(--font-mono, ui-monospace, monospace);
+  color: var(--ink-4); white-space: nowrap;
+}
+
+/* A refusal is the line a reader should notice. Everything else in this log is
+   the system working; these are the system declining to, which is the only
+   evidence that its limits are real. */
+.reasoning .step-guard { background: var(--uncertain-tint, transparent); }
+.reasoning .step-guard .step-text { color: var(--ink); font-weight: 500; }
+.reasoning .step-human .step-text { color: var(--ink); font-weight: 500; }

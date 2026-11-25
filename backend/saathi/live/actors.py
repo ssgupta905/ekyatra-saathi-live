@@ -43,6 +43,43 @@ logger = logging.getLogger(__name__)
 MODEL = "openai/gpt-oss-120b"
 
 
+#: Ten fields plus a reasoning pass do not fit in the shared 700-token cap.
+#: Measured, not guessed: at 700 this schema fails outright on a message
+#: carrying both a date and a figure.
+_REQUEST_TOKENS = 2000
+
+#: The largest journey figure this will accept from a reading, in rupees. A
+#: family saying "nine hundred" and a model returning 900000 look identical
+#: downstream, so the implausible one is dropped rather than recorded. A real
+#: journey above this is a conversation for a navigator, not a silent number.
+_MOST_A_JOURNEY_COSTS = 100_000
+
+#: Nobody travels to a hospital with more companions than this. A reading that
+#: says otherwise misread something, and dropping it costs one question.
+_MOST_COMPANIONS = 10
+
+
+def _as_count(raw: object, *, most: int = _MOST_COMPANIONS) -> int | None:
+    """A non-negative count, or None for anything that is not plainly one.
+
+    `None` and an unreadable value are deliberately the same answer: both mean
+    "nobody told us", which is what the caller must act on. Returning 0 instead
+    would read as "they said nobody is coming".
+    """
+    if raw is None or isinstance(raw, bool):
+        return None
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if 0 <= value <= most else None
+
+
+def _as_flag(raw: object) -> bool | None:
+    """A yes or a no the family actually gave, or None."""
+    return raw if isinstance(raw, bool) else None
+
+
 def _schema(name: str, properties: dict, required: list[str]) -> dict:
     """Strict structured output: every field required, nothing extra."""
     return {
@@ -148,13 +185,59 @@ REQUEST_SCHEMA = _schema(
             "type": "string",
             "description": "Latest ISO date they could come, or empty string.",
         },
+        "excluded_dates": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": (
+                "Single days they say they cannot travel, as ISO dates. "
+                '"We cannot come on the 11th" is one entry here, not a '
+                "not_before or a not_after. Empty array if they name none."
+            ),
+        },
         "reason": {
             "type": "string",
             "description": "Why, in plain English. Never a clinical reason.",
         },
         "confidence": {"type": "string", "enum": ["high", "low"]},
+        # Travel facts. `null` is the honest answer for anything the message
+        # did not say, and the system prompt insists on it — a 0 companions or
+        # a guessed fare would be indistinguishable from a real answer.
+        "companions": {
+            "type": ["integer", "null"],
+            "description": (
+                "How many people are travelling with the patient, if the message "
+                "says. Null if it does not. Never guess from household size."
+            ),
+        },
+        "single_day_trip": {
+            "type": ["boolean", "null"],
+            "description": (
+                "True if they say they can go and return the same day, false if "
+                "they say they must stay a night, null if the message is silent."
+            ),
+        },
+        "stated_cost_inr": {
+            "type": ["integer", "null"],
+            "description": (
+                "A rupee amount THE FAMILY STATES for the journey. Only a figure "
+                "they actually said. Never your own estimate of a fare, and never "
+                "a figure converted from anything else. Null if they said none."
+            ),
+        },
+        "refundable": {
+            "type": ["boolean", "null"],
+            "description": (
+                "If they mention a ticket or booking they have already paid for: "
+                "true if it can be changed or refunded, false if it cannot, null "
+                "if they do not say or mention no booking."
+            ),
+        },
     },
-    ["intent", "step_kind", "not_before", "not_after", "reason", "confidence"],
+    [
+        "intent", "step_kind", "not_before", "not_after", "excluded_dates",
+        "reason", "confidence",
+        "companions", "single_day_trip", "stated_cost_inr", "refundable",
+    ],
 )
 
 NARRATION_SCHEMA = _schema(
@@ -280,10 +363,23 @@ a date.
 
 Dates must be real ISO dates you can justify from the message and today's date. \
 "After the 20th" with today in December means not_before is the 20th of that \
-December. If a date cannot be worked out, leave it empty rather than estimating.
+December. A day of the month that has already passed this month means the next \
+one: "not before the 1st" on the 25th of November is the 1st of December, and \
+"not before the 15th" on the 25th of November is the 15th of December. Work the \
+date out and put it in the field — a date left in `reason` instead of \
+`not_before` or `not_after` cannot be acted on by anybody. If a date genuinely \
+cannot be worked out, leave it empty rather than estimating.
 
 Never record a clinical reason. If the message says somebody is unwell, that is \
 not a scheduling request — return `unclear` and let a person handle it.
+
+Four more fields record what the family said about the journey itself: how many \
+people are coming, whether they can return the same day, any rupee figure they \
+stated, and whether a ticket they have already bought can be changed. Use null \
+for every one of these the message does not answer. Do not infer a fare from a \
+distance, a mode of travel or anything you know about prices: if they did not \
+say a number, there is no number. A figure you supplied would be read by a \
+hospital as something the family told us, which would be false.
 """
 
 NARRATION_SYSTEM = """\
@@ -315,13 +411,25 @@ class GroqActors:
     # ---------------- transport ----------------
 
     async def _json(
-        self, system: str, prompt: str, response_format: dict, temperature: float = 0.6
+        self,
+        system: str,
+        prompt: str,
+        response_format: dict,
+        temperature: float = 0.6,
+        max_tokens: int | None = None,
     ) -> dict[str, Any] | None:
-        """One structured call. Returns None on anything that is not clean JSON."""
+        """One structured call. Returns None on anything that is not clean JSON.
+
+        `max_tokens` overrides the shared cap for one call. This matters more
+        than it looks: these are reasoning models, the reasoning is spent out
+        of the same budget as the answer, and a cap too small for the schema
+        comes back as `json_validate_failed` with an empty `failed_generation`
+        — a message that points at the prompt when the cause is the ceiling.
+        """
         try:
             response = await self._client.chat.completions.create(
                 model=self.model,
-                max_tokens=self.max_tokens,
+                max_tokens=max_tokens or self.max_tokens,
                 temperature=temperature,
                 messages=[
                     {"role": "system", "content": system},
@@ -575,7 +683,9 @@ class GroqActors:
             f"Steps this patient has booked: {', '.join(known_steps) or 'unknown'}\n\n"
             f"Message: {text}"
         )
-        data = await self._json(REQUEST_SYSTEM, prompt, REQUEST_SCHEMA, 0.1)
+        data = await self._json(
+            REQUEST_SYSTEM, prompt, REQUEST_SCHEMA, 0.1, max_tokens=_REQUEST_TOKENS
+        )
         if data is None:
             return None
 
@@ -591,13 +701,38 @@ class GroqActors:
                 return None
 
         step = str(data.get("step_kind", "")).strip()
+
+        # The prompt says "never a clinical reason". A prompt is a request, so
+        # check it: a reading that smuggled a diagnosis into the free-text
+        # field would put it on a navigator's screen and into storage.
+        reason = str(data.get("reason", "")).strip()
+        if reason and not guard.screen_inbound(reason).allowed:
+            logger.warning("a request reading carried a clinical reason; dropping it")
+            reason = ""
+
         return {
             "intent": str(data.get("intent", "unclear")),
             "step_kind": step if step in known_steps else None,
             "not_before": as_date(data.get("not_before", "")),
             "not_after": as_date(data.get("not_after", "")),
-            "reason": str(data.get("reason", "")).strip(),
+            "excluded_dates": tuple(
+                dict.fromkeys(  # a day said twice is one day
+                    kept
+                    for raw in (data.get("excluded_dates") or [])
+                    if (kept := as_date(raw)) is not None
+                )
+            ),
+            "reason": reason,
             "confidence": str(data.get("confidence", "low")),
+            # Travel facts travel together with the sentence they were read
+            # from: a figure with no utterance behind it is refused downstream
+            # by `PatientRequest.travel_is_attributable`.
+            "companions": _as_count(data.get("companions")),
+            "single_day_trip": _as_flag(data.get("single_day_trip")),
+            "stated_cost_inr": _as_count(
+                data.get("stated_cost_inr"), most=_MOST_A_JOURNEY_COSTS
+            ),
+            "refundable": _as_flag(data.get("refundable")),
         }
 
     # ---------------- d. trace narration ----------------

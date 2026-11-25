@@ -335,8 +335,8 @@ def _parse_system(entry: str) -> tuple[str, HospitalSystem] | None:
         # The key never appears in the environment, only its path: a private
         # key pasted into a deployment variable ends up in logs, dashboards
         # and shoulder-surfing range.
-        from ..adapters.hospital import FhirHospital
         from ..adapters.hospital._smart import SYSTEM_SCOPES, SmartTokens
+        from ..adapters.hospital.openemr import OpenEMRHospital
 
         if len(parts) < 5:
             logger.warning(
@@ -351,7 +351,7 @@ def _parse_system(entry: str) -> tuple[str, HospitalSystem] | None:
             return None
 
         root = base_url.rstrip("/")
-        return hospital_id, FhirHospital(
+        return hospital_id, OpenEMRHospital(
             base_url=f"{root}/apis/default/fhir",
             token=SmartTokens(
                 token_url=f"{root}/oauth2/default/token",
@@ -362,10 +362,56 @@ def _parse_system(entry: str) -> tuple[str, HospitalSystem] | None:
             ),
             # OpenEMR's Appointment search has no `_include`; see the adapter.
             supports_include=False,
+            # Optional, and a missing one is not an error: without it the
+            # Console reports arrival and claims no delay, which is what it
+            # should do when nothing can tell it one. See `_clinic_database`.
+            flow=_clinic_database(hospital_id, parts[5:]),
         )
 
     logger.warning("unknown hospital system kind %r for %s; ignoring", kind, hospital_id)
     return None
+
+
+def _clinic_database(hospital_id: str, parts: list[str]) -> object | None:
+    """`host:port/db|user|pass` -> a read-only handle, or None.
+
+    Appended to the `openemr` entry rather than carried in settings of its
+    own, so everything about one hospital stays on one line. Three parts are
+    required together: a half-configured database is a typo, and attaching one
+    would produce a connector that times out every poll instead of simply not
+    reading arrival times.
+    """
+    if not parts or not any(part.strip() for part in parts):
+        return None
+    if len(parts) < 3 or not all(part.strip() for part in parts[:3]):
+        logger.warning(
+            "%s has an incomplete database spec; expected host:port/db|user|pass. "
+            "Continuing over FHIR only — arrival times will not be read",
+            hospital_id,
+        )
+        return None
+
+    from ..adapters.hospital.openemr_db import OpenEMRDatabase
+
+    location, user, password = parts[0], parts[1], parts[2]
+    host, _, rest = location.partition(":")
+    port_text, _, database = rest.partition("/")
+    if not database:
+        # `host/db` with no port, which is the commoner way to write it.
+        host, _, database = location.partition("/")
+        port_text = ""
+    try:
+        port = int(port_text) if port_text else 3306
+    except ValueError:
+        logger.warning("%s has a non-numeric database port %r; ignoring", hospital_id, port_text)
+        return None
+    if not host or not database:
+        logger.warning("%s has no readable database host/name in %r", hospital_id, location)
+        return None
+
+    return OpenEMRDatabase(
+        host=host, port=port, database=database, user=user, password=password
+    )
 
 
 def build_hospitals(settings: Settings) -> HospitalSystems:

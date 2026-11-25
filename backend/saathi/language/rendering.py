@@ -41,6 +41,7 @@ LANGUAGE_NAMES = {
     Language.HINDI: "Hindi",
     Language.BENGALI: "Bengali",
     Language.ODIA: "Odia",
+    Language.TAMIL: "Tamil",
     Language.ENGLISH: "English",
 }
 

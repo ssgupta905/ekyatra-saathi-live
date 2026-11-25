@@ -55,10 +55,12 @@ from ..domain.models import (
     PlanOption,
     VisitPlan,
 )
+from ..domain.requests import PatientRequest, RequestIntent
 from ..language import guard
 from ..language.guard import InboundCategory
 from ..language.holding import render_holding_message
 from ..language.process_answers import render_process_answer
+from ..language.questions import AskReason, AskTopic, compose_question
 from ..planner import options as options_module
 from ..planner.graph import VisitPlanner
 from ..planner.process_facts import resolve_process_fact
@@ -66,10 +68,38 @@ from ..ports.ledger import EvidenceLedger
 from ..ports.records import StoredOptionSet
 from ..readiness.conformal import TurnaroundSample
 from ..synthetic.generate import evaluate
+from .dialogue import Conversation, OpenQuestion
 from .events import EventBus, EventKind
 from .world import DeskCandidate, LiveWorld
 
 logger = logging.getLogger(__name__)
+
+
+def _as_intent(raw: object) -> RequestIntent:
+    """An intent the system knows, or `unclear`.
+
+    An unrecognised label becomes `unclear` rather than an error: `unclear`
+    already means "a person reads this themselves", which is exactly the right
+    handling for a reading nobody can interpret.
+    """
+    try:
+        return RequestIntent(str(raw))
+    except ValueError:
+        return RequestIntent.UNCLEAR
+
+
+def _as_step_kind(raw: object) -> StepKind | None:
+    """A step this hospital has, or None.
+
+    `extract_request` already drops a step the patient has not booked. This is
+    the second half of that: a name that is not in our own vocabulary at all.
+    """
+    if not raw:
+        return None
+    try:
+        return StepKind(str(raw))
+    except ValueError:
+        return None
 
 STEP_LABELS = {
     "pathology_report": "Pathology report",
@@ -286,6 +316,14 @@ class LiveRunner:
     #: Waiting on a person, exactly like `options`: a budget answer is a
     #: proposal until a navigator agrees it is what the family meant.
     budget: dict[str, dict[str, BudgetAnswer]] = field(default_factory=dict)
+    #: Questions Saathi has asked a family and not had an answer to, plus the
+    #: history of every one it asked. See `live/dialogue.py` — this is the
+    #: first thing in the runner that remembers having spoken.
+    conversation: Conversation = field(default_factory=Conversation)
+    #: Readings of what families asked for, waiting on a navigator. A request
+    #: is a proposal until `confirmed_by` is set; the planner never sees one
+    #: before that. Keyed by patient id, newest last.
+    requests: dict[str, list[PatientRequest]] = field(default_factory=dict)
     approvals: list[ApprovalDecision] = field(default_factory=list)
     ivr_confirmations: dict[str, IVRConfirmation] = field(default_factory=dict)
     #: "press advance" progress per scripted story — see `advance_story`.
@@ -454,6 +492,8 @@ class LiveRunner:
             self.counters.clear()
             self.options.clear()
             self.approvals.clear()
+            self.conversation.reset()
+            self.requests.clear()
             self.ivr_confirmations.clear()
             self.story_progress.clear()
         self.bus.publish(
@@ -1967,9 +2007,238 @@ class LiveRunner:
                 summary=f"Alert: clinical question from {patient_id}",
                 alert_kind=AlertKind.CLINICAL_QUESTION.value,
             )
-        elif guard.classify_inbound(text) == InboundCategory.PROCESS:
-            await self._answer_process_question(patient, record)
+        else:
+            # An answer to something Saathi asked takes precedence over the
+            # process-question path: a family replying "nothing before the
+            # 1st" to a question about dates is answering, not asking. When
+            # the reply turns out to answer nothing, `_read_answer` says so
+            # and the ordinary path still runs.
+            answered = await self._read_answer(patient, record)
+            if not answered and guard.classify_inbound(text) == InboundCategory.PROCESS:
+                await self._answer_process_question(patient, record)
         return record
+
+    # ---------------- a person agreeing with a reading ----------------
+
+    def confirm_request(
+        self, patient_id: str, request_id: str, by: str
+    ) -> PatientRequest | None:
+        """A navigator agrees a reading is what the family meant.
+
+        Returns None for an unknown request, and for one already decided —
+        a second confirmation is not an error worth a 500, but it must not
+        silently overwrite who decided or when.
+        """
+        found = self._pending_request(patient_id, request_id)
+        if found is None:
+            return None
+        index, request = found
+        confirmed = request.model_copy(
+            update={"confirmed_by": by, "confirmed_at": datetime.now(UTC)}
+        )
+        self.requests[patient_id][index] = confirmed
+        self._bump("requests_confirmed")
+        self.bus.publish(
+            EventKind.REQUEST_CONFIRMED,
+            self.world.today.isoformat(),
+            patient_id=patient_id,
+            summary=f"{by} agreed that {patient_id} {confirmed.summary()}",
+            request=confirmed.model_dump(mode="json"),
+        )
+        return confirmed
+
+    def reject_request(
+        self, patient_id: str, request_id: str, by: str, reason: str
+    ) -> PatientRequest | None:
+        """A navigator says the reading was wrong, with the correction.
+
+        Recorded rather than deleted. A rejected reading is the most useful
+        thing in this loop — it is the only evidence that the extractor got
+        something wrong — and throwing it away would leave no way to tell a
+        model that mishears dates from one that never ran.
+        """
+        found = self._pending_request(patient_id, request_id)
+        if found is None:
+            return None
+        index, request = found
+        rejected = request.model_copy(
+            update={"rejected_reason": reason, "confirmed_by": None}
+        )
+        self.requests[patient_id][index] = rejected
+        self._bump("requests_rejected")
+        self.bus.publish(
+            EventKind.REQUEST_REJECTED,
+            self.world.today.isoformat(),
+            patient_id=patient_id,
+            summary=f"{by} read {patient_id}'s message differently: {reason[:120]}",
+            request=rejected.model_dump(mode="json"),
+        )
+        return rejected
+
+    def _pending_request(
+        self, patient_id: str, request_id: str
+    ) -> tuple[int, PatientRequest] | None:
+        for index, request in enumerate(self.requests.get(patient_id, [])):
+            if request.id != request_id:
+                continue
+            if request.confirmed_by is not None or request.rejected_reason is not None:
+                return None
+            return index, request
+        return None
+
+    # ---------------- asking a family, and reading the answer ----------------
+
+    async def ask_family(
+        self,
+        patient_id: str,
+        *,
+        reason: AskReason,
+        topics: tuple[AskTopic, ...],
+        about_day: date,
+        disruption_id: str | None = None,
+    ) -> OpenQuestion | None:
+        """Ask one question and remember having asked it.
+
+        Returns None rather than raising when the question cannot be asked
+        safely — an unknown patient, or text the guard refuses. A question that
+        did not go out must not be recorded as open, or the next thing the
+        family says would be read as an answer to it.
+        """
+        patient = self.world.patient(patient_id)
+        if patient is None:
+            return None
+
+        text = compose_question(
+            reason=reason, topics=topics, language=patient.language, on_day=about_day
+        )
+        # The same date the template was given is the only one it may contain.
+        # A template that grew a second date is caught here rather than sent.
+        verdict = guard.check_question(text, dates_given=(about_day,))
+        if not verdict.allowed:
+            logger.error(
+                "refusing to ask %s: %s %s", patient_id, verdict.reason, verdict.triggers
+            )
+            self.bus.publish(
+                EventKind.GUARD_BLOCKED,
+                self.world.today.isoformat(),
+                patient_id=patient_id,
+                summary=f"Guard held a question to {patient_id}: {verdict.reason}",
+                triggers=list(verdict.triggers),
+            )
+            return None
+
+        question = self.conversation.open_question(
+            patient_id=patient_id,
+            reason=reason,
+            topics=topics,
+            asked_text=text,
+            language=patient.language,
+            about_day=about_day.isoformat(),
+            disruption_id=disruption_id,
+        )
+        self._bump("questions_asked")
+        self.bus.publish(
+            EventKind.QUESTION_ASKED,
+            self.world.today.isoformat(),
+            patient_id=patient_id,
+            summary=f"Asked {patient_id} about {', '.join(t.value for t in topics)}",
+            question=question.model_dump(mode="json"),
+        )
+        return question
+
+    async def _read_answer(self, patient: Patient, record: InboundRecord) -> bool:
+        """Try to read this message as the answer to an open question.
+
+        Returns whether it was one. False covers every ordinary case — no
+        question open, the question went stale, the extractor is not
+        configured, or the reply simply did not answer what was asked — and in
+        all of them the caller carries on with its normal handling.
+        """
+        question = self.conversation.pending(patient.id)
+        if question is None or self.actors is None:
+            return False
+
+        started = perf_counter()
+        reading = await self.actors.extract_request(
+            patient,
+            record.text,
+            self.world.today,
+            known_steps=tuple(step.kind.value for step in self.world.steps_for(patient.id)),
+        )
+        duration = (perf_counter() - started) * 1000
+        self._bump("actor_calls")
+        if reading is None:
+            return False
+
+        matched = self.conversation.record_answer(patient.id, reading, record.text)
+        if matched is None:
+            return False
+        answered, answer = matched
+
+        if answer.answers_nothing:
+            # Not an answer. The question stays open and the message is handled
+            # as whatever it actually is. Saying so in the log matters: a reply
+            # that answered nothing looks identical to a reply never sent.
+            self.bus.publish(
+                EventKind.INBOUND_RECEIVED,
+                self.world.today.isoformat(),
+                patient_id=patient.id,
+                summary=(
+                    f"{patient.id} wrote in but did not answer "
+                    f"{', '.join(t.value for t in question.topics)}; still waiting"
+                ),
+                duration_ms=duration,
+            )
+            return False
+
+        self.bus.publish(
+            EventKind.QUESTION_ANSWERED,
+            self.world.today.isoformat(),
+            patient_id=patient.id,
+            summary=f"{patient.id} answered with {', '.join(answer.filled)}",
+            duration_ms=duration,
+            question=answered.model_dump(mode="json"),
+            filled=list(answer.filled),
+        )
+        await self._raise_request(patient, record, reading, answer)
+        return True
+
+    async def _raise_request(
+        self,
+        patient: Patient,
+        record: InboundRecord,
+        reading: dict,
+        answer,
+    ) -> PatientRequest:
+        """Record what the family asked for, for a navigator to agree with.
+
+        `confirmed_by` is deliberately left empty. Mishearing "after the 20th"
+        as "on the 20th" costs a family a journey, and the cost of asking a
+        navigator is one tap — see `domain/requests.py`.
+        """
+        step_kind = reading.get("step_kind")
+        queue = self.requests.setdefault(patient.id, [])
+        request = PatientRequest(
+            id=f"req-{patient.id}-{len(queue)}",
+            patient_id=patient.id,
+            raw_text=record.text,
+            gloss=record.gloss,
+            intent=_as_intent(reading.get("intent")),
+            step_kind=_as_step_kind(step_kind),
+            constraint=answer.constraint,
+            travel=answer.travel,
+            confidence=str(reading.get("confidence") or "low"),
+        )
+        queue.append(request)
+        self._bump("requests_raised")
+        self.bus.publish(
+            EventKind.REQUEST_RAISED,
+            self.world.today.isoformat(),
+            patient_id=patient.id,
+            summary=f"{patient.id} {request.summary()}",
+            request=request.model_dump(mode="json"),
+        )
+        return request
 
     async def _answer_process_question(self, patient: Patient, record: InboundRecord) -> None:
         """A process-only question gets a process-only answer — the family

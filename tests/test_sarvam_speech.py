@@ -91,6 +91,14 @@ def test_an_empty_transcript_is_none_not_silence():
 
 
 def test_a_language_sarvam_does_not_cover_is_left_to_someone_else():
+    """A language this adapter does not map costs no request at all.
+
+    This used to be asserted with Tamil, which Sarvam has always spoken —
+    `ta-IN` with `bulbul:v3` returns audio — and which the pilot now supports
+    end to end. Marathi stands in for it: the behaviour under test is the
+    mapping, not any particular language, and the adapter must refuse before
+    spending a request rather than discover the gap from a 400.
+    """
     called = False
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -100,9 +108,31 @@ def test_a_language_sarvam_does_not_cover_is_left_to_someone_else():
 
     speech = SarvamSpeech("k", client=_client(handler))
 
-    assert speech.transcribe(b"x", "a.wav", "ta") is None
-    assert speech.say("something", "ta") is None
+    assert "mr" not in LANGUAGE_CODES, "pick a language this adapter really does not map"
+    assert speech.transcribe(b"x", "a.wav", "mr") is None
+    assert speech.say("something", "mr") is None
     assert not called, "an unsupported language should not cost a request"
+
+
+def test_every_pilot_language_is_mapped():
+    """The gap this closes was invisible: a language in the domain enum and
+    not in this dict leaves those families with a mute app, and nothing
+    anywhere said so."""
+    from saathi.domain.enums import Language
+
+    missing = [lang.value for lang in Language if lang.value not in LANGUAGE_CODES]
+    assert missing == [], f"Sarvam has no code mapped for {missing}"
+
+
+def test_tamil_is_od_ins_counterpart_not_an_iso_guess():
+    """Odia is `od-IN` and Tamil is `ta-IN`.
+
+    Sending the ISO 639-1 code where Sarvam wants its own is a 400, which is
+    why these are a table rather than a transformation. Tamil happens to
+    agree with ISO; Odia does not, and only the table knows which is which.
+    """
+    assert LANGUAGE_CODES["ta"] == "ta-IN"
+    assert LANGUAGE_CODES["or"] == "od-IN"
 
 
 @pytest.mark.parametrize("fault", [httpx.ConnectError, httpx.ReadTimeout])

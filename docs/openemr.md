@@ -157,3 +157,140 @@ and it is only written when the identifier carries the v2-0203 `PT` type coding:
 With that shape the seeder is pure FHIR and needs no database access, and the
 Bahmni contract survives unchanged: **the identifier the hospital holds is the
 patient id here**, which is what `HospitalLinks.patient_for` matches on.
+
+## Reading provider leave
+
+There is no `Schedule` and no `Slot`. Both routes return a hard
+`404 {"message":"Route not found"}` — not in the capability statement, no service
+class in `src/Services/FHIR/`. So "when is this doctor free" has to be computed
+from events, and leave has to be read from the appointment stream.
+
+A leave is an ordinary row in `openemr_postcalendar_events` with `pc_pid` NULL.
+What distinguishes it is `openemr_postcalendar_categories.pc_cattype`: `0` is a
+patient appointment, `1` a provider event, `2` facility-wide. Match on
+`pc_constant_id` — `out_of_office`, `vacation`, `holidays`, `closed` — and never
+on `pc_catid`, which is auto-increment and differs per installation.
+
+It does come back from `GET /Appointment`: `AppointmentService::search()`
+left-joins `patient_data` with no `IS NOT NULL` filter, so a patient-less event
+is returned, and `FhirAppointmentService::parseOpenEMRRecord` emits the category
+as `appointmentType.coding[0].code`.
+
+Three traps, all found by entering a Vacation and reading it back:
+
+- **Do not filter on status.** An all-day leave entered through the UI keeps the
+  default `pc_apptstatus` of `-`, which maps to `proposed`, not `booked`.
+  Filtering on a booked status returns no leave at all — which looks exactly
+  like nobody being away.
+- **The end date is invisible.** `FhirAppointmentService` reads `pc_endDate`;
+  `AppointmentService::search()`'s SELECT list does not include it. A week of
+  leave arrives looking like one day. `ProviderAway.end_is_known` is `False`
+  against OpenEMR for this reason, and `covers()` answers only for the range it
+  was actually given.
+- **Leave arrives in `appointments()` too**, and must be filtered out there, or
+  it reads as a booked slot with no patient and an unknown status. See
+  `_is_provider_event`.
+
+Also: the provider is a `Practitioner` participant **only if `users.npi` is
+non-empty**. Otherwise `FhirAppointmentService` degrades it to a `Person`
+reference, so matching on a reference prefix alone silently matches nobody for
+exactly those providers. Give every seeded provider an NPI.
+
+Recurrence is not expanded: `pc_recurrspec` is never read by the search, so a
+recurring "out of office every Tuesday" shows as one occurrence.
+
+## Reading order status: two traps
+
+**`?status=` takes OpenEMR's vocabulary, not FHIR's.** The search parameter is
+declared against the raw columns (`order_status`, `order_activity`) with no
+reverse mapping. Measured against a live instance:
+
+```
+ServiceRequest?status=pending    -> total 1
+ServiceRequest?status=active     -> total 0   # but the body reads "status": "active"
+ServiceRequest?status=completed  -> total 0
+```
+
+Passing the FHIR code a caller would reasonably pass is the quiet failure: a
+clean 200 with an empty bundle, which reads as "nothing outstanding". Fetch
+unfiltered and map in our own code.
+
+**`_lastUpdated` maps to `date_ordered`.** From
+`FhirServiceRequestProcedureOrderService::getLastModifiedSearchField()`. That
+column is written once and never touched when the status changes, so a watermark
+poller over orders runs forever and never sees a pending report become final.
+This is unlike `Appointment`, whose `_lastUpdated` maps to `pc_time`, which
+`add_edit_event.php` stamps `NOW()` on every insert and update — which is
+precisely why the cancellation beat works on a cursor and this one must not.
+Compare snapshots instead: `OrderSnapshot.diff`.
+
+OpenEMR's own definition of pending, from `interface/orders/pending_orders.php`:
+no `procedure_report` row, or one whose `report_status` is `prelim`.
+
+Two more limits worth stating rather than discovering on stage:
+
+- `DiagnosticReport.status` is **always** `final`. `ProcedureService` never
+  selects `report_status`, so `FhirDiagnosticReportLaboratoryService` falls
+  through to `setStatus('final')` whatever the report really says.
+- `review_status` — the clinician's signature, written by "Sign Results" — is
+  not in FHIR at all.
+
+`DiagnosticReport` also needs `system/DiagnosticReport.read`, which means a new
+client registration: scopes are fixed at registration time, and asking for one
+the client was not registered with fails as a bare `401` that names nothing.
+`Observation` works with the existing scopes and does expose `final` vs `prelim`.
+
+A lab `Observation` **cannot be created over FHIR**:
+`FhirObservationLaboratoryService` does not implement `IResourceCreatableService`,
+and `POST /fhir/DiagnosticReport` is explicitly `fhirWriteNotImplemented`. Use
+the orders UI, which is the better demo anyway — a human signing a result is the
+story.
+
+## Reading how late the clinic is running
+
+This is the one thing that is not available over any API, and the reason
+`adapters/hospital/openemr_db.py` exists.
+
+`PatientTrackerService::manage_tracker_status()` inserts a new
+`patient_tracker_element` row with `start_datetime = NOW()` on every status or
+room change — it never updates in place — and it is called from
+`interface/main/calendar/add_edit_event.php`, the same editor save that drives
+the cancellation beat. So an append-only, timestamped log already exists as a
+side effect of ordinary work, and nobody is asked to mark the clinic as late.
+
+FHIR gives the state change and nothing else. `Appointment.status` flips to
+`arrived`, and that flip *is* pollable via `pc_time`. But the time of arrival is
+not in the resource, and `@ Arrived` and `~ Arrived late` map to the **same**
+FHIR status — so over FHIR you cannot even tell that a clerk flagged somebody
+late. `Encounter` is a dead end: `FhirEncounterService` hardcodes
+`ENCOUNTER_STATUS_FINISHED` and its `period` gets only a `start`.
+
+Which codes mean what is **data, not a guess**: `list_options` carries
+`toggle_setting_1` for check-in and `toggle_setting_2` for check-out, and
+OpenEMR's own `collect_checkin()`/`collect_checkout()` read them that way. On a
+stock instance that gives `@`/`~` as arrival and `>`/`!` as departure, with
+`<` (in exam room) carrying neither flag.
+
+Two preconditions, or the tracker produces nothing:
+
+- `manage_tracker_status()` returns early when `pc_recurrtype != 0`, so **a
+  recurring appointment gets no tracker row at all.** Seed non-recurring ones.
+- A tracker row requires a patient, so provider events never get one.
+
+Configure it by appending to the `openemr` entry:
+
+```
+SAATHI_HOSPITAL_SYSTEMS=H1=openemr|http://localhost:8300|<client id>|<key id>|<pem path>|localhost:3306/openemr|<db user>|<db pass>
+```
+
+All three database parts are required together; a half-written spec is treated
+as a typo and ignored with a warning rather than attached. Needs the `openemr`
+extra (`pip install -e '.[openemr]'`) for PyMySQL. Leave it off entirely and the
+Console reports that a family arrived and claims no delay — which is the correct
+behaviour when nothing can tell it one. A guessed delay is worse than none,
+because a family rearranges their day around it.
+
+The connection is opened `SET SESSION TRANSACTION READ ONLY`, every statement in
+the module is a `SELECT`, and `tests/test_clinic_flow.py` parses the module and
+fails if any SQL string in it is not one. Writes continue to go through the
+standard API.

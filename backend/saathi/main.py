@@ -21,6 +21,7 @@ from .api.readiness import router as readiness_router
 from .api.records import router as records_router
 from .api.registry import router as registry_router
 from .api.reports import router as reports_router
+from .api.requests import router as requests_router
 from .api.routes import router
 from .bootstrap.lifespan import lifespan
 from .config import get_settings
@@ -47,6 +48,7 @@ def create_app() -> FastAPI:
     app.include_router(board_router, prefix="/api")
     app.include_router(records_router, prefix="/api")
     app.include_router(readiness_router, prefix="/api")
+    app.include_router(requests_router, prefix="/api")
     app.include_router(consent_router, prefix="/api")
     app.include_router(registry_router, prefix="/api")
     app.include_router(directory_router, prefix="/api")

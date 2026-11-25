@@ -3,9 +3,9 @@ import { LANGS, STEP_WORDS, STRINGS, localDate, localDateShort, stepWord, t, typ
 
 const codes = LANGS.map((l) => l.code);
 
-describe("the four languages", () => {
+describe("the five languages", () => {
   it("are all registered", () => {
-    expect(codes.sort()).toEqual(["bn", "en", "hi", "or"]);
+    expect(codes.sort()).toEqual(["bn", "en", "hi", "or", "ta"]);
   });
 
   it("have exactly the same set of strings", () => {
@@ -24,10 +24,10 @@ describe("the four languages", () => {
     }
   });
 
-  it("name every pathway step in the three Indic languages", () => {
+  it("name every pathway step in the four Indic languages", () => {
     const kinds = Object.keys(STEP_WORDS.hi);
     expect(kinds.length).toBeGreaterThanOrEqual(12);
-    for (const lang of ["hi", "bn", "or"] as Lang[]) {
+    for (const lang of ["hi", "bn", "or", "ta"] as Lang[]) {
       expect(Object.keys(STEP_WORDS[lang]).sort(), lang).toEqual([...kinds].sort());
     }
   });
@@ -59,5 +59,6 @@ describe("dates", () => {
     expect(localDateShort("2026-10-27", "hi")).toMatch(/[ऀ-ॿ]/);
     expect(localDateShort("2026-10-27", "bn")).toMatch(/[ঀ-৿]/);
     expect(localDateShort("2026-10-27", "or")).toMatch(/[଀-୿]/);
+    expect(localDateShort("2026-10-27", "ta")).toMatch(/[\u0b80-\u0bff]/);
   });
 });

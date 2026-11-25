@@ -26,3 +26,14 @@ demo/film/build/
 # able to ship an update to an installed app, so it is kept out of git and
 # backed up by hand.
 android/keystore/
+
+# Signing keys for OpenEMR's SMART Backend Services. Generated per machine by
+# `make openemr-register`; never shared, never committed. A key in a repo is a
+# key in every clone, every CI log and every laptop that ever checked it out.
+*.pem
+demo/openemr/openemr-key.pem
+demo/openemr/demo.env
+
+# Stray build output from a Vite run at the repo root. The control centre
+# builds into frontend/apps/control-centre/dist; this is not that.
+console/

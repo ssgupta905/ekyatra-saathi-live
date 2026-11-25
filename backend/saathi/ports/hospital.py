@@ -33,7 +33,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import StrEnum
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 
 class HospitalUnavailable(RuntimeError):
@@ -124,6 +124,15 @@ class HospitalAppointment:
     patient_identifier: str = ""
     service_name: str = ""
     provider: str = ""
+    #: The HMS's own reference for that provider, when it gives one.
+    #:
+    #: Needed because a display name is not an identity. Matching a provider's
+    #: published leave against the appointments it collides with on name alone
+    #: failed against a real OpenEMR: its provider events carry a reference and
+    #: no display, so the comparison was a reference against a name and matched
+    #: nobody — which reads as "this leave affects no families" rather than as a
+    #: failure. Empty when the HMS does not say.
+    provider_ref: str = ""
     location: str = ""
     #: The HMS's own free-text comment. Carried so a cancellation can say why,
     #: never parsed for clinical meaning.
@@ -239,8 +248,191 @@ class AppointmentSnapshot:
         return tuple(changes)
 
 
+#: Appointment-type codes that mean "nobody is seeing patients", rather than
+#: "a patient is booked". OpenEMR files provider leave as an ordinary calendar
+#: event with one of these on it and no patient attached, which is how leave
+#: becomes readable at all without a `Schedule` resource — it has none.
+#:
+#: These are OpenEMR's own `pc_constant_id` values, not invented ones, and they
+#: are matched on rather than the numeric category id because that id is
+#: auto-increment and differs between installations.
+AWAY_CODES: frozenset[str] = frozenset(
+    {"vacation", "out_of_office", "holidays", "closed"}
+)
+
+
+@dataclass(frozen=True)
+class ProviderAway:
+    """A provider or a facility marked unavailable in the hospital's calendar.
+
+    This is a *fact the hospital published*, in the same spirit as the rest of
+    this port: somebody at the hospital opened their calendar and marked
+    themselves away. Saathi does not infer it from an empty schedule, because
+    an empty schedule and an unpublished leave look identical and only one of
+    them means anything.
+
+    **`end_is_known` is not decoration.** OpenEMR stores a leave's end date and
+    does not project it over FHIR — `FhirAppointmentService` reads
+    `pc_endDate`, and the search that feeds it never selects the column. So a
+    week's leave arrives looking like one day. An adapter that filled in a
+    plausible end would be inventing the other six days; this one says it does
+    not know, and a caller that needs the range reads it from somewhere that
+    has it. Being wrong about when a doctor comes back is how a family is sent
+    to an empty clinic twice.
+    """
+
+    ref: str
+    #: `Practitioner/N`, or `Person/N` when the provider has no NPI — OpenEMR
+    #: degrades the reference rather than omitting the participant, so an
+    #: unexpected prefix here is a configuration fact, not a parse failure.
+    provider_ref: str
+    provider_display: str
+    #: One of `AWAY_CODES`.
+    kind: str
+    starts_at: datetime
+    ends_at: datetime
+    #: Whether the HMS told us when this leave ends. False means `ends_at` is
+    #: the end of `starts_at`'s day and nothing more.
+    end_is_known: bool = True
+    #: True for an all-day event, which is what leave usually is.
+    whole_day: bool = False
+
+    def covers(self, moment: datetime) -> bool:
+        """Whether this leave is in force at a given moment.
+
+        Only ever answered for the range the HMS actually gave us. A caller
+        asking about a day beyond an unknown end gets False, which is the
+        answer that leads to asking a person rather than to a wasted journey.
+        """
+        return self.starts_at <= moment < self.ends_at
+
+    @property
+    def is_facility_wide(self) -> bool:
+        """A holiday or a closure, affecting everyone rather than one provider."""
+        return self.kind in {"holidays", "closed"}
+
+
+class OrderState(StrEnum):
+    """Where a lab or imaging order has got to.
+
+    Narrower than either vocabulary it is built from, on purpose. OpenEMR has
+    an order status, a report status and a result status, and FHIR projects
+    them inconsistently — `DiagnosticReport.status` is hardcoded `final`
+    whatever the underlying report says. So this holds the only distinction a
+    logistics system needs: can the family's next step happen yet, or not.
+    """
+
+    #: Ordered, nothing back. The visit that depends on it cannot happen.
+    OPEN = "open"
+    #: Something came back but is not final — OpenEMR's `prelim`. Deliberately
+    #: not `DONE`: a preliminary report is not what a review consult needs.
+    PRELIMINARY = "preliminary"
+    #: Finished, and the dependent step may be planned.
+    DONE = "done"
+    #: Withdrawn. Not a failure; somebody decided against it.
+    REVOKED = "revoked"
+    #: Read as something this does not recognise. Never treated as done.
+    UNKNOWN = "unknown"
+
+    @property
+    def blocks_dependents(self) -> bool:
+        """Whether a step waiting on this order still has to wait."""
+        return self is not OrderState.DONE
+
+
+@dataclass(frozen=True)
+class HospitalOrder:
+    """A lab or imaging order, as a logistics fact and nothing more.
+
+    No result, no value, no reference range, no interpretation — the same rule
+    as `HospitalAppointment`. Whether a report is *ready* is a scheduling
+    fact; what it *says* is a clinical one, and this system is not entitled to
+    it. See `ports/fhir.py` for why the projection happens at the boundary.
+    """
+
+    ref: str
+    patient_ref: str
+    patient_identifier: str = ""
+    #: The hospital's own name for what was ordered, for a navigator to read.
+    name: str = ""
+    state: OrderState = OrderState.UNKNOWN
+    ordered_at: datetime | None = None
+
+    def differs_from(self, other: HospitalOrder) -> bool:
+        return self.state is not other.state
+
+
+@dataclass(frozen=True)
+class OrderSnapshot:
+    """Every open order at one moment, so the next read can be compared to it.
+
+    **Why a snapshot rather than a cursor.** `Appointment` can be polled on
+    `_lastUpdated`, because OpenEMR's calendar editor stamps `pc_time` on
+    every save. `ServiceRequest` cannot: its `_lastUpdated` maps to
+    `date_ordered`, which is set once when the order is written and never
+    touched again when its status changes. A watermark poller over orders
+    would run forever and never see a single pending report become final.
+
+    That is the whole reason this type exists. It is the same shape as
+    `AppointmentSnapshot` deliberately — one mechanism to understand, and the
+    appointment case proves it works.
+    """
+
+    orders: dict[str, HospitalOrder] = field(default_factory=dict)
+
+    @classmethod
+    def of(cls, orders: tuple[HospitalOrder, ...]) -> OrderSnapshot:
+        return cls(orders={order.ref: order for order in orders})
+
+    def diff(self, previous: OrderSnapshot) -> tuple[HospitalOrder, ...]:
+        """Orders whose state changed since `previous`, plus ones newly seen.
+
+        An order that *disappeared* is not reported. A hospital dropping a
+        resource from a search answer is far more often a paging artefact or a
+        permissions change than a withdrawn order, and acting on it would
+        cancel a family's step because of a query result.
+        """
+        changed = []
+        for ref, order in self.orders.items():
+            before = previous.orders.get(ref)
+            if before is None or order.differs_from(before):
+                changed.append(order)
+        return tuple(changed)
+
+
+@runtime_checkable
+class HospitalCalendar(Protocol):
+    """An HMS that publishes when its providers are away.
+
+    Separate from `HospitalSystem` because it is genuinely optional: Bahmni's
+    appointment API has no such concept, and an adapter that had to fake one
+    would be worse than an adapter that says it cannot answer. Checked with
+    `isinstance` at the call site, which for a `runtime_checkable` Protocol
+    asks exactly the right question — does this adapter have the method.
+    """
+
+    def providers_away(self, *, start: date, end: date) -> tuple[ProviderAway, ...]:
+        """Leave, holidays and closures overlapping the window."""
+        ...
+
+
+@runtime_checkable
+class HospitalOrders(Protocol):
+    """An HMS that publishes the status of its lab and imaging orders."""
+
+    def open_orders(self, *, patient_refs: tuple[str, ...] = ()) -> tuple[HospitalOrder, ...]:
+        """Every order not yet finished, optionally narrowed to some patients."""
+        ...
+
+
 class HospitalSystem(Protocol):
-    """The seam. Four questions and two requests, and nothing else."""
+    """The seam. Four questions and two requests, and nothing else.
+
+    Two optional capabilities sit alongside it — `HospitalCalendar` and
+    `HospitalOrders` — for the things only some HMSs publish. They are not
+    folded in here because a required method an adapter cannot honestly
+    implement is how a seam starts lying.
+    """
 
     #: Shown in `GET /api/live` so the console can say which HMS answered.
     name: str

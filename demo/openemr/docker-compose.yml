@@ -1,0 +1,45 @@
+# The hospital. Runs unchanged — this is the stock OpenEMR image with nothing
+# of ours inside it, which is the whole point: a judge can use it exactly as a
+# hospital would, and EKYATRA only reads it and books through its standard API.
+#
+#   cd demo/openemr && docker compose up -d
+#
+# First boot takes two to three minutes while OpenEMR builds its schema. The
+# login is admin / pass at http://localhost:8300.
+services:
+  mysql:
+    image: mariadb:11
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    # Published so EKYATRA can read arrival timestamps, which OpenEMR does not
+    # project over FHIR — see docs/openemr.md. 3307 on the host to avoid
+    # colliding with a MySQL somebody already runs locally.
+    ports: ["3307:3306"]
+    volumes:
+      - oedb:/var/lib/mysql
+      # Creates the read-only account the connector uses. Runs once, on an
+      # empty data directory only, which is why it is also safe to leave here
+      # when the volume already exists.
+      - ./readonly-user.sql:/docker-entrypoint-initdb.d/10-saathi-readonly.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  openemr:
+    image: openemr/openemr:flex
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports: ["8300:80"]
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_ROOT_PASS: root
+      MYSQL_USER: openemr
+      MYSQL_PASS: openemr
+      OE_USER: admin
+      OE_PASS: pass
+
+volumes:
+  oedb:

@@ -63,6 +63,59 @@ class RequestConstraint(Base):
     reason: str = ""
 
 
+class TravelFacts(Base):
+    """What the family said about getting there, in their own words and figures.
+
+    **This is the one place in the project that holds an amount of money, and
+    the reason is narrow enough to state in full.** `domain/budget.py` refuses
+    to hold a price because the system must never report a fare it was not
+    given, and `domain/affordability.py` refuses to guess a tier for the same
+    reason. Both still hold. What is recorded here is not an estimate, a quote
+    or a total: it is a number the family themselves said out loud, kept
+    alongside the sentence they said it in.
+
+    That distinction is the whole of it. "The tickets will be nine hundred"
+    is evidence, and a system that threw it away would ask the same family the
+    same question every month. "The tickets will be about nine hundred",
+    offered by Saathi, would be an invention — there is no fare source behind
+    it — and nothing in this codebase may produce that. So Saathi asks, the
+    family answers, and the Console shows the answer attributed to them.
+
+    `refundable` is the field that changes a decision rather than decorating
+    one. A refundable ticket means a visit can move; a non-refundable one
+    means the money is already spent and moving the visit spends it twice.
+    `ReadinessItem.alternative_available` is not this: it means another
+    provider exists, which is a different question.
+    """
+
+    #: How many people are travelling with the patient. None when not asked
+    #: or not answered — never 0 as a stand-in for "we did not ask".
+    companions: int | None = None
+    #: Whether they can do it in one day and go home. Changes whether a night's
+    #: stay has to be arranged at all.
+    single_day_trip: bool | None = None
+    #: The family's own figure for the journey, in rupees. Never computed.
+    stated_cost_inr: int | None = None
+    #: Whether a booking they have already made can be changed.
+    refundable: bool | None = None
+    #: The sentence the figures were read out of, so a navigator can check the
+    #: transcription against what was recorded. Required if anything above is
+    #: set — see `PatientRequest.travel_is_attributable`.
+    stated_in: str = Field(default="", max_length=400)
+
+    @property
+    def anything_said(self) -> bool:
+        return any(
+            value is not None
+            for value in (
+                self.companions,
+                self.single_day_trip,
+                self.stated_cost_inr,
+                self.refundable,
+            )
+        )
+
+
 class PatientRequest(Base):
     """A reading of what the family asked, waiting for a person to agree with it."""
 
@@ -75,6 +128,8 @@ class PatientRequest(Base):
     #: Which step they want moved, when they named one.
     step_kind: StepKind | None = None
     constraint: RequestConstraint = Field(default_factory=RequestConstraint)
+    #: Companions, cost and refundability, when the family said them.
+    travel: TravelFacts = Field(default_factory=TravelFacts)
     #: The model's own view of how clear the message was. Low confidence does
     #: not block anything by itself — a navigator confirms either way — but it
     #: tells them how hard to look.
@@ -95,6 +150,16 @@ class PatientRequest(Base):
             and self.rejected_reason is None
             and self.intent in (RequestIntent.MOVE_VISIT, RequestIntent.CHANGE_CENTRE)
         )
+
+    @property
+    def travel_is_attributable(self) -> bool:
+        """Whether every travel fact recorded can be traced to an utterance.
+
+        A figure without the sentence it came from is indistinguishable from a
+        figure this system made up, which is exactly the thing it may not do.
+        The Console refuses to display travel facts that fail this.
+        """
+        return not self.travel.anything_said or bool(self.travel.stated_in.strip())
 
     @property
     def needs_a_person(self) -> bool:

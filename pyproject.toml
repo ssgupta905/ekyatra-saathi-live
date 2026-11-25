@@ -34,6 +34,10 @@ dependencies = [
 
 [project.optional-dependencies]
 postgres = ["asyncpg>=0.30", "psycopg[binary]>=3.2"]
+# Reading OpenEMR's arrival timestamps. Optional on purpose: without it the
+# Console reports that a family arrived and claims no delay, which is the
+# honest degradation. See ports/clinic_flow.py.
+openemr = ["PyMySQL>=1.1"]
 neo4j = ["neo4j>=5.25"]
 dev = [
   "pytest>=8.3",

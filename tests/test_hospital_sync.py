@@ -21,6 +21,7 @@ from saathi.bootstrap.container import build_container
 from saathi.config import Settings
 from saathi.domain.enums import ResourceKind, StepKind, StepStatus
 from saathi.domain.models import Resource
+from saathi.language.questions import AskReason, AskTopic
 from saathi.live.events import EventKind
 from saathi.live.hospital_sync import HospitalSync
 from saathi.ports.hospital import (
@@ -28,6 +29,7 @@ from saathi.ports.hospital import (
     HospitalAppointment,
     HospitalService,
     HospitalUnavailable,
+    ProviderAway,
 )
 
 START = date(2026, 11, 13)
@@ -276,3 +278,160 @@ async def test_a_refused_booking_stops_the_approval(rig):
 
     assert not hms.booked
     assert "appt-kamla" not in hms.cancelled, "the old slot was released anyway"
+
+
+# ---------------- the three signals that are not appointment changes ----------------
+#
+# Each of these is read from a running OpenEMR in a different way, and each is
+# invisible to the appointment diff above. A provider's leave leaves the slot
+# looking perfectly booked. An order's status change never moves the field a
+# cursor would watch. A clinic running late is nobody's recorded decision.
+
+
+class AwayHospital(FakeHospital):
+    """A hospital that also publishes leave — i.e. satisfies `HospitalCalendar`."""
+
+    def __init__(self, appointments, away=()):
+        super().__init__(appointments)
+        self.away = list(away)
+
+    def providers_away(self, *, start: date, end: date):
+        return tuple(
+            a for a in self.away if start <= a.starts_at.date() <= end
+        )
+
+    # what a judge does, by hand, in OpenEMR's provider calendar tab
+    def someone_marks_leave(self, leave) -> None:
+        self.away.append(leave)
+
+
+def _leave(on: date, *, provider="Dr Banerjee", kind="vacation") -> ProviderAway:
+    start = datetime.combine(on, datetime.min.time(), tzinfo=UTC)
+    return ProviderAway(
+        ref=f"leave-{on.isoformat()}",
+        provider_ref="Practitioner/abc",
+        provider_display=provider,
+        kind=kind,
+        starts_at=start,
+        ends_at=start + timedelta(hours=23, minutes=59),
+        end_is_known=False,
+        whole_day=True,
+    )
+
+
+@pytest.fixture
+def away_rig():
+    """The same world, with a hospital that can publish leave."""
+    state = build_container(Settings(_env_file=None, live_watched=4), today=START)
+    patient_id = state.world.patients()[0].id
+    booked_on = START + timedelta(days=2)
+
+    steps = state.world.steps[patient_id]
+    for index, step in enumerate(steps):
+        if step.kind is StepKind.SCAN:
+            steps[index] = step.model_copy(
+                update={"scheduled_for": booked_on, "status": StepStatus.SCHEDULED}
+            )
+
+    booking = replace(
+        _appointment(patient_id, on=booked_on), provider="Dr Banerjee"
+    )
+    hms = AwayHospital([booking])
+    sync = HospitalSync(hospital=hms, runner=state.runner, window_days=30)
+    state.runner.hospital = hms
+    state.runner.hospital_sync = sync
+    return state, hms, sync, patient_id, booked_on
+
+
+async def test_leave_in_the_hms_becomes_a_question_to_the_family(away_rig):
+    """Story one, end to end, with nobody calling anything by hand.
+
+    The slot is untouched throughout — its status never changes, so the
+    appointment diff sees nothing. The only thing that happened is that
+    somebody marked themselves away.
+    """
+    state, hms, sync, patient_id, booked_on = away_rig
+
+    await sync.poll_once()  # prime
+    assert state.runner.conversation.waiting() == ()
+
+    hms.someone_marks_leave(_leave(booked_on))
+    await sync.poll_once()
+
+    (question,) = state.runner.conversation.waiting()
+    assert question.patient_id == patient_id
+    assert question.reason is AskReason.DOCTOR_AWAY
+    assert set(question.topics) == {AskTopic.TIMING, AskTopic.COMPANIONS, AskTopic.COST}
+    assert question.about_day == booked_on.isoformat()
+    # The family's own language, and the day the leave is about.
+    assert question.asked_text.strip()
+    assert sync.counts.get("leave:collision") == 1
+
+
+async def test_leave_for_a_different_provider_asks_nobody(away_rig):
+    """A hospital has many doctors. Only one of them being away is normal."""
+    _state, hms, sync, _patient_id, booked_on = away_rig
+
+    await sync.poll_once()
+    hms.someone_marks_leave(_leave(booked_on, provider="Dr Someone Else"))
+    await sync.poll_once()
+
+    assert _state_conversation(_state).waiting() == ()
+    assert sync.counts.get("leave:collision") is None
+
+
+async def test_leave_on_a_day_nobody_is_booked_asks_nobody(away_rig):
+    _state, hms, sync, _patient_id, booked_on = away_rig
+
+    await sync.poll_once()
+    hms.someone_marks_leave(_leave(booked_on + timedelta(days=5)))
+    await sync.poll_once()
+
+    assert _state_conversation(_state).waiting() == ()
+
+
+async def test_a_closure_affects_everybody_booked_that_day(away_rig):
+    """A holiday is not one provider's leave, and must not be matched by name."""
+    state, hms, sync, patient_id, booked_on = away_rig
+
+    await sync.poll_once()
+    hms.someone_marks_leave(
+        _leave(booked_on, provider="", kind="holidays")
+    )
+    await sync.poll_once()
+
+    (question,) = state.runner.conversation.waiting()
+    assert question.patient_id == patient_id
+
+
+async def test_the_same_leave_is_not_acted_on_twice(away_rig):
+    """A provider away for a week must not ask the family every three seconds."""
+    state, hms, sync, _patient_id, booked_on = away_rig
+
+    await sync.poll_once()
+    hms.someone_marks_leave(_leave(booked_on))
+    await sync.poll_once()
+    first = len(state.runner.conversation.history)
+    await sync.poll_once()
+    await sync.poll_once()
+
+    assert len(state.runner.conversation.history) == first
+
+
+async def test_a_hospital_that_cannot_publish_leave_is_skipped_silently(rig):
+    """`FakeHospital` has no `providers_away`, which is Bahmni's situation.
+
+    The connector must not crash and must not pretend: it simply does not
+    read a signal this HMS does not publish.
+    """
+    state, hms, sync, _patient_id = rig
+
+    await sync.poll_once()
+    hms.someone_cancels("appt-kamla")
+    assert await sync.poll_once() != ()  # the appointment path still works
+    assert state.runner.conversation.waiting() == ()
+    assert "leave" not in sync.counts
+
+
+def _state_conversation(state):
+    return state.runner.conversation

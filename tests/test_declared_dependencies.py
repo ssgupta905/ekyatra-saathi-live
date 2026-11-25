@@ -23,7 +23,7 @@ DISTRIBUTION = {
 }
 
 #: Imported only inside an optional extra's adapter.
-OPTIONAL = {"neo4j", "asyncpg", "psycopg"}
+OPTIONAL = {"neo4j", "asyncpg", "psycopg", "pymysql"}
 
 
 def _normal(name: str) -> str:

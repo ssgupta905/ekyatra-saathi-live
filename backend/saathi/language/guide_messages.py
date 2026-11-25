@@ -49,6 +49,15 @@ _LABELS: dict[Language, dict[StageKind, str]] = {
         StageKind.APPOINTMENT: "ସମୟ ଠିକ୍ ହେବା", StageKind.DOCTOR: "ଡାକ୍ତର ଉପଲବ୍ଧ ହେବା",
         StageKind.BED: "ଶଯ୍ୟା",
     },
+    Language.TAMIL: {
+        StageKind.TESTS: "பரிசோதனை", StageKind.REPORTS: "அறிக்கை",
+        StageKind.INSURANCE: "திட்ட ஒப்புதல்", StageKind.PHARMACY: "மருந்தகம்",
+        StageKind.RIDE: "வாகனம்", StageKind.STAY: "தங்கும் இடம்",
+        StageKind.DOCUMENTS: "ஆவணங்கள்", StageKind.VISIT: "மருத்துவரை சந்திப்பு",
+        StageKind.NEXT_SESSION: "அடுத்த முறை",
+        StageKind.APPOINTMENT: "நேரம் உறுதி", StageKind.DOCTOR: "மருத்துவர் வருகை",
+        StageKind.BED: "படுக்கை",
+    },
 }  # fmt: skip
 
 _DONE: dict[Language, str] = {
@@ -56,6 +65,7 @@ _DONE: dict[Language, str] = {
     Language.HINDI: "{label}: पूरा ({done}/{total})।",
     Language.BENGALI: "{label}: সম্পূর্ণ ({done}/{total})।",
     Language.ODIA: "{label}: ସମ୍ପୂର୍ଣ୍ଣ ({done}/{total})।",
+    Language.TAMIL: "{label}: முடிந்தது ({done}/{total}).",
 }
 
 #: What to say about where things stand now. `{label}` is the stage being worked on.
@@ -105,6 +115,27 @@ _NOW: dict[Language, dict[FamilyAction, str]] = {
         FamilyAction.BE_READY_FOR_PICKUP: "ଆପଣଙ୍କ ଗାଡ଼ି ଠିକ୍ ହୋଇଛି। ନେବା ସମୟରେ ପ୍ରସ୍ତୁତ ରୁହନ୍ତୁ।",
         FamilyAction.GO_TO_FIRST_STOP: (
             "ଆପଣଙ୍କ ଭେଟ ପକ୍କା ହୋଇଛି। କେଉଁ ଦିନ ଏବଂ ପ୍ରଥମେ କେଉଁଠି ଯିବେ, ଆପରେ ଦେଖନ୍ତୁ।"
+        ),
+    },
+    Language.TAMIL: {
+        FamilyAction.NOTHING_YET: (
+            "இப்போது நாங்கள் இதற்கு காத்திருக்கிறோம்: {label}. "
+            "நீங்கள் எதுவும் செய்ய வேண்டாம்."
+        ),
+        FamilyAction.WAIT_FOR_TEAM: (
+            "இதில் சிக்கல் உள்ளது: {label}. எங்கள் குழு வேறு வழி ஏற்பாடு செய்கிறது. "
+            "இப்போது பயணம் செய்ய வேண்டாம்."
+        ),
+        FamilyAction.KEEP_DOCUMENTS_READY: (
+            "தயவுசெய்து உங்கள் ஆவணங்களை தயாராக வைத்திருங்கள்."
+        ),
+        FamilyAction.BE_READY_FOR_PICKUP: (
+            "உங்கள் வாகனம் ஏற்பாடு செய்யப்பட்டுள்ளது. "
+            "அழைத்துச் செல்லும் நேரத்தில் தயாராக இருங்கள்."
+        ),
+        FamilyAction.GO_TO_FIRST_STOP: (
+            "உங்கள் சந்திப்பு உறுதியாகிவிட்டது. "
+            "எந்த நாள், முதலில் எங்கு செல்ல வேண்டும் என்பதை செயலியில் பாருங்கள்."
         ),
     },
 }  # fmt: skip

@@ -39,18 +39,30 @@ from zoneinfo import ZoneInfo
 
 from ..domain.enums import DisruptionKind, ResourceKind, SourceSystem, StepStatus
 from ..domain.models import CareStep, Resource
+from ..language.questions import AskReason, AskTopic
+from ..ports.clinic_flow import ClinicFlow, ClinicFlowSource
 from ..ports.hospital import (
     AppointmentChange,
     AppointmentSnapshot,
     HospitalAppointment,
+    HospitalCalendar,
+    HospitalOrder,
+    HospitalOrders,
     HospitalSystem,
     HospitalUnavailable,
+    OrderSnapshot,
+    ProviderAway,
 )
 
 logger = logging.getLogger(__name__)
 
 #: How many recent changes the situation feed keeps. A board, not a log.
 _RECENT_LIMIT = 40
+
+#: How far behind a clinic has to be before a family is told. A clinic eight
+#: minutes late is a clinic running normally, and messaging about it teaches a
+#: family to ignore messages — which costs them the one that mattered.
+_WORTH_TELLING = timedelta(minutes=45)
 
 #: Which kind of disruption a lost slot is, by what the resource is. A machine
 #: that stops is not the same event as a clinician on leave, and the family's
@@ -204,6 +216,21 @@ class HospitalSync:
     #: A ring rather than a log: this is a live situation board, and a desk
     #: scrolling back through yesterday is reading the audit trail instead.
     recent: list[dict] = field(default_factory=list)
+    #: Leave this connector has already acted on, so a provider who is away
+    #: for a week does not raise the same disruption on every poll.
+    _seen_leave: set[str] = field(default_factory=set)
+    #: Orders, compared by snapshot rather than watermark. `ServiceRequest`'s
+    #: `_lastUpdated` maps to `date_ordered`, which never moves when a status
+    #: does — a cursor over orders would run forever and see nothing. Same
+    #: mechanism as `AppointmentSnapshot`, for exactly one reason to learn.
+    orders: OrderSnapshot = field(default_factory=OrderSnapshot)
+    _orders_primed: bool = False
+    #: How the clinic is running today, when a source can tell us. `None`
+    #: means nobody can, and the Console must then claim no delay at all.
+    flow: ClinicFlow | None = None
+    #: Days a family has already been told the clinic is behind, so a slow
+    #: morning does not become a message every three seconds.
+    _told_behind: set[str] = field(default_factory=set)
 
     @property
     def links(self) -> HospitalLinks:
@@ -261,7 +288,234 @@ class HospitalSync:
                 continue
             if await self._act(change):
                 acted.append(change)
+
+        # Three signals that are not appointment changes, each from an HMS
+        # that may or may not publish it. An adapter without the capability is
+        # skipped silently — that is the honest outcome, and `GET /api/live`
+        # already shows which adapter is connected.
+        await self._poll_leave(start=start, end=end)
+        await self._poll_orders()
+        await self._poll_clinic_flow(today)
         return tuple(acted)
+
+    # ---------------- who is away ----------------
+
+    async def _poll_leave(self, *, start: date, end: date) -> None:
+        """Read published leave, and act on the visits it collides with.
+
+        Leave is not a change to an appointment, so the appointment diff never
+        sees it: the slot sits there looking perfectly booked while the person
+        who would have seen the family is away. That is the whole of story
+        one, and nothing in the appointment stream can tell you about it.
+        """
+        if not isinstance(self.hospital, HospitalCalendar):
+            return
+        try:
+            away = await asyncio.to_thread(
+                self.hospital.providers_away, start=start, end=end
+            )
+        except HospitalUnavailable as exc:
+            self._note_error(exc, "leave")
+            return
+
+        for leave in away:
+            if leave.ref in self._seen_leave:
+                continue
+            self._seen_leave.add(leave.ref)
+            self._bump("leave")
+            await self._act_on_leave(leave)
+
+    async def _act_on_leave(self, leave: ProviderAway) -> None:
+        """Find the families this leave collides with, and ask them."""
+        colliding = self._collisions(leave)
+        if not colliding:
+            logger.info(
+                "hospital: %s from %s affects nobody we are tracking",
+                leave.kind,
+                leave.starts_at.date().isoformat(),
+            )
+            return
+
+        day = leave.starts_at.date()
+        for patient_id, appointment in colliding:
+            self._bump("leave:collision")
+            logger.info(
+                "hospital: %s is away on %s and %s is booked with them",
+                leave.provider_display or leave.provider_ref or "a provider",
+                day.isoformat(),
+                patient_id,
+            )
+            self._remember_signal(
+                kind="leave",
+                patient_id=patient_id,
+                summary=(
+                    f"{leave.provider_display or 'a provider'} is away on "
+                    f"{day:%d %b}; {patient_id} is booked at "
+                    f"{appointment.starts_at:%H:%M}"
+                ),
+            )
+            # Ask before planning. A new date needs to fit the family's week,
+            # their money and who can come with them, and none of that is in
+            # the hospital's record — see `language/questions.py`.
+            await self.runner.ask_family(  # type: ignore[attr-defined]
+                patient_id,
+                reason=AskReason.DOCTOR_AWAY,
+                topics=(AskTopic.TIMING, AskTopic.COMPANIONS, AskTopic.COST),
+                about_day=day,
+            )
+
+    def _collisions(
+        self, leave: ProviderAway
+    ) -> list[tuple[str, HospitalAppointment]]:
+        """Appointments inside the leave, with the provider who is away.
+
+        A facility-wide closure matches every appointment that day; leave for
+        one provider matches only theirs. Matching is on the provider's
+        display name when there is no reference to compare, because OpenEMR
+        degrades a `Practitioner` reference to a `Person` one when the user
+        has no NPI — so a name is sometimes all there is.
+        """
+        found: list[tuple[str, HospitalAppointment]] = []
+        for appointment in self.snapshot.by_ref.values():
+            if not appointment.state.is_open:
+                continue
+            if not leave.covers(appointment.starts_at):
+                continue
+            if not leave.is_facility_wide and not _same_provider(leave, appointment):
+                continue
+            patient_id = self.links.patient_for(appointment)
+            if patient_id:
+                found.append((patient_id, appointment))
+        return found
+
+    # ---------------- what is still outstanding ----------------
+
+    async def _poll_orders(self) -> None:
+        """Diff the open orders, and act on any whose state moved."""
+        if not isinstance(self.hospital, HospitalOrders):
+            return
+        try:
+            latest = await asyncio.to_thread(self.hospital.open_orders)
+        except HospitalUnavailable as exc:
+            self._note_error(exc, "orders")
+            return
+
+        snapshot = OrderSnapshot.of(latest)
+        changed = snapshot.diff(self.orders)
+        self.orders = snapshot
+        if not self._orders_primed:
+            self._orders_primed = True
+            logger.info("hospital connector primed: %d open orders", len(latest))
+            return
+
+        for order in changed:
+            self._bump("order")
+            await self._act_on_order(order)
+
+    async def _act_on_order(self, order: HospitalOrder) -> None:
+        """An order moved. Ask about the booking if a visit depends on it.
+
+        The question is about the *ticket*, not the date, and that is the
+        point of story two: whether the family can change travel they have
+        already paid for is what decides between moving the visit and keeping
+        it and chasing the report. Nothing in the hospital's record knows it.
+        """
+        patient_id = self._patient_for_ref(order.patient_ref)
+        if patient_id is None:
+            return
+        self._remember_signal(
+            kind="order",
+            patient_id=patient_id,
+            summary=f"{order.name or 'an order'} is {order.state.value}",
+        )
+        if not order.state.blocks_dependents:
+            # Finished. Re-plan: a step that was waiting on it may now move.
+            await self.runner.plan_patient(patient_id)  # type: ignore[attr-defined]
+            return
+
+        day = order.ordered_at.date() if order.ordered_at else self.runner.world.today  # type: ignore[attr-defined]
+        await self.runner.ask_family(  # type: ignore[attr-defined]
+            patient_id,
+            reason=AskReason.REPORT_PENDING,
+            topics=(AskTopic.BOOKING, AskTopic.TIMING),
+            about_day=day,
+        )
+
+    # ---------------- how today is going ----------------
+
+    async def _poll_clinic_flow(self, today: date) -> None:
+        """Read today's arrivals, and tell families only if it is worth it.
+
+        This never raises a disruption. The clinic running late is not a lost
+        slot: the visit will happen, later, and what the family needs is to
+        leave home later rather than sit in a corridor. Treating it as a
+        disruption would cancel and re-plan a visit that is going ahead.
+        """
+        if not isinstance(self.hospital, ClinicFlowSource):
+            return
+        flow = await asyncio.to_thread(self.hospital.clinic_flow, on=today)
+        self.flow = flow
+        if flow is None:
+            # Nobody can tell us. The Console says "arrived" and no more.
+            return
+
+        if not flow.is_behind_by(_WORTH_TELLING):
+            return
+        key = today.isoformat()
+        if key in self._told_behind:
+            return
+        self._told_behind.add(key)
+        self._bump("behind")
+
+        behind = flow.running_behind()
+        assert behind is not None  # guaranteed by is_behind_by
+        logger.info("hospital: %s", flow.summary())
+        for arrival in flow.arrivals:
+            patient_id = self._patient_for_ref(f"Patient/{arrival.patient_ref}")
+            if patient_id is None:
+                continue
+            self._remember_signal(
+                kind="behind",
+                patient_id=patient_id,
+                summary=flow.summary(),
+            )
+
+    def _patient_for_ref(self, patient_ref: str) -> str | None:
+        """Our patient id for an HMS patient reference, or None.
+
+        Resolved through the appointments already in the snapshot rather than
+        by fetching the patient again: an order and an appointment for the
+        same person carry the same `Patient/N` reference, and the appointment
+        read has already paid for the identifier we match on. A reference we
+        have never seen on an appointment is one we cannot match, which is the
+        normal case for the rest of the hospital's patients.
+        """
+        if not patient_ref:
+            return None
+        for appointment in self.snapshot.by_ref.values():
+            if appointment.patient_ref == patient_ref:
+                return self.links.patient_for(appointment)
+        return None
+
+    def _note_error(self, exc: Exception, what: str) -> None:
+        if str(exc) != self.last_error:
+            logger.warning("hospital %s unreadable: %s", what, exc)
+        self.last_error = str(exc)
+        self._bump(f"unreachable:{what}")
+
+    def _remember_signal(self, *, kind: str, patient_id: str, summary: str) -> None:
+        """Put a non-appointment signal on the live situation board."""
+        self.recent.insert(
+            0,
+            {
+                "kind": kind,
+                "hospital_id": self.hospital_id,
+                "patient_id": patient_id,
+                "summary": summary,
+                "at": datetime.now(UTC).isoformat(),
+            },
+        )
+        del self.recent[_RECENT_LIMIT:]
 
     def _remember(
         self, change: AppointmentChange, *, patient_id: str | None, resource: Resource | None
@@ -602,6 +856,38 @@ class HospitalSync:
 
     def _bump(self, key: str) -> None:
         self.counts[key] = self.counts.get(key, 0) + 1
+
+
+def _same_provider(leave: ProviderAway, appointment: HospitalAppointment) -> bool:
+    """Whether this appointment is with the provider who is away.
+
+    **The reference first, and the name only as a fallback.** This was
+    originally written the other way round and matched nobody against a real
+    OpenEMR: its provider events carry a `Practitioner` reference and no
+    display name, while its appointments carry both — so a name-first
+    comparison compared an empty string to a name, declined to match, and
+    reported that a doctor's leave affected no families. Silently matching
+    nobody is the worst failure available here, because it is indistinguishable
+    from a quiet afternoon.
+
+    The name is still worth keeping as a fallback: OpenEMR degrades a
+    `Practitioner` reference to a `Person` one when a user has no NPI, so for
+    those providers the two sides can carry references of different kinds and
+    a name is the only thing that lines up.
+
+    Returns False when there is nothing comparable on either side. Claiming a
+    match on no evidence would cancel visits because a calendar was vague.
+    """
+    if leave.provider_ref and appointment.provider_ref:
+        if leave.provider_ref == appointment.provider_ref:
+            return True
+        # Both named a provider and they differ: that is a real answer, not a
+        # reason to go looking for a name that might agree.
+        return False
+
+    name = (leave.provider_display or "").strip().casefold()
+    theirs = (appointment.provider or "").strip().casefold()
+    return bool(name) and name == theirs
 
 
 def _parse_clock(raw: object) -> time | None:
