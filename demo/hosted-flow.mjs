@@ -744,6 +744,13 @@ async function demo({ emr, panel, health }) {
 
   /* ── three: a doctor marks leave, and nobody tells the family ─────────── */
   const { day, booked } = await pickTheLeaveDay(health);
+  // Which questions already exist, before this film touches anything. A
+  // previous rehearsal's leave can sit on the same day, and clearing our side
+  // makes the connector re-read and re-ask from it — so a question about this
+  // day may be waiting before the leave below is ever entered. Waiting for a
+  // question id that is *new* is what separates "it reacted to what we just
+  // did" from "something had already asked about that day".
+  const askedBefore = new Set((await api("/questions/waiting")).map((q) => q.id));
   await say("event", `${booked} famil${booked === 1 ? "y is" : "ies are"} booked on ${num(day)}. A doctor is about to mark themselves away that day, in the hospital's own calendar — an ordinary save by ordinary staff.`);
 
   const category = await enterLeaveOnCamera(emr, day);
@@ -754,13 +761,15 @@ async function demo({ emr, panel, health }) {
   // already mid-question has theirs replaced rather than added to — and a
   // count then never grows, however well the connector worked. That cost a
   // rehearsal: three families had in fact just been asked about this very day.
+  const isNew = (q) =>
+    q.about_day === day && q.reason === "doctor_away" && !askedBefore.has(q.id);
   const waiting = await until(
     `the connector noticing the leave on ${day} and asking somebody about it`,
     () => api("/questions/waiting"),
-    (qs) => qs.some((q) => q.about_day === day && q.reason === "doctor_away"),
+    (qs) => qs.some(isNew),
     { tries: 25, gap: 4000 },
   );
-  const asked = waiting.filter((q) => q.about_day === day && q.reason === "doctor_away");
+  const asked = waiting.filter(isNew);
   const languages = [...new Set(asked.map((q) => q.language))];
   await say("asked", `The connector read the leave and worked out which families it hits — then asked each one ${languages.length > 1 ? "in their own language" : ""}: ${asked.map((q) => `${q.name} (${q.language})`).join(", ")}. Nobody wrote a script per family.`);
 
