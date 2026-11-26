@@ -92,13 +92,11 @@ async def test_no_road_is_an_answer_not_a_failure() -> None:
         await routes.close()
 
 
-async def test_a_place_name_is_refused_rather_than_guessed_at() -> None:
-    """This adapter does not geocode. Somebody passing free text has passed
-    something it cannot route, and should be told rather than quietly given
-    a route between two places nobody chose."""
+async def test_without_a_geocoder_a_name_is_refused_rather_than_guessed_at() -> None:
+    """Told, not silently routed between two places nobody chose."""
     routes = _server(ONE_ROUTE)
     try:
-        with pytest.raises(RoutesUnavailable, match="place name"):
+        with pytest.raises(RoutesUnavailable, match="cannot be placed"):
             await routes.options(Place("Darbhanga"), MUMBAI, mode="driving")
     finally:
         await routes.close()
@@ -128,3 +126,34 @@ async def test_it_asks_osrm_in_lng_lat_order() -> None:
         await routes.close()
 
     assert "85.8918,26.1542;72.8428,19.0043" in str(seen[0].url)
+
+
+# ------------------------------------------------- names, not only points
+#
+# `Place` is documented as "a name a person would say, or lat,lng", and a
+# family's home is held as a district name — so the name case is the common
+# one, not the exotic one. An adapter that refused names would satisfy its
+# own tests and leave the feature dead on every real deployment.
+
+
+async def test_a_place_name_is_geocoded_when_a_geocoder_is_wired() -> None:
+    seen: list[httpx.Request] = []
+    routes = _server(ONE_ROUTE, seen=seen)
+    routes._geocode = lambda place: (26.1542, 85.8918) if place == "Darbhanga" else None
+    try:
+        [option] = await routes.options(Place("Darbhanga"), MUMBAI, mode="driving")
+    finally:
+        await routes.close()
+
+    assert option.minutes == 1311
+    assert "85.8918,26.1542" in str(seen[0].url), "the geocoded point, in lng,lat"
+
+
+async def test_a_name_nobody_can_place_is_said_rather_than_guessed() -> None:
+    routes = _server(ONE_ROUTE)
+    routes._geocode = lambda _place: None
+    try:
+        with pytest.raises(RoutesUnavailable, match="could be found"):
+            await routes.options(Place("Nowhere At All"), MUMBAI, mode="driving")
+    finally:
+        await routes.close()

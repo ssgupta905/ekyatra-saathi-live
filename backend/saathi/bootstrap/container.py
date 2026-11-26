@@ -267,7 +267,7 @@ def _geocoder(runner):
     return geocode
 
 
-def build_routes(settings: Settings):
+def build_routes(settings: Settings, geocode=None):
     """The route planner the family's "how do I get there" reads, or None."""
     kind = settings.routes_provider.strip().lower()
     if kind == "google":
@@ -284,7 +284,7 @@ def build_routes(settings: Settings):
         # route as a bus.
         from ..adapters.routes.osrm import DEFAULT_ROUTER, OsrmRoutes
 
-        return OsrmRoutes(settings.router_url or DEFAULT_ROUTER)
+        return OsrmRoutes(settings.router_url or DEFAULT_ROUTER, geocode=geocode)
     if kind == "demo":
         from ..adapters.routes import DemoRoutes
 
@@ -781,6 +781,6 @@ def build_container(settings: Settings | None = None, today: date | None = None)
         consent=consent,
         onboarding=onboarding,
         hospitals=hospitals,
-        routes=build_routes(settings),
+        routes=build_routes(settings, geocode=_geocoder(runner)),
         places=build_places(settings),
     )

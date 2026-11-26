@@ -27,7 +27,9 @@ same service that already answers for the journey time on every plan.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from collections.abc import Callable
 from datetime import datetime, timedelta
 
 import httpx
@@ -44,14 +46,7 @@ DEFAULT_ROUTER = "https://router.project-osrm.org"
 
 
 def _coordinates(place: Place) -> str | None:
-    """OSRM speaks in `lng,lat` and nothing else.
-
-    A place a person typed is not a coordinate, and this adapter does not
-    geocode: that is a second service, a second failure mode, and a second
-    thing to get wrong silently. `trip_options` already resolves a family's
-    origin before it asks, so by here a free-text place means somebody has
-    passed something this cannot route and should be told.
-    """
+    """`lng,lat` for OSRM, or None when this is a name rather than a point."""
     text = (place.text or "").strip()
     if "," not in text:
         return None
@@ -70,8 +65,21 @@ class OsrmRoutes:
 
     name = "osrm"
 
-    def __init__(self, base_url: str = DEFAULT_ROUTER, *, timeout: float = 12.0) -> None:
+    def __init__(
+        self,
+        base_url: str = DEFAULT_ROUTER,
+        *,
+        timeout: float = 12.0,
+        geocode: Callable[[str], tuple[float, float] | None] | None = None,
+    ) -> None:
         self._base = base_url.rstrip("/")
+        #: Turns "Darbhanga" into a point. The port's `Place` is documented as
+        #: "a name a person would say, or lat,lng", so refusing names would
+        #: break the contract — and a family's home is held as a district name,
+        #: which is exactly the common case. The same cached Nominatim lookup
+        #: the journey times already use; no key, and usually no network
+        #: either, because the answers are in the committed reference cache.
+        self._geocode = geocode
         self._client = httpx.AsyncClient(
             timeout=timeout,
             headers={"User-Agent": "ekyatra-saathi/1.0 (care logistics; contact: ops@ekyatra.in)"},
@@ -91,12 +99,7 @@ class OsrmRoutes:
             # point; the caller then offers Maps rather than a made-up bus.
             return []
 
-        start, end = _coordinates(origin), _coordinates(destination)
-        if start is None or end is None:
-            raise RoutesUnavailable(
-                "OSRM routes by coordinate; one of these is a place name: "
-                f"{origin.text!r} -> {destination.text!r}"
-            )
+        start, end = await self._point(origin), await self._point(destination)
 
         url = f"{self._base}/route/v1/driving/{start};{end}"
         try:
@@ -150,6 +153,24 @@ class OsrmRoutes:
                 source=self.name,
             )
         ]
+
+    async def _point(self, place: Place) -> str:
+        """A place as `lng,lat`, geocoding a name if one was given."""
+        point = _coordinates(place)
+        if point is not None:
+            return point
+        if self._geocode is None:
+            raise RoutesUnavailable(
+                "OSRM routes by coordinate and no geocoder is wired, so this "
+                f"place name cannot be placed: {place.text!r}"
+            )
+        # The geocoder is synchronous and usually answers from cache; off the
+        # loop regardless, because "usually" is not "always".
+        found = await asyncio.to_thread(self._geocode, place.text)
+        if found is None:
+            raise RoutesUnavailable(f"nowhere called {place.text!r} could be found")
+        lat, lng = found
+        return f"{lng},{lat}"
 
     async def close(self) -> None:
         await self._client.aclose()
