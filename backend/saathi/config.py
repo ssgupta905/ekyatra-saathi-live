@@ -98,6 +98,11 @@ class Settings(BaseSettings):
     #: request with a deprecation notice instead of audio.
     sarvam_listen_model: str = "saarika:v2.5"
     sarvam_speak_model: str = "bulbul:v3"
+    #: Hertz. Sarvam defaults to 22050 if this is not asked for; 24000 is the
+    #: most it offers and costs nothing extra — measured, same bytes back.
+    #: A phone speaker will not make much of the difference, but a family
+    #: listening in a noisy ward might, and nothing is lost by asking.
+    sarvam_sample_rate: int = 24000
 
     brevo_api_key: str | None = None
     email_from: str | None = None

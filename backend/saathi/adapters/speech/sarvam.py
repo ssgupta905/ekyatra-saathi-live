@@ -49,12 +49,15 @@ class SarvamSpeech:
         *,
         listen_model: str = "saarika:v2.5",
         speak_model: str = "bulbul:v3",
+        sample_rate: int | None = 24000,
         timeout: float = 30.0,
         client: httpx.Client | None = None,
     ) -> None:
         self._key = api_key
         self._listen_model = listen_model
         self._speak_model = speak_model
+        #: Asked for explicitly; the service otherwise returns 22050.
+        self._sample_rate = sample_rate
         self._timeout = timeout
         self._client = client
 
@@ -135,6 +138,7 @@ class SarvamSpeech:
                 "text": text,
                 "target_language_code": code,
                 "model": self._speak_model,
+                **({"speech_sample_rate": self._sample_rate} if self._sample_rate else {}),
                 **({"speaker": speaker} if speaker else {}),
                 **({"pace": pace} if pace is not None else {}),
             },

@@ -102,6 +102,7 @@ def _speaker(settings):
         settings.sarvam_api_key,
         listen_model=settings.sarvam_listen_model,
         speak_model=settings.sarvam_speak_model,
+        sample_rate=settings.sarvam_sample_rate,
     )
 
 

@@ -102,6 +102,13 @@ class EventKind:
     #: visit, because the family's travel is already paid for and cannot be
     #: changed. Written into the hospital's own record as a FHIR Task.
     ESCALATION_WRITTEN = "escalation.written"
+    #: A family was shown how to get there: what was asked of the route
+    #: service, which ways came back, which station if a train is the real
+    #: answer, and what their own budget had room for. Published because this
+    #: work used to happen entirely off the record — the family saw three ways
+    #: to travel and nobody else could see that it had happened at all, let
+    #: alone which way was recommended or why.
+    JOURNEY_GUIDED = "journey.guided"
 
 
 @dataclass(frozen=True)

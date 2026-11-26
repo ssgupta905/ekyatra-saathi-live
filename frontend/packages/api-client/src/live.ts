@@ -49,6 +49,7 @@ export type EventKind =
   | "request.confirmed"
   | "request.rejected"
   | "advice.sent"
+  | "journey.guided"
   | "escalation.written";
 
 export interface WorldEvent {
@@ -100,6 +101,7 @@ export const ALL_KINDS: EventKind[] = [
   "request.rejected",
   "advice.sent",
   "escalation.written",
+  "journey.guided",
 ];
 
 /** Events that change something about one family's page. */
@@ -125,6 +127,7 @@ export const PATIENT_KINDS = new Set<EventKind>([
   "request.confirmed",
   "request.rejected",
   "advice.sent",
+  "journey.guided",
 ]);
 
 /** Events that change the cohort view, the desk queue or the alert list. */
@@ -391,6 +394,9 @@ export const EVENT_TONE: Record<EventKind, "go" | "wait" | "critical" | "info" |
   "request.rejected": "wait",
   "advice.sent": "info",
   "escalation.written": "critical",
+  // Enumerating ways to travel, like the planner enumerating dates: worth
+  // seeing, not worth alarming anyone.
+  "journey.guided": "info",
 };
 
 export const EVENT_LABEL: Record<EventKind, string> = {
@@ -427,6 +433,7 @@ export const EVENT_LABEL: Record<EventKind, string> = {
   "request.confirmed": "Agreed",
   "request.rejected": "Corrected",
   "advice.sent": "Advice",
+  "journey.guided": "Journey",
   "escalation.written": "Escalation",
 };
 

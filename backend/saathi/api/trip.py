@@ -8,6 +8,7 @@ service for this one request and is not kept.
 from __future__ import annotations
 
 import asyncio
+import logging
 import math
 from datetime import UTC, date, datetime
 from typing import Literal
@@ -18,11 +19,13 @@ from fastapi import APIRouter, HTTPException, Query
 from ..domain.enums import StepStatus
 from ..domain.itinerary import FareBasis, RouteOption
 from ..domain.railways import IRCTC_SEARCH, LIVE_STATUS, arrival_stations, rail_hint
+from ..live.events import EventKind
 from ..orchestrator.trip_options import LONG_ROAD_MINUTES, next_visit_start, weigh
 from ..ports.routes import Place, RoutesUnavailable
 from .access import FamilyOnly
 from .deps import ContainerDep
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["trip"])
 
 
@@ -111,6 +114,54 @@ def _rail(
         "irctc_url": IRCTC_SEARCH,
         "status_url": LIVE_STATUS,
     }
+
+
+def _say_what_was_worked_out(
+    state, patient, *, leg, planner, transit, driving, guidance, budget, rail
+) -> None:
+    """Put the journey work on the event stream, where a navigator can see it.
+
+    This used to happen in silence. A family opened the screen, a route
+    service was asked, three ways came back, one was recommended against what
+    they said they could afford — and none of it reached the reasoning log, so
+    nobody but the family ever knew it had happened. "Why was she told to take
+    a train?" had no answer anywhere.
+
+    It is a `SEARCH` step for the same reason the planner's date search is:
+    this enumerates what could be done. Nothing here decides anything, and a
+    failure to publish must never fail the family's screen, which is why the
+    whole thing is wrapped.
+    """
+    try:
+        ways = len(transit) + len(driving)
+        picked = guidance.recommended_id if guidance is not None else None
+        parts = [f"{ways} way(s) by {planner.name}"]
+        if rail is not None:
+            parts.append(f"train from {rail['from']['code']} to {rail['to']['code']}")
+        elif leg == "far" and not transit:
+            parts.append("no public way found")
+        if budget:
+            room = budget.get("room_paise")
+            if room is not None:
+                parts.append(f"₹{room // 100} left this month")
+            elif budget.get("stated_fare_paise"):
+                parts.append(f"they said ₹{budget['stated_fare_paise'] // 100}")
+        if picked:
+            parts.append(f"recommended {picked}")
+        state.bus.publish(
+            EventKind.JOURNEY_GUIDED,
+            state.world.today.isoformat(),
+            patient_id=patient.id,
+            summary=f"{patient.id}: {leg} leg — " + "; ".join(parts),
+            leg=leg,
+            source=planner.name,
+            ways=ways,
+            recommended=picked,
+            rail=rail,
+            budget=budget,
+        )
+    except Exception:  # noqa: BLE001 - the family's screen is not worth a log line
+        logger.exception("could not record the journey guidance for %s", patient.id)
 
 
 def _booked_arrival(state, patient, hospital) -> datetime | None:
@@ -208,6 +259,13 @@ async def options(
     # no open source carries reserved intercity trains, and Google's route data
     # does not either.
     notes = ["intercity_rail_not_covered"] if leg == "far" and not transit else []
+
+    # On the record, not just on the family's screen.
+    rail = _rail(patient, leg, transit, driving, arrive_by)
+    _say_what_was_worked_out(
+        state, patient, leg=leg, planner=planner, transit=transit, driving=driving,
+        guidance=guidance, budget=budget, rail=rail,
+    )
     return {
         "leg": leg,
         "source": planner.name,
@@ -215,7 +273,7 @@ async def options(
         "arrive_by_source": arrive_source,
         "origin_used": origin_used,
         "notes": notes,
-        "rail": _rail(patient, leg, transit, driving, arrive_by),
+        "rail": rail,
         "budget": budget,
         "guidance": guidance.model_dump(mode="json"),
     }

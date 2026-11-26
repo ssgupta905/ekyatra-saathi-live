@@ -54,6 +54,7 @@ val PatientKinds: Set<String> = setOf(
     "request.confirmed",
     "request.rejected",
     "advice.sent",
+    "journey.guided",
 )
 
 @Serializable
