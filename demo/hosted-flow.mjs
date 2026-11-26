@@ -116,6 +116,9 @@ const HINDI_FAMILY = "EKY-FATIMA";
 //: From the app's own `Translations.kt`, not retyped.
 const SPEAK = { hi: "बोलिए", bn: "বলুন", ta: "பேசுங்கள்" };
 const MESSAGES = { hi: "संदेश", bn: "বার্তা", ta: "செய்திகள்" };
+//: The home tab. Coming back to a family reopens whichever tab was last
+//: used, and the speak button lives only on this one.
+const TODAY = { hi: "आज", bn: "আজ", ta: "இன்று" };
 
 const soundtrack = [];
 let captureStartedAt = 0;
@@ -307,12 +310,29 @@ async function keepTheAudio(patientId, text, language) {
   return { spokenBy, kb: Math.round(bytes.length / 1024), file };
 }
 
-/** Did the phone play it through the service voice, or its own fallback? */
+/** Did the phone play it through the service voice, or its own fallback?
+ *
+ *  The buffer is cleared immediately before the tap and read whole
+ *  afterwards. Reading only the last few hundred lines does not work on a
+ *  real handset: this one writes thousands of lines a second from its own
+ *  audio stack, so the evidence had scrolled away before it could be read,
+ *  and two perfectly good Sarvam clips were dropped from a finished take as
+ *  "the phone did not use the service voice" when it demonstrably had.
+ */
+async function forgetTheLog() {
+  await adb("logcat", "-c");
+}
+
 async function playedThroughTheService() {
-  const { stdout } = await adb("logcat", "-d", "-t", "400");
+  const { stdout } = await adb("logcat", "-d");
+  const ours = /org\.ekyatra\.saathi/.test(stdout);
   return {
-    service: /MediaPlayerService/.test(stdout),
-    fallback: /TextToSpeech|TtsFallback/.test(stdout),
+    // The app's own playback goes through the platform media player. Paired
+    // with our package appearing in the audio routing, that is the service
+    // voice rather than the phone reading text.
+    service: /MediaPlayer(Service|Native)/.test(stdout) && ours,
+    fallback: /TextToSpeech|TtsFallback|SpeechSynthesis/.test(stdout),
+    lines: stdout.split("\n").length,
   };
 }
 
@@ -328,6 +348,7 @@ async function longestTextOnScreen() {
 async function speakOnThePhone(patientId, language) {
   const reading = await longestTextOnScreen();
   if (!reading) throw new Error(`nothing to read out on ${patientId}'s screen`);
+  await forgetTheLog();
   await phoneTap(SPEAK[language]);
   const kept = await keepTheAudio(patientId, reading, language);
   await wait(6000);
@@ -789,37 +810,54 @@ async function demo({ emr, panel, health }) {
   /* ── four: the Hindi voice, on the phone, from the deployed API ────────── */
   const hindi = asked.find((q) => q.language === "hi") ?? asked[0];
   await phoneTap(hindi.patient_id);
-  await say("phone", `${hindi.name}'s phone. The question arrived in her own script.`);
+  await phoneTap(MESSAGES[hindi.language] ?? MESSAGES.hi);
+  await mustReadOnThePhone("नवंबर", "the question, on the phone");
+  await say("phone", `${hindi.name}'s phone. The question has arrived in her own script — not transliterated, and not in English.`);
 
-  const spoken = await speakOnThePhone(hindi.patient_id, "hi");
-  if (spoken.kept) {
-    await say("voice", `Read aloud in Hindi by Sarvam — ${num(spoken.kept.kb + " KB")} fetched through the deployed API and played by the app's media player, not the phone's own text-to-speech. We check which one played, because a phone with no Hindi voice fails silently and the family simply hears nothing.`);
-  } else {
-    await say("voice", "The phone fell back to its own text-to-speech here, so no Sarvam audio is claimed for this take.");
-  }
-  await wait(6000);
-
-  await phoneTap(MESSAGES.hi);
-  await mustReadOnThePhone("नवंबर", "the Hindi question");
-  await say("phone", "And the same question in her messages, in Devanagari.");
+  // Nothing is read aloud yet, and that is not an omission. The speak button
+  // reads the family's current plan, and until a navigator has agreed to her
+  // answer there is no new plan to read: on this deployment both Hindi
+  // families had no rendered message and so no speak button at all. The
+  // voice belongs after the agreement, which is the better place for it —
+  // what she hears is then the plan her own words produced.
 
   /* ── five: she answers, in her own words, with her own figure ──────────── */
-  await post("/live/inject", {
-    patient_id: HINDI_FAMILY,
-    text: "Bees tarikh ke baad hi aa sakte hain, pehle nahi. Do log aayenge. Bus ka kiraya chaudah sau rupaye lagega.",
-  });
-  await post("/live/inject", {
-    patient_id: BENGALI_FAMILY,
-    text: "Amar sathe ami jabo. Trainer tickets 900 taka hobe. 1 tarikher age noy, salary tokhon ase.",
-  });
-  await say("reply", `Two families answer by voice, in romanised Hindi and Bengali: ${said("“Bees tarikh ke baad hi aa sakte hain… bus ka kiraya chaudah sau rupaye lagega.”")}`);
-
-  const readings = await until(
-    "both replies being read into requests",
-    () => api("/requests/waiting"),
-    (rows) => rows.length >= 2,
-    { tries: 25, gap: 4000 },
+  // Whoever was actually asked answers — not a hardcoded pair. The leave hits
+  // a different set of families on a deployment than it does locally, and a
+  // reply injected for somebody who was never asked lands in a void: no open
+  // question, so no reading, so nothing in the queue. That cost a take, and
+  // the symptom was one reply arriving instead of two.
+  const WORDS = {
+    hi: "Bees tarikh ke baad hi aa sakte hain, pehle nahi. Do log aayenge. Bus ka kiraya chaudah sau rupaye lagega.",
+    bn: "Amar sathe ami jabo. Trainer tickets 900 taka hobe. 1 tarikher age noy, salary tokhon ase.",
+    ta: "Irupathu theti ku appuram thaan vara mudiyum. Rendu per varuvom. Bus kattanam aayiram roobai aagum.",
+  };
+  const replying = asked.filter((q) => WORDS[q.language]).slice(0, 2);
+  if (!replying.length) throw new Error("nobody was asked in a language this film has words for");
+  for (const who of replying) {
+    await post("/live/inject", { patient_id: who.patient_id, text: WORDS[who.language] });
+  }
+  await say(
+    "reply",
+    `${replying.length === 1 ? "A family answers" : `${num(String(replying.length))} families answer`} by voice, ` +
+      `in their own language typed the way they speak it: ${said(`“${WORDS[replying[0].language].slice(0, 95)}…”`)}`,
   );
+
+  // Wait for all of them, settle for what actually arrived. Each reply is a
+  // live model call on a free instance and two do not always land together;
+  // demanding both failed a take when one had arrived and was perfectly good.
+  let readings = [];
+  for (let attempt = 0; attempt < 45; attempt += 1) {
+    readings = await api("/requests/waiting").catch(() => []);
+    if (readings.length >= replying.length) break;
+    await wait(5000);
+  }
+  if (!readings.length) {
+    throw new Error(`${replying.length} famil(ies) replied and nothing reached the queue in 225s`);
+  }
+  if (readings.length < replying.length) {
+    console.log(`  only ${readings.length} of ${replying.length} replies had been read; carrying on`);
+  }
   await panel.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
   await wait(3000);
   await signIn(panel, "Seema Kamble");
@@ -899,14 +937,34 @@ async function demo({ emr, panel, health }) {
   await mustSee(panel, /What this is built from|built from/, "the knowledge graph");
   await say("audit", "And what it was built from. Every node is a record we hold, and each says where it came from — the hospital's calendar, our records, or the family's own words. Three different kinds of claim, kept apart.");
 
-  /* ── seven: the Bengali voice ─────────────────────────────────────────── */
-  await adb("shell", "input", "keyevent", "KEYCODE_BACK");
-  await wait(2500);
-  await phoneTap(BENGALI_FAMILY);
-  const bengali = await speakOnThePhone(BENGALI_FAMILY, "bn");
-  if (bengali.kept) {
-    await say("voice", `The same thing in Bengali — ${num(bengali.kept.kb + " KB")} from Sarvam, through the deployed API. Five languages, and the guard reads dates in all five scripts: if it cannot read the date, it refuses to send rather than send something it cannot check.`);
+  /* ── seven: the new plan, read to each family in their own language ───── */
+  //
+  // Now there is something to read. Before the agreement these cards carried
+  // no message and no speak button; the plan that exists now is the one her
+  // own sentence produced.
+  for (const who of replying) {
+    await adb("shell", "input", "keyevent", "KEYCODE_BACK");
+    await wait(2500);
+    await phoneTap(who.patient_id).catch(() => {});
+    // Back onto the home tab explicitly. The app reopens a family on
+    // whichever tab was last used — by now that is her messages — and the
+    // speak button is only on the home card. Cost a take to find.
+    await phoneTap(TODAY[who.language] ?? TODAY.hi).catch(() => {});
+    const heard = await speakOnThePhone(who.patient_id, who.language);
+    const tongue = { hi: "Hindi", bn: "Bengali", ta: "Tamil" }[who.language] ?? who.language;
+    if (heard.kept) {
+      await say(
+        "voice",
+        `${who.name}'s new plan, read to her in ${tongue} — ${num(heard.kept.kb + " KB")} of speech from Sarvam through the deployed API, played by the app's own media player rather than the phone's text-to-speech. We check which one played, because a phone with no ${tongue} voice fails silently and the family simply hears nothing.`,
+      );
+    } else {
+      await say(
+        "voice",
+        `${who.name}'s phone fell back to its own text-to-speech here, so no Sarvam audio is claimed for this take. The message is still on her screen in ${tongue}.`,
+      );
+    }
   }
+  await say("note", "Five languages, and the guard reads dates in all five scripts. If it cannot read the date in a message, it refuses to send it rather than send something it could not check.");
   await wait(6000);
 
   /* ── eight: what this is worth beyond four families ───────────────────── */
