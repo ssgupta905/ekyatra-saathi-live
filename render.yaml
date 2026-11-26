@@ -134,31 +134,44 @@ services:
     runtime: image
     image:
       url: docker.io/hapiproject/hapi:latest
-    # HAPI is a Spring Boot app and wants roughly a gigabyte to be comfortable.
-    # Raise this if the service restarts under load; `free` will not hold it.
-    plan: starter
+    # Free tier: 512 MB, and it sleeps after about 15 idle minutes, so the first
+    # request after a quiet spell waits a minute or two. HAPI is a Spring Boot app
+    # that is comfortable at about a gigabyte, so the heap is capped and the
+    # optional indexing and the connection pool are trimmed to fit. If it restarts
+    # under load, that is the memory limit: move `plan` to `starter` (paid).
+    plan: free
     region: frankfurt
     healthCheckPath: /fhir/metadata
     envVars:
-      # Deliberately NOT `fromDatabase.connectionString`: Render hands out a
-      # `postgres://user:pw@host/db` URL and Spring needs the JDBC form,
-      # `jdbc:postgresql://host:5432/db`. Wiring the two together silently
-      # yields a driver error at boot, so this is entered by hand from the
-      # database's connection details, and the credentials come separately.
+      # Its database is the Supabase project the API already uses, in a schema of
+      # its own so HAPI's tables never sit among Saathi's. Create it once in the
+      # Supabase SQL editor:  create schema if not exists hapi;
+      #
+      # Enter these three in Render when asked. They are the Session pooler's
+      # details (Connect > Session pooler; port 5432, never 6543: HAPI's driver
+      # uses prepared statements), the JDBC form of the address, and the password
+      # goes in only there:
+      #   SPRING_DATASOURCE_URL      jdbc:postgresql://<pooler host>:5432/postgres?currentSchema=hapi
+      #   SPRING_DATASOURCE_USERNAME postgres.<project ref>
+      #   SPRING_DATASOURCE_PASSWORD (the database password)
       - key: SPRING_DATASOURCE_URL
         sync: false
       - key: SPRING_DATASOURCE_USERNAME
-        fromDatabase:
-          name: ekyatra-hapi-db
-          property: user
+        sync: false
       - key: SPRING_DATASOURCE_PASSWORD
-        fromDatabase:
-          name: ekyatra-hapi-db
-          property: password
+        sync: false
       - key: SPRING_DATASOURCE_DRIVER_CLASS_NAME
         value: org.postgresql.Driver
       - key: SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT
         value: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgresDialect
+      # Supabase's free tier allows few connections; the API uses some of them.
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE
+        value: "4"
+      - key: JAVA_TOOL_OPTIONS
+        value: "-Xmx320m -Xss512k -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC"
+      # Full-text indexing is optional and costs a lot of memory.
+      - key: HAPI_FHIR_ADVANCED_LUCENE_INDEXING
+        value: "false"
       # Appointment is the resource the connector reads, and ServiceRequest +
       # Observation are the creatinine beat. All are on by default; named here
       # so a future narrowing of the server's scope is a visible change.
@@ -168,8 +181,3 @@ services:
       # server must accept them.
       - key: HAPI_FHIR_ALLOW_EXTERNAL_REFERENCES
         value: "true"
-
-databases:
-  - name: ekyatra-hapi-db
-    plan: free
-    region: frankfurt
