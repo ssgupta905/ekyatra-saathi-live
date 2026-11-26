@@ -1050,6 +1050,58 @@ export interface GraphEdge {
   verb: string;
 }
 
+/** One date the planner tried, and what became of it.
+ *
+ *  `offered` is carried rather than derived from `verdict` on this side: the
+ *  backend owns the closed list of verdicts, and a UI that re-implemented
+ *  "which of these count as offered" would drift from it the first time a
+ *  rule was added.
+ */
+export interface Considered {
+  ref: string;
+  on: string | null;
+  verdict: string;
+  offered: boolean;
+  /** The rule's objection, in the rule's own words. */
+  why: string;
+  detail: string;
+  nights_added: number | null;
+  trips_added: number | null;
+  line: string;
+}
+
+export interface PlanSearch {
+  patient_id: string;
+  step_kind: string;
+  /** How wide the search was, before how narrow the answer is. */
+  summary: string;
+  considered: Considered[];
+}
+
+/** What a de-identified burden release contains, and what it does not. */
+export interface ReleaseManifest {
+  release: string;
+  recipient: string;
+  schema_version: string;
+  prepared_at: string;
+  rows: number;
+  families_considered: number;
+  excluded_no_research_consent: number;
+  excluded_too_little_data: number;
+  consent_basis: string;
+  columns: string[];
+  removed_before_export: { field: string; why: string }[];
+  contains_clinical_data: boolean;
+  re_identification_note: string;
+}
+
+export interface BurdenRelease {
+  manifest: ReleaseManifest;
+  /** Every value a string, including "" for a measurement nobody made. */
+  rows: Record<string, string>[];
+  csv: string;
+}
+
 export const requests = {
   waiting: () => request<RequestWaiting[]>("/requests/waiting"),
   questions: () => request<QuestionWaiting[]>("/questions/waiting"),
@@ -1069,6 +1121,17 @@ export const requests = {
     request<ReasoningLine[]>(
       `/reasoning?limit=${limit}` + (patientId ? `&patient_id=${patientId}` : ""),
     ),
+  search: (patientId: string) => request<PlanSearch>(`/patients/${patientId}/search`),
+};
+
+/** What this system may contribute to cancer research, and what it withholds.
+ *
+ *  Read-only on purpose. The release is assembled for a person to look at and
+ *  then decide to send; an export that posted itself would be the wrong shape
+ *  for a thing that leaves an institution.
+ */
+export const research = {
+  release: () => request<BurdenRelease>("/research/release"),
 };
 
 /** The navigator's side of the same conversation. */

@@ -51,6 +51,7 @@ export const SECTIONS: Section[] = [
   { id: "registries", label: "Registries", hint: "Hospitals, centres, doctors, resources, staff accounts", icon: "building", roles: STAFF, group: "hospital" },
   { id: "config", label: "Configuration", hint: "Each hospital's rules and what is switched on", icon: "sliders", roles: ["admin"], group: "hospital" },
   { id: "audit", label: "Audit log", hint: "Every fact asserted, hash-chained", icon: "ledger", roles: ["admin"], group: "hospital" },
+  { id: "research", label: "Research contribution", hint: "Travel and cost burden, de-identified, for the families who consented", icon: "chart", roles: ["doctor", "admin"], group: "hospital" },
   { id: "story", label: "Story view", hint: "The brief's two stories, beat by beat", icon: "film", roles: STAFF, group: "demo", demoOnly: true },
   { id: "operator", label: "Operator", hint: "The simulated clock and the family's words", icon: "dial", roles: ["navigator", "admin"], group: "demo", demoOnly: true },
 ];

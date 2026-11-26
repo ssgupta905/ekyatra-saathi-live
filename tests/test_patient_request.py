@@ -171,3 +171,89 @@ def test_every_option_carries_the_date_the_step_actually_moves_to(anita):
     options = _options(anita, _request(dose, not_before=date(2026, 12, 20)))
     assert options
     assert all(o.target_on is not None for o in options)
+
+
+# --------------------------------------------------- what the search records
+#
+# The three rejections below used to happen before `filter_options` ever saw
+# the candidate, so a search that tried four dates reported one. That made the
+# Console's "what the planner considered" read as a far narrower search than
+# actually ran — which is worse than showing nothing, because it understates
+# the work in a screen whose whole purpose is to show it.
+
+
+def _search_for(anita, request, policy=None):
+    from saathi.planner.search import Search
+
+    patient, steps, cycle, _dose, predictor = anita
+    search = Search(patient_id=patient.id, step_kind=StepKind.MAINTENANCE_DOSE.value)
+    candidates_for_request(
+        patient, steps, request, StepKind.MAINTENANCE_DOSE,
+        InMemoryDependencyGraph(), predictor, TODAY,
+        policy or default_policy("HBCH-MZP"),
+        cycle=cycle, round_trip_hours=2.4, search=search,
+    )
+    return search
+
+
+class TestTheSearchRecordsWhatItDropped:
+    def test_a_day_the_family_ruled_out_is_recorded_not_skipped(self, anita) -> None:
+        """"They cannot come then" is a finding, not an absence."""
+        from saathi.planner.search import Verdict
+
+        _patient, _steps, _cycle, dose, _predictor = anita
+        # Asking for the very day they excluded: the only way the excluded
+        # branch is reached is if `not_before` lands back on it.
+        request = _request(dose, not_before=dose.scheduled_for)
+        search = _search_for(anita, request)
+
+        ruled_out = [c for c in search.considered if c.verdict is Verdict.FAMILY_CANNOT]
+        assert ruled_out, "the day they ruled out was not recorded at all"
+        assert ruled_out[0].on == dose.scheduled_for
+        assert "themselves" in ruled_out[0].detail
+
+    def test_a_date_outside_tolerance_is_recorded_with_the_rule(self, anita) -> None:
+        from saathi.planner.search import Verdict
+
+        _patient, _steps, _cycle, dose, _predictor = anita
+        # Far outside any tolerance a clinician would set.
+        request = _request(dose, not_before=dose.scheduled_for + timedelta(days=120))
+        search = _search_for(anita, request)
+
+        refused = [c for c in search.considered if c.verdict is Verdict.OUTSIDE_TOLERANCE]
+        assert refused, "a date outside the window was dropped without a record"
+        assert any(c.detail for c in refused), (
+            "the rule's own objection should be recorded, not just the verdict"
+        )
+
+    def test_recording_still_changes_nothing(self, anita) -> None:
+        """The decisive one: a recorder that altered the result would be worse
+        than no recorder, because the log would then be part of the decision."""
+        from saathi.planner.search import Search
+
+        patient, steps, cycle, dose, predictor = anita
+        request = _request(dose, not_before=dose.scheduled_for + timedelta(days=9))
+
+        def run(search):
+            return candidates_for_request(
+                patient, steps, request, StepKind.MAINTENANCE_DOSE,
+                InMemoryDependencyGraph(), predictor, TODAY,
+                default_policy("HBCH-MZP"),
+                cycle=cycle, round_trip_hours=2.4, search=search,
+            )
+
+        without = run(None)
+        recorded = run(Search(patient_id=patient.id))
+        assert [o.target_on for o in recorded] == [o.target_on for o in without]
+        assert without, "the fixture should produce at least one option to compare"
+
+    def test_every_offered_date_is_in_the_record(self, anita) -> None:
+        _patient, _steps, _cycle, dose, _predictor = anita
+        request = _request(dose, not_before=dose.scheduled_for + timedelta(days=9))
+
+        offered = _options(anita, request)
+        search = _search_for(anita, request)
+
+        assert {c.on for c in search.offered} == {o.target_on for o in offered}, (
+            "the search and the options must describe the same offer"
+        )

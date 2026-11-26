@@ -210,14 +210,22 @@ async def confirm_request(
 
     Re-plans at once, so the options a navigator sees next already reflect the
     constraint they just agreed to rather than the one before it.
+
+    Two steps, in this order. First the constraint is actually searched
+    against — `replan_for_request` tries what she asked for, the edge of the
+    hospital's tolerance, and earlier, and records every date it ruled out.
+    Then the ordinary plan re-runs. Before this, only the second half
+    happened, so a confirmed constraint changed nothing at all.
     """
     request = state.runner.confirm_request(patient_id, request_id, _who(principal))
     if request is None:
         raise HTTPException(404, "no such request from this family")
+    search = await state.runner.replan_for_request(patient_id, request)
     run = await state.runner.plan_patient(patient_id, allow_render=True)
     return {
         "request": request.model_dump(mode="json"),
         "decision": run.decision.value if run else None,
+        "search": search.to_json() if search is not None else None,
     }
 
 

@@ -83,15 +83,57 @@ curl -s localhost:8077/api/health | python3 -m json.tool | grep -E 'actors|langu
 Both must say `true`. If they say `false` the Groq key did not load, the
 family's reply will not be read, and act four will not work.
 
+Then the one precondition that fails **silently**:
+
+```bash
+curl -s localhost:8077/api/admin/policy/TMH-MUM | grep -o '"used_by_planner":[a-z]*'
+```
+
+Must say `true`. If it says `false`, the hospital has no saved rules — no
+stated tolerance for how far a step may move, and no slot calendar to land
+on. The planner then **refuses to search for dates at all**, which is
+correct (it has been told nothing to search inside, and a date this system
+invented is the one thing it must never offer a family) and looks like
+nothing happening. Save them on **Configuration** first, or:
+
+```bash
+curl -s localhost:8077/api/admin/policy/TMH-MUM > /tmp/pol.json
+# edit shift_tolerance_days for the steps you will move, then:
+python3 -c "import json;print(json.dumps(json.load(open('/tmp/pol.json'))['policy']))" \
+  | curl -s -X PUT localhost:8077/api/admin/policy/TMH-MUM \
+      -H 'content-type: application/json' --data-binary @-
+```
+
+They save as **provisional** until a clinician confirms them, and the Console
+says so on screen. Leave it that way — it is true.
+
+### Getting back to "nobody has been asked yet"
+
+```bash
+curl -s -X POST localhost:8077/api/live/control \
+  -H 'content-type: application/json' -d '{"action":"clear"}'
+```
+
+`clear`, **not** `reset`. `reset` rewinds the world and is refused outright
+on real records (409), because it would delete patients, steps and plans
+somebody entered. `clear` forgets what has been asked, read and searched,
+and deletes nothing. Wait ~15s afterwards for the connector to re-read.
+
 ---
 
 ## Terminal 4 — the screens
 
 ```bash
-make web
+cd frontend && SAATHI_API_PORT=8077 npm run dev
 ```
 
-Control Centre on **http://localhost:5273**. Pick **Seema Kamble** (navigator).
+Control Centre on **http://localhost:5173**. Pick **Seema Kamble** (navigator).
+
+**`SAATHI_API_PORT=8077` is not optional.** The dev proxy defaults to port
+8000, and if anything else is listening there the Console will reach it
+instead — showing a "DEMO WORLD" badge and `GET /requests/waiting failed:
+500`, which looks exactly like our code being broken. It cost one take to
+find. Plain `make web` is only correct when the API is on 8000.
 
 ---
 
@@ -181,6 +223,44 @@ running a language model in a loop like this.
 Then open a family and look at **How this was worked out**: every line was
 published by the code that did the work, carrying the time it actually took.
 `[GUARD]` lines are refusals and are never filtered out.
+
+Underneath it, **What the planner considered** — every date tried and the rule
+that killed each one. This fills only after somebody agrees a reading: the
+planner searches against the family's constraint at that moment, not before,
+because there is nothing to search against until a person has confirmed what
+she meant. A family asking for a date outside the hospital's stated tolerance
+is the one worth showing — it is ruled out by name, and the date offered
+instead is the closest the rules allow.
+
+### Four — what goes back to research
+
+A doctor's or administrator's screen, not the navigator's: **Research
+contribution**. Sign in as Dr R. Menon.
+
+It will show **0 rows** until a family consents, and that is the honest
+starting point. To ask and answer on camera, from a terminal:
+
+```bash
+P=EKY-SHANTI
+REQ=$(curl -s -X POST localhost:8077/api/patients/$P/consent/requests \
+  -H 'content-type: application/json' -d '{
+   "purpose":"research","requester_id":"NCG-IN",
+   "requester_name":"National Cancer Grid (NCG), India",
+   "categories":["travel_burden"],
+   "reason":"Travel and cost burden, de-identified"}' \
+  | python3 -c 'import json,sys;print(json.load(sys.stdin)["id"])')
+curl -s -X POST localhost:8077/api/patients/$P/consent/requests/$REQ/grant \
+  -H 'content-type: application/json' \
+  -d '{"granted_by":"Shanti Kumari","capacity":"self","channel":"ivr"}'
+```
+
+Refresh the screen: **1 row, 3 withheld — no research consent**. The withheld
+count is the point. A file of one row from a cohort of four is a different
+claim from one row out of one, and a reader who cannot tell will assume the
+flattering one.
+
+Revoking works too (`/consent/grants/{id}/revoke`) and the row disappears —
+worth offering if a judge asks whether consent is real.
 
 ### And the other two signals
 

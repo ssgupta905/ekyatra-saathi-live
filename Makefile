@@ -1,4 +1,4 @@
-.PHONY: demo-phone demo-full load-places demo-stories stage-arrivals demo-hospital openemr-seed openemr-seed-write demo-two-hospital bahmni-check bahmni-seed bahmni-seed-write android-release dev-users migrate api-real help install demo demo-audio demo-mov demo-video demo-video-headless demo-check fetch-reference test lint api web dev web-test web-typecheck emulator android-build android-test android-install android-run android-strings docker seed clean
+.PHONY: demo-connected demo-one-frame demo-phone demo-full load-places demo-stories stage-arrivals demo-hospital openemr-seed openemr-seed-write demo-two-hospital bahmni-check bahmni-seed bahmni-seed-write android-release dev-users migrate api-real help install demo demo-audio demo-mov demo-video demo-video-headless demo-check fetch-reference test lint api web dev web-test web-typecheck emulator android-build android-test android-install android-run android-strings docker seed clean
 
 PY ?= .venv/bin/python
 # Override when something else already owns 8000:  make api PORT=8001
@@ -90,6 +90,13 @@ demo-stories:  ## Film all three signals: leave, a pending order, a clinic runni
 stage-arrivals:  ## Put a clinic's morning into OpenEMR, so "running late" is a real number.
 	$(PY) demo/openemr/stage_arrivals.py --write
 
+demo-connected:  ## Console and phone recorded together, one run, two views.
+	cd demo && npm install --no-audit --no-fund && node connected.mjs
+	./demo/side-by-side.sh
+
+demo-one-frame:  ## Hospital, Console and phone in one unbroken take. Needs scrcpy.
+	cd demo && npm install --no-audit --no-fund && node one-frame.mjs
+
 demo-phone:  ## Record the family's phone: four tabs, in Tamil, against the live API.
 	./demo/phone-tour.sh
 
@@ -126,7 +133,12 @@ migrate:
 # Ports: control-centre 5173, family-web 5180,
 # demo-stage 5190 (the one that shows them all side by side). Node 22+.
 web:
-	cd frontend && npm install --no-audit --no-fund && npm run dev
+# SAATHI_API_PORT is passed through because the Vite proxy defaults to 8000.
+# When the API is on another port — `make api PORT=8077`, as the OpenEMR demo
+# needs — the Console otherwise proxies to whatever happens to own 8000 and
+# reports our endpoints as 500s. Export it, or pass PORT= here.
+	cd frontend && npm install --no-audit --no-fund && \
+		SAATHI_API_PORT=$${SAATHI_API_PORT:-$(PORT)} npm run dev
 
 # The API and every web app in one terminal. Ctrl-C stops them all.
 dev:

@@ -122,7 +122,9 @@ async def live_snapshot(state: ContainerDep) -> dict:
 
 
 class ControlRequest(BaseModel):
-    action: str = Field(description="play | pause | step | reset | speed | advance_story")
+    action: str = Field(
+        description="play | pause | step | reset | clear | speed | advance_story"
+    )
     seconds_per_day: float | None = None
     #: For action="advance_story": which scripted story to advance.
     story: str | None = None
@@ -131,9 +133,16 @@ class ControlRequest(BaseModel):
 @router.post("/live/control", dependencies=[AdminOnly])
 async def control(state: ContainerDep, body: ControlRequest) -> dict:
     runner = state.runner
-    if state.world.real:
-        # The real calendar is not ours to pause, skip or restart.
-        raise HTTPException(409, "the clock and the simulator are not available in the real world")
+    # The real calendar is not ours to pause, skip or restart — but `clear`
+    # touches no clock and deletes no record, and a rehearsal on real records
+    # needs it. Blocking the whole endpoint meant the only way back to
+    # "nobody has been asked yet" was restarting the process.
+    if state.world.real and body.action != "clear":
+        raise HTTPException(
+            409,
+            "the clock and the simulator are not available in the real world; "
+            "use action=clear to forget what has been asked without deleting anything",
+        )
     match body.action:
         case "play":
             await runner.play()
@@ -145,6 +154,10 @@ async def control(state: ContainerDep, body: ControlRequest) -> dict:
             await runner.tick()
         case "reset":
             await runner.reset()
+        case "clear":
+            # Safe on a real world, where `reset` refuses: this forgets what
+            # has been asked and read, and deletes no record of any kind.
+            await runner.forget_working_state()
         case "speed":
             if body.seconds_per_day is None:
                 raise HTTPException(422, "speed needs seconds_per_day")
