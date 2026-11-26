@@ -631,12 +631,18 @@ async function signIn(page, name) {
   await mustSee(page, /Today|Families|Approvals/, "the Console's own navigation");
 }
 
-/** The day to put the leave on: the one most families are already booked for.
+/** The day to put the leave on.
  *
- *  Derived rather than hardcoded. A leave on a day nobody is booked produces
- *  no asks at all, and the film would fail for a reason that looks like a
- *  broken connector but is really a wrong date — which cost a take on an
- *  earlier film when a mini-calendar's leading days moved the month.
+ *  `SAATHI_LEAVE_DAY` wins, and on a real deployment it generally has to:
+ *  the leave must collide with the **hospital's** appointments, and our own
+ *  records are a different set of dates reconciled to them. Nothing we expose
+ *  lists the hospital's diary — `/hospital/now` gives counts, not days — so
+ *  when the two disagree, ours is the wrong one to trust.
+ *
+ *  Without it, the commonest upcoming day in our own records is a reasonable
+ *  guess and is announced as a guess. A leave on a day nobody is booked for
+ *  produces no asks at all, and that failure reads like a broken connector
+ *  rather than a wrong date.
  */
 async function pickTheLeaveDay(health) {
   const counts = new Map();
@@ -651,10 +657,13 @@ async function pickTheLeaveDay(health) {
       counts.set(on, (counts.get(on) ?? 0) + 1);
     }
   }
-  if (process.env.SAATHI_LEAVE_DAY) return { day: process.env.SAATHI_LEAVE_DAY, booked: counts.get(process.env.SAATHI_LEAVE_DAY) ?? 0 };
+  if (process.env.SAATHI_LEAVE_DAY) {
+    return { day: process.env.SAATHI_LEAVE_DAY, told: true };
+  }
   const best = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
   if (!best) throw new Error("no family has an upcoming booked step, so a leave would collide with nothing");
-  return { day: best[0], booked: best[1] };
+  console.log(`  no SAATHI_LEAVE_DAY set; guessing ${best[0]} from our own records`);
+  return { day: best[0], told: false };
 }
 
 /** Enter a provider's leave in OpenEMR's own calendar, on camera.
@@ -743,7 +752,7 @@ async function demo({ emr, panel, health }) {
   await say("phone", "The family's app, built against the deployed API — not a local one. Four families, each on the language their record carries.");
 
   /* ── three: a doctor marks leave, and nobody tells the family ─────────── */
-  const { day, booked } = await pickTheLeaveDay(health);
+  const { day } = await pickTheLeaveDay(health);
   // Which questions already exist, before this film touches anything. A
   // previous rehearsal's leave can sit on the same day, and clearing our side
   // makes the connector re-read and re-ask from it — so a question about this
@@ -751,7 +760,7 @@ async function demo({ emr, panel, health }) {
   // question id that is *new* is what separates "it reacted to what we just
   // did" from "something had already asked about that day".
   const askedBefore = new Set((await api("/questions/waiting")).map((q) => q.id));
-  await say("event", `${booked} famil${booked === 1 ? "y is" : "ies are"} booked on ${num(day)}. A doctor is about to mark themselves away that day, in the hospital's own calendar — an ordinary save by ordinary staff.`);
+  await say("event", `A doctor is about to mark themselves away on ${num(day)}, in the hospital's own calendar. An ordinary save, by ordinary staff, in a system with nothing of ours installed in it.`);
 
   const category = await enterLeaveOnCamera(emr, day);
   await say("event", `Saved in OpenEMR as “${category}”, all day. Now look at the families' appointments: unchanged. Not moved, not cancelled, status untouched — so anything watching appointments sees nothing at all.`);
