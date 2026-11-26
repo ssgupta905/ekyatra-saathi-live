@@ -311,6 +311,9 @@ fun LegGuide(api: SaathiApi, patientId: String, leg: String, refreshKey: String?
     var origin by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf(false) }
     var showOthers by remember { mutableStateOf(false) }
+    //: Collapsed until asked for. Not remembered across screens on purpose: a
+    //: family who wants the detail once does not want it every time.
+    var open by remember { mutableStateOf(false) }
     var attempt by remember { mutableIntStateOf(0) }
     var loaded by remember { mutableStateOf<WayOptions?>(null) }
     var failed by remember { mutableStateOf(false) }
@@ -336,6 +339,36 @@ fun LegGuide(api: SaathiApi, patientId: String, leg: String, refreshKey: String?
             PillButton(s.legRetry, primary = false, tag = "leg-retry-$leg") { attempt++ }
         }
         val data = loaded ?: return@Column
+
+        // One line, then everything else behind a tap.
+        //
+        // A family opening their plan should see a sentence, not a timetable:
+        // "best way: by train", or how long the road takes. Four ways to
+        // travel, a budget line, two station codes and a fare are the answer
+        // to a question they have not asked yet, and a screen that opens with
+        // all of it reads as a form to be filled in rather than an answer. The
+        // detail is one tap away and stays open once opened.
+        val headline = when {
+            data.rail != null -> s.trainBest
+            else -> {
+                val best = data.guidance.options.firstOrNull { it.option.id == data.guidance.recommendedId }
+                    ?: data.guidance.options.firstOrNull()
+                best?.let { s.byRoad.replace("{t}", duration(it.option.minutes)) }
+            }
+        }
+        if (headline != null) {
+            Text(
+                headline + (if (open) "  ▲" else "  ▼"),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Tokens.blue700,
+                modifier = Modifier.padding(vertical = 2.dp)
+                    .testTag("leg-open-$leg")
+                    .clickable { open = !open },
+            )
+        }
+        if (!open) return@Column
+
         visitWhen(data.arriveBy, lang)?.let {
             Text(s.legVisit.replace("{when}", it), fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Tokens.ink)
         }
