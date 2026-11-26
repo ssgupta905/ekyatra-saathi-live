@@ -102,12 +102,15 @@ I could watch it.**
 
 1. Open the app on **EKY-KAMLA** or **EKY-SHANTI** and leave it open. Do not
    touch the screen.
-2. Make the connector ask that family something. Either enter a Vacation in
-   OpenEMR for a day they are booked (29 Nov hits both), or:
+2. Make the connector ask that family something. This needs no VM access and
+   no firewall — it is a public URL:
    ```bash
    curl -s -X POST https://ekyatra-saathi-ueoa.onrender.com/api/live/control \
      -H 'content-type: application/json' -d '{"action":"clear"}'
    ```
+   (Entering a Vacation by hand in OpenEMR's calendar does the same thing and
+   looks better on camera, but that is the one path that needs your IP on the
+   firewall.)
 3. **Watch the screen without touching it.**
 
 Before the fix: nothing happens until you close and reopen. After: the message
@@ -125,9 +128,22 @@ together.
 
 ## Two things that may bite you
 
-**Your IP may have rotated.** The VM firewall admits one address at a time per
-person, and mine changed twice in a day. If OpenEMR times out rather than
-refusing, that is why:
+**You do not need the VM firewall to test the app.** Worth being clear, because
+an earlier draft of this document implied otherwise. Three separate paths:
+
+| Who talks to what | Needs an allow-list? |
+|---|---|
+| Phone → deployed API | **No.** A public Render URL, reachable from any network. |
+| Deployed API → OpenEMR on the VM | **No, already done.** Render's egress ranges are allow-listed permanently; they do not rotate. |
+| You → OpenEMR's web UI in a browser | **Yes** — and only this. |
+
+So the test below needs nothing but the internet. Trigger the ask with
+`/api/live/control` and watch the phone. The firewall only matters if you want
+to enter a leave by hand in OpenEMR's own calendar, which is a nicer thing to
+film but is not how you test a refresh.
+
+If you do want that, and OpenEMR times out rather than refusing, your IP has
+rotated — mine changed twice in a day:
 
 ```bash
 gcloud compute firewall-rules update saathi-hms-ports \
