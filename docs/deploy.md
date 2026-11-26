@@ -107,7 +107,7 @@ Set `SAATHI_HOSPITAL_SYSTEMS` accordingly, or the service runs with no HMS conne
 everything works and nothing watches a hospital, which is a quiet way to lose half the demo:
 
 ```
-TMH-MUM=fhir|https://ekyatra-hapi-fhir.onrender.com/fhir
+TMH-MUM=fhir|http://<the VM address>:8080/fhir
 ```
 
 Two things a fresh deployment needs that are easy to forget, because both fail by being empty

@@ -37,12 +37,18 @@ that is checked by `tests/test_clinic_flow.py`.
 from __future__ import annotations
 
 import argparse
+import os
+import shlex
 import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-CONTAINER = "hms-eval-mysql-1"
+CONTAINER = os.environ.get("SAATHI_OPENEMR_DB_CONTAINER", "hms-eval-mysql-1")
+#: When OpenEMR runs on another machine, a command prefix that runs a shell command
+#: there and feeds it our stdin, e.g. `gcloud compute ssh saathi-hms --zone asia-south1-c
+#: --command`. The database never leaves that machine; only these statements go to it.
+REMOTE = shlex.split(os.environ.get("SAATHI_OPENEMR_REMOTE", ""))
 DATABASE = "openemr"
 
 #: OpenEMR's own status codes. `@` and `~` both carry `toggle_setting_1`
@@ -88,8 +94,10 @@ def sql(statement: str, *, write: bool) -> str:
     if not write:
         print(f"    would run: {' '.join(statement.split())[:150]}")
         return ""
+    local = ["docker", "exec", "-i", CONTAINER, "mariadb", "-uroot", "-proot", DATABASE, "-N", "-B"]
+    command = [*REMOTE, "sudo " + shlex.join(local)] if REMOTE else local
     done = subprocess.run(
-        ["docker", "exec", "-i", CONTAINER, "mariadb", "-uroot", "-proot", DATABASE, "-N", "-B"],
+        command,
         input=statement,
         text=True,
         capture_output=True,

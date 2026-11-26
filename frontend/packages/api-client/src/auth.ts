@@ -82,7 +82,15 @@ export const auth = {
 export function installAuth(onUnauthorized: () => void): void {
   configureClient({
     getToken: () => tokenStore.get(),
-    streamTicket: async () => (tokenStore.get() ? (await auth.streamTicket()).ticket : null),
+    // A world with login off answers 404 here, so a stale token must not stop the stream opening.
+    streamTicket: async () => {
+      if (!tokenStore.get()) return null;
+      try {
+        return (await auth.streamTicket()).ticket;
+      } catch {
+        return null;
+      }
+    },
     onUnauthorized: () => {
       tokenStore.clear();
       onUnauthorized();

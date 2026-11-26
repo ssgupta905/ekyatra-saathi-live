@@ -40,7 +40,16 @@ export type EventKind =
   | "agent.started"
   | "agent.finished"
   | "tool.called"
-  | "language.changed";
+  | "language.changed"
+  | "plan.searched"
+  | "question.asked"
+  | "question.answered"
+  | "question.expired"
+  | "request.raised"
+  | "request.confirmed"
+  | "request.rejected"
+  | "advice.sent"
+  | "escalation.written";
 
 export interface WorldEvent {
   kind: EventKind;
@@ -82,6 +91,15 @@ export const ALL_KINDS: EventKind[] = [
   "agent.finished",
   "tool.called",
   "language.changed",
+  "plan.searched",
+  "question.asked",
+  "question.answered",
+  "question.expired",
+  "request.raised",
+  "request.confirmed",
+  "request.rejected",
+  "advice.sent",
+  "escalation.written",
 ];
 
 /** Events that change something about one family's page. */
@@ -99,6 +117,14 @@ export const PATIENT_KINDS = new Set<EventKind>([
   "options.rejected",
   "confirmation.received",
   "process.answered",
+  "plan.searched",
+  "question.asked",
+  "question.answered",
+  "question.expired",
+  "request.raised",
+  "request.confirmed",
+  "request.rejected",
+  "advice.sent",
 ]);
 
 /** Events that change the cohort view, the desk queue or the alert list. */
@@ -112,6 +138,13 @@ export const COHORT_KINDS = new Set<EventKind>([
   "disruption.raised",
   "approval.recorded",
   "options.rejected",
+  "question.asked",
+  "question.answered",
+  "question.expired",
+  "request.raised",
+  "request.confirmed",
+  "request.rejected",
+  "escalation.written",
 ]);
 
 /** The clock and the runner state ride on the snapshot, not the event. */
@@ -349,6 +382,15 @@ export const EVENT_TONE: Record<EventKind, "go" | "wait" | "critical" | "info" |
   "agent.finished": "neutral",
   "tool.called": "info",
   "language.changed": "info",
+  "plan.searched": "info",
+  "question.asked": "wait",
+  "question.answered": "go",
+  "question.expired": "critical",
+  "request.raised": "wait",
+  "request.confirmed": "go",
+  "request.rejected": "wait",
+  "advice.sent": "info",
+  "escalation.written": "critical",
 };
 
 export const EVENT_LABEL: Record<EventKind, string> = {
@@ -377,6 +419,15 @@ export const EVENT_LABEL: Record<EventKind, string> = {
   "agent.finished": "Done",
   "tool.called": "Tool",
   "language.changed": "Language",
+  "plan.searched": "Search",
+  "question.asked": "Asked",
+  "question.answered": "Answered",
+  "question.expired": "No reply",
+  "request.raised": "Request",
+  "request.confirmed": "Agreed",
+  "request.rejected": "Corrected",
+  "advice.sent": "Advice",
+  "escalation.written": "Escalation",
 };
 
 /** Milliseconds, rendered the way a navigator reads them. */

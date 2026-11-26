@@ -33,6 +33,15 @@
         "dev"
       ],
       "port": 5190
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "set -a; [ -f .env ] && source .env; set +a; exec .venv/bin/uvicorn saathi.main:app --app-dir backend --host 127.0.0.1 --port 8000 --timeout-graceful-shutdown 2"
+      ],
+      "port": 8000
     }
   ]
 }

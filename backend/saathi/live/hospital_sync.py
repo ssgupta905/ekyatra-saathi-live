@@ -307,9 +307,18 @@ class HospitalSync:
         first_read = not self.snapshot.primed
         changes = self.snapshot.diff(latest)
         if first_read:
+            matched = sum(1 for a in latest if self.links.patient_for(a) is not None)
             logger.info(
-                "hospital connector primed: %d appointments in the window", len(latest)
+                "hospital connector primed: %d appointments in the window, %d match our families",
+                len(latest),
+                matched,
             )
+            if latest and not matched:
+                logger.warning(
+                    "none of the %d appointments match a family in our records: "
+                    "check SAATHI_RECORDS_URL points at the database holding the EKY- families",
+                    len(latest),
+                )
             return ()
 
         acted: list[AppointmentChange] = []
@@ -873,7 +882,20 @@ class HospitalSync:
         self.expect(booked.ref)
         self._bump("booked")
 
-        if previous is not None and previous.state.is_open and previous.ref != booked.ref:
+        if (
+            previous is not None
+            and previous.state.is_open
+            and previous.ref != booked.ref
+            and not getattr(self.hospital, "supports_cancel", True)
+        ):
+            logger.warning(
+                "hospital: %s cannot cancel over its API; the old appointment %s still "
+                "stands and must be cancelled in its calendar",
+                getattr(self.hospital, "name", "the hospital system"),
+                previous.ref,
+            )
+            self._bump("rebook:old-slot-left-open")
+        elif previous is not None and previous.state.is_open and previous.ref != booked.ref:
             released = await asyncio.to_thread(
                 self.hospital.cancel,
                 previous.ref,

@@ -1243,6 +1243,11 @@ class LiveRunner:
                 self.world.store.delete_option_set(patient_id)
         if disruption is not None:
             await self._apply_resolution(patient_id, disruption, option)
+        elif option.target_on is not None and self.world.step(option.target_step_id) is not None:
+            # An option born of a family's own request has no disruption behind it,
+            # so nothing else moves the step to the date a navigator just approved.
+            async with self._lock:
+                self.world.reschedule_steps({option.target_step_id}, option.target_on)
 
         approval = ApprovalDecision(
             id=str(uuid.uuid4()),

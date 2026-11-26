@@ -34,6 +34,10 @@ class OpenEMRHospital(FhirHospital):
 
     name = "openemr"
 
+    #: Its FHIR `Appointment` has create but no update, so a booking can only be
+    #: released by a person in OpenEMR's own calendar (docs/openemr.md).
+    supports_cancel = False
+
     def __init__(self, *, flow: OpenEMRDatabase | None = None, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._flow = flow
