@@ -143,21 +143,18 @@ services:
     region: frankfurt
     healthCheckPath: /fhir/metadata
     envVars:
-      # Its database is the Supabase project the API already uses, in a schema of
-      # its own so HAPI's tables never sit among Saathi's. Create it once in the
-      # Supabase SQL editor:  create schema if not exists hapi;
+      # Its database is the Supabase project the API already uses (Session pooler,
+      # port 5432; never 6543, HAPI's driver uses prepared statements), in a schema
+      # of its own so HAPI's tables never sit among Saathi's. The schema was created
+      # once in the Supabase SQL editor:  create schema if not exists hapi;
       #
-      # Enter these three in Render when asked. They are the Session pooler's
-      # details (Connect > Session pooler; port 5432, never 6543: HAPI's driver
-      # uses prepared statements), the JDBC form of the address, and the password
-      # goes in only there:
-      #   SPRING_DATASOURCE_URL      jdbc:postgresql://<pooler host>:5432/postgres?currentSchema=hapi
-      #   SPRING_DATASOURCE_USERNAME postgres.<project ref>
-      #   SPRING_DATASOURCE_PASSWORD (the database password)
+      # The address and username are not secret. Only the password is entered in
+      # Render by hand, and it is the same database password the API's
+      # SAATHI_RECORDS_URL already holds.
       - key: SPRING_DATASOURCE_URL
-        sync: false
+        value: jdbc:postgresql://aws-0-eu-west-1.pooler.supabase.com:5432/postgres?currentSchema=hapi
       - key: SPRING_DATASOURCE_USERNAME
-        sync: false
+        value: postgres.slxlamipowcmgayhyhua
       - key: SPRING_DATASOURCE_PASSWORD
         sync: false
       - key: SPRING_DATASOURCE_DRIVER_CLASS_NAME
