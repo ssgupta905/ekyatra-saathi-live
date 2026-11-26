@@ -138,62 +138,7 @@ services:
       - key: NODE_VERSION
         value: "22"
 
-  # The district hospital's system — a second HMS, deliberately unlike the
-  # first. Bahmni speaks its own REST API with no change feed; this speaks
-  # plain FHIR R4 with `_lastUpdated` cursors. Saathi reads both through one
-  # port, which is what "plugs into any HMS" has to mean to be worth saying.
-  #
-  # Bahmni itself cannot live here: Render offers managed Postgres and Key
-  # Value only, and OpenMRS needs MariaDB. Bahmni runs on its own host.
-  - type: web
-    name: ekyatra-hapi-fhir
-    runtime: image
-    image:
-      url: docker.io/hapiproject/hapi:latest
-    # Free tier: 512 MB, and it sleeps after about 15 idle minutes, so the first
-    # request after a quiet spell waits a minute or two. HAPI is a Spring Boot app
-    # that is comfortable at about a gigabyte, so the heap is capped and the
-    # optional indexing and the connection pool are trimmed to fit. If it restarts
-    # under load, that is the memory limit: move `plan` to `starter` (paid).
-    plan: free
-    region: frankfurt
-    healthCheckPath: /fhir/metadata
-    envVars:
-      # HAPI listens on 8080. Render otherwise looks on 10000 first, so say so.
-      - key: PORT
-        value: "8080"
-      # Its database is the Supabase project the API already uses (Session pooler,
-      # port 5432; never 6543, HAPI's driver uses prepared statements), in a schema
-      # of its own so HAPI's tables never sit among Saathi's. The schema was created
-      # once in the Supabase SQL editor:  create schema if not exists hapi;
-      #
-      # The address and username are not secret. Only the password is entered in
-      # Render by hand, and it is the same database password the API's
-      # SAATHI_RECORDS_URL already holds.
-      - key: SPRING_DATASOURCE_URL
-        value: jdbc:postgresql://aws-0-eu-west-1.pooler.supabase.com:5432/postgres?currentSchema=hapi
-      - key: SPRING_DATASOURCE_USERNAME
-        value: postgres.slxlamipowcmgayhyhua
-      - key: SPRING_DATASOURCE_PASSWORD
-        sync: false
-      - key: SPRING_DATASOURCE_DRIVER_CLASS_NAME
-        value: org.postgresql.Driver
-      - key: SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT
-        value: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgresDialect
-      # Supabase's free tier allows few connections; the API uses some of them.
-      - key: SPRING_DATASOURCE_HIKARI_MAXIMUMPOOLSIZE
-        value: "4"
-      - key: JAVA_TOOL_OPTIONS
-        value: "-Xmx320m -Xss512k -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC"
-      # Full-text indexing is optional and costs a lot of memory.
-      - key: HAPI_FHIR_ADVANCED_LUCENE_INDEXING
-        value: "false"
-      # Appointment is the resource the connector reads, and ServiceRequest +
-      # Observation are the creatinine beat. All are on by default; named here
-      # so a future narrowing of the server's scope is a visible change.
-      - key: HAPI_FHIR_FHIR_VERSION
-        value: R4
-      # Writes come from the seeder and from the lab posting a result, so the
-      # server must accept them.
-      - key: HAPI_FHIR_ALLOW_EXTERNAL_REFERENCES
-        value: "true"
+  # The hospital systems (OpenEMR and the HAPI FHIR server) are not here. They need
+  # 1-2 GB each plus disks, which Render's free tier does not give: HAPI was tried
+  # on a free instance and was killed for using over 512 MB. They run on a Google
+  # Cloud VM instead; see demo/openemr/gcp/.
