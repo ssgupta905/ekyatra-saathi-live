@@ -91,3 +91,14 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
 }
+
+// `LiveTest` reads the web client's event list so the two cannot drift apart.
+// Gradle does not know that file is an input, so without this the test is
+// skipped as up-to-date on exactly the change it exists to catch: live.ts
+// moves, nothing in Kotlin does, and the suite passes while the phone has
+// quietly stopped refreshing.
+tasks.withType<Test>().configureEach {
+    inputs.file(rootProject.file("../frontend/packages/api-client/src/live.ts"))
+        .withPropertyName("webPatientKinds")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+}

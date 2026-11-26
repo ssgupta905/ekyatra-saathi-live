@@ -160,9 +160,26 @@ describe("running them", () => {
   });
 
   it("keeps the launch config in step with the ports", () => {
+    // Not every entry is a web app. The backend is in here too, and it has no
+    // vite config to be checked against — asking for one made this test fail
+    // on a missing file rather than on a wrong port.
     const launch = JSON.parse(readFileSync(resolve(here, "../../.claude/launch.json"), "utf8"));
-    for (const entry of launch.configurations) {
+    const webApps = launch.configurations.filter((entry: { name: string }) => apps.includes(entry.name));
+    expect(webApps.length, "no web apps in launch.json — has it been rewritten?").toBeGreaterThan(0);
+    for (const entry of webApps) {
       expect(entry.port, entry.name).toBe(portOf(entry.name));
     }
+  });
+
+  it("launches the backend on the port its own command uses", () => {
+    // The one entry that is not a vite app still has a port, and a port that
+    // disagrees with the command beside it sends a debugger at nothing.
+    const launch = JSON.parse(readFileSync(resolve(here, "../../.claude/launch.json"), "utf8"));
+    const api = launch.configurations.find((entry: { name: string }) => entry.name === "api");
+    if (!api) return;
+    const command = (api.runtimeArgs ?? []).join(" ");
+    const port = /--port\s+(\d+)/.exec(command)?.[1];
+    expect(port, "the api entry's command names no port").toBeDefined();
+    expect(api.port, "the api entry's port and its command disagree").toBe(Number(port));
   });
 });

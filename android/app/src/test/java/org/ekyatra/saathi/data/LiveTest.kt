@@ -6,6 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import java.io.File
 import org.junit.Test
 
 /** The Kotlin twin of `live.test.ts`: both must make the same decisions about the same events. */
@@ -78,12 +79,32 @@ class LiveTest {
 
     @Test
     fun `every kind the web treats as a family's own is treated the same here`() {
-        // Mirrors PATIENT_KINDS in frontend/packages/api-client/src/live.ts.
-        val web = setOf(
-            "plan.recomputed", "message.rendered", "message.held", "step.released",
-            "ledger.appended", "inbound.received", "guard.blocked", "holding_message.sent",
-            "options.ready", "approval.recorded", "confirmation.received", "process.answered",
+        // Read from live.ts, not copied from it. This test used to hold its own
+        // transcript of the list, which meant it enforced whatever the list had
+        // been on the day it was written: nine kinds were added to the web and
+        // this went on passing, with the phone quietly ignoring every one of
+        // them — including a family being asked a question.
+        // Found by walking up rather than by counting directories: Gradle runs
+        // unit tests from the module directory, not the repository root, and a
+        // fixed number of `..` is one build-file change away from being wrong.
+        val wanted = "frontend/packages/api-client/src/live.ts"
+        var dir: File? = File("").absoluteFile
+        var liveTs: File? = null
+        while (dir != null && liveTs == null) {
+            val candidate = File(dir, wanted)
+            if (candidate.exists()) liveTs = candidate else dir = dir.parentFile
+        }
+        assertNotNull("cannot find $wanted above ${File("").absolutePath}", liveTs)
+        val block = Regex("""PATIENT_KINDS = new Set<EventKind>\(\[(.*?)]\)""", RegexOption.DOT_MATCHES_ALL)
+            .find(liveTs!!.readText())
+        assertNotNull("PATIENT_KINDS not found in live.ts — renamed?", block)
+        val web = Regex("\"([^\"]+)\"").findAll(block!!.groupValues[1])
+            .map { it.groupValues[1] }.toSet()
+
+        assertEquals(
+            "the phone ignores kinds the web refreshes on; nothing will update on screen",
+            web,
+            PatientKinds,
         )
-        assertEquals(web, PatientKinds)
     }
 }

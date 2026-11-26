@@ -23,7 +23,15 @@ import java.util.concurrent.TimeUnit
  * backend said, never a local guess.
  */
 
-/** Events that change something about one family's page. Keep in step with live.ts. */
+/** Events that change something about one family's page.
+ *
+ *  Kept in step with `live.ts`, and now by a test rather than by hope. Nine
+ *  kinds were added to the web client and not here, and the effect on a phone
+ *  is quiet and total: an event whose kind is not in this set does not move
+ *  `revision`, nothing calls `refresh`, and the screen keeps showing what it
+ *  showed before. The family is asked a question and their phone does not
+ *  know until they close it and open it again.
+ */
 val PatientKinds: Set<String> = setOf(
     "plan.recomputed",
     "message.rendered",
@@ -35,8 +43,17 @@ val PatientKinds: Set<String> = setOf(
     "holding_message.sent",
     "options.ready",
     "approval.recorded",
+    "options.rejected",
     "confirmation.received",
     "process.answered",
+    "plan.searched",
+    "question.asked",
+    "question.answered",
+    "question.expired",
+    "request.raised",
+    "request.confirmed",
+    "request.rejected",
+    "advice.sent",
 )
 
 @Serializable
