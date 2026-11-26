@@ -143,6 +143,9 @@ services:
     region: frankfurt
     healthCheckPath: /fhir/metadata
     envVars:
+      # HAPI listens on 8080. Render otherwise looks on 10000 first, so say so.
+      - key: PORT
+        value: "8080"
       # Its database is the Supabase project the API already uses (Session pooler,
       # port 5432; never 6543, HAPI's driver uses prepared statements), in a schema
       # of its own so HAPI's tables never sit among Saathi's. The schema was created
