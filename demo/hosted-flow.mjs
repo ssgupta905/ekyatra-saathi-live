@@ -93,18 +93,56 @@ function must(name) {
   return address;
 }
 
-//: Logical points on a 2560x1664 Retina panel.
-const SCREEN = { w: 1280, h: 832 };
-const BAR_H = 66;
-const PHONE_W = 330;
-const TOP_H = 390;
-const LEFT_W = SCREEN.w - PHONE_W;
-const LAYOUT = {
-  emr: { x: 0, y: 0, w: LEFT_W, h: TOP_H },
-  panel: { x: 0, y: TOP_H, w: LEFT_W, h: SCREEN.h - BAR_H - TOP_H },
-  phone: { x: LEFT_W, y: 0, w: PHONE_W, h: SCREEN.h - BAR_H },
-  bar: { x: 0, y: SCREEN.h - BAR_H, w: SCREEN.w, h: BAR_H },
-};
+//: Filled in once the screen has been measured. Chromium positions windows
+//: in logical points, and this machine is not at a clean 2x — it reports
+//: 1470x956 against a 2560x1664 panel. Hardcoding half the panel left a
+//: 190-point strip down one side and the Dock across the bottom, through
+//: which a terminal, an editor and the desktop were plainly visible in an
+//: otherwise finished nine-minute take.
+let LAYOUT = null;
+let CROP = null;
+
+/** Measure the screen, then lay the four windows over all of it.
+ *
+ *  `availTop` is the menu bar and the gap under `availHeight` is the Dock.
+ *  Neither can be covered by an ordinary window, so they are cropped out of
+ *  the recording instead — which leaves the user's own settings alone.
+ */
+async function measureTheScreen() {
+  const browser = await chromium.launch({
+    headless: false,
+    args: ["--window-position=0,0", "--window-size=420,300"],
+  });
+  const page = await browser.newPage({ viewport: null });
+  const s = await page.evaluate(() => ({
+    width: screen.width, height: screen.height,
+    availWidth: screen.availWidth, availHeight: screen.availHeight,
+    availTop: screen.availTop,
+  }));
+  await browser.close();
+
+  const top = s.availTop;
+  const usable = s.availHeight;
+  // scrcpy keeps the handset's aspect, so a column narrower than that leaves
+  // a gap beside the mirror — and whatever was behind it shows through.
+  const phoneW = Math.round(usable * PHONE_ASPECT) + 2;
+  const leftW = s.availWidth - phoneW;
+  const topH = Math.round(usable * 0.49);
+  LAYOUT = {
+    emr: { x: 0, y: top, w: leftW, h: topH },
+    panel: { x: 0, y: top + topH, w: leftW, h: usable - topH },
+    phone: { x: leftW, y: top, w: phoneW, h: usable },
+  };
+  // As fractions of the captured frame, so the crop holds whatever the
+  // panel's pixel size turns out to be.
+  CROP = {
+    top: s.availTop / s.height,
+    height: s.availHeight / s.height,
+    width: s.availWidth / s.width,
+  };
+  console.log(`  screen ${s.width}x${s.height} logical, usable ${s.availWidth}x${s.availHeight} from y=${top}`);
+  return s;
+}
 
 const BENGALI_FAMILY = "EKY-SHANTI";
 //: Whose id the narration borrows. The speech endpoint hangs off a patient;
@@ -119,10 +157,14 @@ const MESSAGES = { hi: "संदेश", bn: "বার্তা", ta: "செ�
 //: The home tab. Coming back to a family reopens whichever tab was last
 //: used, and the speak button lives only on this one.
 const TODAY = { hi: "आज", bn: "আজ", ta: "இன்று" };
+//: 1080x2340 on the handset being filmed. scrcpy will not stretch past it.
+const PHONE_ASPECT = 1080 / 2340;
 
 const soundtrack = [];
 let captureStartedAt = 0;
 let bar = null;
+//: The last thing said, so a reload can put it straight back.
+let lastCaption = null;
 
 /* ───────────────────────────── the deployed API ───────────────────────── */
 
@@ -214,6 +256,55 @@ async function mustReadOnThePhone(fragment, what) {
 
 const captions = [];
 
+/** The caption band, injected into the Console's own page.
+ *
+ *  A fixed strip across the bottom of that pane. It has to be re-applied
+ *  after every navigation, because a reload throws it away along with the
+ *  rest of the document — and a caption that silently stops updating is
+ *  worse than none, since the last thing it said stays on screen over
+ *  whatever happens next.
+ */
+const CAPTION_BAND = () => {
+  if (document.getElementById("__ek_caption")) return;
+  const bar = document.createElement("div");
+  bar.id = "__ek_caption";
+  bar.innerHTML =
+    '<div id="__ek_step"></div><div id="__ek_text"></div>';
+  Object.assign(bar.style, {
+    position: "fixed", left: "0", right: "0", bottom: "0", zIndex: "2147483647",
+    minHeight: "74px", display: "flex", alignItems: "center", gap: "16px",
+    padding: "10px 20px", boxSizing: "border-box",
+    background: "#0b1220", color: "#e8eef9",
+    font: '500 17px/1.35 -apple-system, "SF Pro Text", Inter, system-ui, sans-serif',
+    borderTop: "2px solid #1d4ed8",
+  });
+  document.body.appendChild(bar);
+  const step = bar.querySelector("#__ek_step");
+  Object.assign(step.style, {
+    flex: "none", minWidth: "84px", padding: "5px 11px", borderRadius: "999px",
+    background: "#1d4ed8", color: "#fff", textAlign: "center",
+    font: '600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace',
+    letterSpacing: ".08em", textTransform: "uppercase",
+  });
+  // Nothing of the page should hide under the band.
+  document.body.style.paddingBottom = "86px";
+  window.__ekCaption = (s, h) => {
+    const el = document.getElementById("__ek_caption");
+    if (!el) return;
+    el.querySelector("#__ek_step").textContent = s;
+    el.querySelector("#__ek_text").innerHTML = h;
+  };
+};
+
+/** Put the band on, and keep it on through reloads. */
+async function dressTheConsole(page) {
+  await page.addInitScript(CAPTION_BAND);
+  await page.evaluate(CAPTION_BAND).catch(() => {});
+  if (lastCaption) {
+    await page.evaluate(([s, h]) => window.__ekCaption?.(s, h), lastCaption).catch(() => {});
+  }
+}
+
 /** How long a wav runs, in seconds. */
 async function secondsOf(file) {
   const { stdout } = await run("ffprobe", [
@@ -269,8 +360,10 @@ async function say(step, html, mark = "") {
   const at = Date.now() - captureStartedAt;
   captions.push({ atMs: at, step, html });
   if (clip) soundtrack.push({ ...clip, atMs: at, language: "en", spokenBy: "Sarvam (narration)" });
+  lastCaption = [step, html];
   if (bar) {
-    await bar.evaluate(([s, h, m]) => window.caption(s, h, m), [step, html, mark]).catch(() => {});
+    await bar.evaluate(CAPTION_BAND).catch(() => {});
+    await bar.evaluate(([s, h]) => window.__ekCaption?.(s, h), [step, html]).catch(() => {});
   }
   console.log(`  [${step}] ${html.replace(/<[^>]+>/g, "")}`);
   await wait(clip ? Math.round(clip.seconds * 1000) + 1100 : 3500);
@@ -520,6 +613,7 @@ async function ready() {
 async function main() {
   const health = await ready();
   mkdirSync(OUT, { recursive: true });
+  await measureTheScreen();
 
   // Back to "nobody has been asked yet". `clear`, never `reset`: reset rewinds
   // the world and is refused outright on real records, because it would delete
@@ -535,6 +629,11 @@ async function main() {
       `--window-x=${LAYOUT.phone.x}`, `--window-y=${LAYOUT.phone.y}`,
       `--window-width=${LAYOUT.phone.w}`, `--window-height=${LAYOUT.phone.h}`,
       "--stay-awake", "--window-borderless",
+      // Above everything else. Other windows on the machine sit in front of
+      // it otherwise — an editor covered the phone for most of a take, and
+      // the mirror is the one pane that cannot simply be moved out of the way
+      // afterwards.
+      "--always-on-top",
     ],
     { stdio: "ignore", env: { ...process.env, PATH: `${dirname(ADB)}:${process.env.PATH}` } },
   );
@@ -542,8 +641,12 @@ async function main() {
 
   const emr = await windowAt(LAYOUT.emr, `${EMR}/interface/login/login.php?site=default`);
   const panel = await windowAt(LAYOUT.panel, PANEL);
-  const caption = await windowAt(LAYOUT.bar, `file://${resolve(HERE, "caption-bar.html")}`);
-  bar = caption.page;
+  // The caption is injected into the Console's own page rather than given a
+  // window. Chromium will not make a window shorter than 375 points however
+  // politely it is asked, and a 375-point band is nearly half the usable
+  // height — it buried the Console it was supposed to be explaining.
+  bar = panel.page;
+  await dressTheConsole(panel.page);
   await wait(3000);
 
   const raw = resolve(OUT, "hosted-flow-raw.mp4");
@@ -564,7 +667,13 @@ async function main() {
   const captureLog = resolve(OUT, "hosted-flow-ffmpeg.log");
   const capture = spawn("ffmpeg", [
     "-y", "-f", "avfoundation", "-capture_cursor", "1", "-framerate", "30",
-    "-i", "2", "-vf", "scale=1600:-2", "-pix_fmt", "yuv420p",
+    "-i", "2",
+    // Crop first, scale second: the menu bar and the Dock belong to the
+    // machine, not to the demo, and a film of a product should not be
+    // showing somebody's editor and terminal along one edge.
+    "-vf",
+    `crop=floor(iw*${CROP.width.toFixed(6)}/2)*2:floor(ih*${CROP.height.toFixed(6)}/2)*2:0:floor(ih*${CROP.top.toFixed(6)}/2)*2,scale=1600:-2`,
+    "-pix_fmt", "yuv420p",
     "-preset", "ultrafast", raw,
   ], { stdio: ["ignore", "ignore", openSync(captureLog, "w")] });
   await wait(4000);
@@ -593,7 +702,7 @@ async function main() {
     await wait(2500);
     phone.kill();
     awake.kill();
-    for (const w of [emr, panel, caption]) await w.browser.close().catch(() => {});
+    for (const w of [emr, panel]) await w.browser.close().catch(() => {});
   }
 
   writeFileSync(resolve(OUT, "hosted-flow-captions.json"), JSON.stringify(captions, null, 2));
@@ -859,6 +968,7 @@ async function demo({ emr, panel, health }) {
     console.log(`  only ${readings.length} of ${replying.length} replies had been read; carrying on`);
   }
   await panel.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
+  await dressTheConsole(panel);
   await wait(3000);
   await signIn(panel, "Seema Kamble");
   await mustClick(panel, /^Approvals$/, "the approvals queue");
@@ -999,6 +1109,7 @@ async function demo({ emr, panel, health }) {
   await say("research", `Shanti said yes, and one row appeared — ${num(String(after.manifest.rows))} contributed, ${num(String(after.manifest.excluded_no_research_consent))} still withheld. Consent is asked per family, is revocable, and is never a condition of care.`);
 
   await panel.goto(`${PANEL}/?persona=menon&section=research`, { waitUntil: "domcontentloaded" }).catch(() => {});
+  await dressTheConsole(panel);
   await wait(4000);
   await mustSee(panel, "National Cancer Grid", "the receiving body");
   await mustSee(panel, "Removed before anything leaves", "what is withheld");
