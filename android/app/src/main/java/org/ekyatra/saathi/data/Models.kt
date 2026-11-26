@@ -325,6 +325,22 @@ data class RailGuide(
     @SerialName("status_url") val statusUrl: String = "",
 )
 
+/**
+ * What the family said they can manage, for the month they travel in. Every
+ * figure is theirs: the limit they set, what is already spent or booked, and a
+ * fare they said out loud. Saathi adds no price of its own.
+ */
+@Serializable
+data class WayBudget(
+    val month: String = "",
+    @SerialName("limit_paise") val limitPaise: Long? = null,
+    val said: String? = null,
+    @SerialName("committed_paise") val committedPaise: Long = 0,
+    @SerialName("room_paise") val roomPaise: Long? = null,
+    @SerialName("stated_fare_paise") val statedFarePaise: Long? = null,
+    @SerialName("stated_in") val statedIn: String? = null,
+)
+
 @Serializable
 data class WayOptions(
     val leg: String,
@@ -337,6 +353,7 @@ data class WayOptions(
     @SerialName("origin_used") val originUsed: String? = null,
     val notes: List<String> = emptyList(),
     val rail: RailGuide? = null,
+    val budget: WayBudget? = null,
 )
 
 /* ── Near you: shops, labs and clinics around where the family will be ── */

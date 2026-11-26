@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import math
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -26,16 +26,58 @@ from .deps import ContainerDep
 router = APIRouter(tags=["trip"])
 
 
-def _room(state, patient_id: str) -> int | None:
-    """What of the family's own monthly limit is still free this month. None when none was said."""
+def _travel_day(state, patient_id: str, arrive_by) -> date | None:
+    """The day the money is spent: when they set out, else the day of the visit."""
+    run = state.runner.plans.get(patient_id)
+    if run is not None and run.plan is not None and run.plan.travel_on is not None:
+        return run.plan.travel_on
+    return arrive_by.date() if arrive_by is not None else None
+
+
+def _stated_fare(state, patient_id: str) -> tuple[int, str] | None:
+    """The fare the family themselves said, with the sentence it came from.
+
+    Never a figure Saathi worked out: only one a family said out loud, read
+    into a request a person has not rejected, and kept with its sentence.
+    """
+    for request in reversed(state.runner.requests.get(patient_id, [])):
+        travel = request.travel
+        if (
+            request.rejected_reason is None
+            and travel.stated_cost_inr
+            and request.travel_is_attributable
+        ):
+            return travel.stated_cost_inr * 100, travel.stated_in
+    return None
+
+
+def _budget(state, patient_id: str, arrive_by) -> dict | None:
+    """What the family said they can manage, for the month they will travel in.
+
+    The room is the limit less what is already spent, booked or expected in that
+    month. None when they have said neither a limit nor a fare, so the screen
+    can ask rather than imply a budget that was never set.
+    """
     desk = state.runner.kharcha
     if desk is None:
         return None
     limit = desk.store.limit(patient_id)
-    if limit is None:
+    stated = _stated_fare(state, patient_id)
+    if limit is None and stated is None:
         return None
-    this_month, _ = desk.months(patient_id)
-    return max(limit.monthly_paise - this_month.total_known_paise, 0)
+    this_month, following = desk.months(patient_id)
+    day = _travel_day(state, patient_id, arrive_by)
+    month = following if day is not None and day >= following.month else this_month
+    room = max(limit.monthly_paise - month.total_known_paise, 0) if limit else None
+    return {
+        "month": month.month.isoformat(),
+        "limit_paise": limit.monthly_paise if limit else None,
+        "said": limit.stated_in if limit else None,
+        "committed_paise": month.total_known_paise,
+        "room_paise": room,
+        "stated_fare_paise": stated[0] if stated else None,
+        "stated_in": stated[1] if stated else None,
+    }
 
 
 def _rail(
@@ -156,7 +198,12 @@ async def options(
         else o
         for o in driving[:1]
     ]
-    guidance = weigh(transit[:4] + cars, room_paise=_room(state, patient_id), arrive_by=arrive_by)
+    budget = _budget(state, patient_id, arrive_by)
+    guidance = weigh(
+        transit[:4] + cars,
+        room_paise=budget["room_paise"] if budget else None,
+        arrive_by=arrive_by,
+    )
     # Say what is not there rather than let one car route stand in for a journey:
     # no open source carries reserved intercity trains, and Google's route data
     # does not either.
@@ -169,5 +216,6 @@ async def options(
         "origin_used": origin_used,
         "notes": notes,
         "rail": _rail(patient, leg, transit, driving, arrive_by),
+        "budget": budget,
         "guidance": guidance.model_dump(mode="json"),
     }

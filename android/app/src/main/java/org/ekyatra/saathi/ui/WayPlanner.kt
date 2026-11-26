@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,17 +19,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import org.ekyatra.saathi.data.SaathiApi
 import org.ekyatra.saathi.data.RailGuide
+import org.ekyatra.saathi.data.WayBudget
 import org.ekyatra.saathi.data.WayGuidance
 import org.ekyatra.saathi.data.WayOptions
 import org.ekyatra.saathi.data.WayStep
@@ -172,7 +177,7 @@ private fun PillButton(text: String, primary: Boolean, tag: String, onClick: () 
  * why: Saathi cannot see them.
  */
 @Composable
-private fun RailCard(r: RailGuide, s: Strings) {
+private fun RailCard(r: RailGuide, budget: WayBudget?, api: SaathiApi, patientId: String, s: Strings) {
     val context = LocalContext.current
     Column(
         Modifier
@@ -205,6 +210,79 @@ private fun RailCard(r: RailGuide, s: Strings) {
             PillButton(s.trainStatus, primary = false, tag = "rail-status") { openWeb(context, r.statusUrl) }
         }
         Text(s.trainNote, fontSize = 12.sp, color = Tokens.ink3, modifier = Modifier.padding(top = 8.dp))
+        FareCheck(budget, api, patientId, s)
+    }
+}
+
+/** The monthly limit the family set, and what is left of it for the month they travel in. */
+@Composable
+private fun BudgetLine(b: WayBudget?, s: Strings) {
+    val limit = b?.limitPaise
+    if (b == null || limit == null) {
+        Text(s.budgetNone, fontSize = 12.sp, color = Tokens.ink3, modifier = Modifier.padding(top = 6.dp).testTag("budget-none"))
+        return
+    }
+    Text(
+        s.budgetLine.replace("{limit}", rupees(limit)).replace("{left}", rupees(b.roomPaise ?: 0)),
+        fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Tokens.ink2,
+        modifier = Modifier.padding(top = 6.dp).testTag("budget-line"),
+    )
+}
+
+/**
+ * Whether the fare a family found fits what they said they can manage.
+ *
+ * The figure is theirs: typed from what they see in IRCTC, or one they already
+ * told us, quoted back. Saathi has no fare of its own and does not make one up.
+ * Over the limit it says so plainly and sends them to their navigator before
+ * they book, with the railway-concession tip. A fare can be added to their
+ * spends, where the family confirms it before it counts.
+ */
+@Composable
+private fun FareCheck(budget: WayBudget?, api: SaathiApi, patientId: String, s: Strings) {
+    val said = budget?.statedFarePaise
+    var typed by remember(said) { mutableStateOf(said?.let { (it / 100).toString() }.orEmpty()) }
+    var checked by remember(said) { mutableStateOf(said != null) }
+    var added by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val fare = typed.toLongOrNull()?.takeIf { it > 0 }?.times(100)
+
+    Column(Modifier.padding(top = 12.dp)) {
+        said?.let { Text(s.fareSaid.replace("{fare}", rupees(it)), fontSize = 12.sp, color = Tokens.ink3) }
+        OutlinedTextField(
+            typed, { typed = it.filter(Char::isDigit).take(6); checked = false; added = false },
+            singleLine = true, label = { Text(s.fareLabel) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp).testTag("fare-amount"),
+        )
+        if (fare != null && !checked) PillButton(s.fareCheck, primary = false, tag = "fare-check") { checked = true }
+        if (checked && fare != null) {
+            val room = budget?.roomPaise
+            when {
+                room == null -> Text(s.fareNoLimit, fontSize = 13.sp, color = Tokens.ink3, modifier = Modifier.padding(top = 8.dp).testTag("fare-nolimit"))
+                fare <= room -> Text(
+                    s.fareFits.replace("{left}", rupees(room - fare)),
+                    fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Tokens.go,
+                    modifier = Modifier.padding(top = 8.dp).testTag("fare-fits"),
+                )
+                else -> Column(Modifier.padding(top = 8.dp)) {
+                    Text(
+                        s.fareOver.replace("{over}", rupees(fare - room)),
+                        fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Tokens.critical,
+                        modifier = Modifier.testTag("fare-over"),
+                    )
+                    Text(s.fareAsk, fontSize = 13.sp, color = Tokens.ink2, modifier = Modifier.padding(top = 2.dp))
+                    Text(s.nudgeRail, fontSize = 12.sp, color = Tokens.ink3, modifier = Modifier.padding(top = 4.dp))
+                }
+            }
+            if (!added) {
+                PillButton(s.fareAdd, primary = true, tag = "fare-add") {
+                    scope.launch { runCatching { api.addSpend(patientId, "", (fare / 100).toInt(), "travel") }.onSuccess { added = true } }
+                }
+            } else {
+                Text(s.fareAdded, fontSize = 13.sp, color = Tokens.go, modifier = Modifier.padding(top = 8.dp).testTag("fare-added"))
+            }
+        }
     }
 }
 
@@ -279,7 +357,8 @@ fun LegGuide(api: SaathiApi, patientId: String, leg: String, refreshKey: String?
                 }
             }
         }
-        data.rail?.let { RailCard(it, s) }
+        if (leg == "far") BudgetLine(data.budget, s)
+        data.rail?.let { RailCard(it, data.budget, api, patientId, s) }
         val options = data.guidance.options
         if (data.rail != null) {
             // The car is only context here: the train is the suggestion.

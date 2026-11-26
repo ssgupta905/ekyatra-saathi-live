@@ -106,3 +106,72 @@ def test_an_unknown_district_or_hospital_gets_no_rail_guidance():
     assert rail_hint("Nowhere", "TMH-MUM") is None
     assert rail_hint("Gaya", "NO-SUCH-HOSPITAL") is None
     assert rail_hint("Gaya", "TMH-MUM").nearest.code == "CSMT"
+
+
+# ---- the family's own budget, for the month they travel in
+
+
+def _limit(client, rupees):
+    pid = _patient(client).id
+    body = {"amount": rupees, "said": "about three thousand"}
+    return client.put(f"/api/patients/{pid}/kharcha/limit", json=body)
+
+
+def test_with_no_limit_and_no_fare_said_there_is_no_budget_to_show(client):
+    body = _ask(client, FakeRoutes()).json()
+
+    assert body["budget"] is None
+
+
+def test_a_stated_limit_comes_back_with_the_room_left_and_their_words(client):
+    assert _limit(client, 3000).status_code == 200
+
+    budget = _ask(client, FakeRoutes()).json()["budget"]
+
+    assert budget["limit_paise"] == 300000
+    assert budget["said"] == "about three thousand"
+    assert budget["room_paise"] == 300000 - budget["committed_paise"]
+    assert budget["stated_fare_paise"] is None
+
+
+def test_the_room_feeds_the_ranking_not_only_the_screen(client):
+    _limit(client, 3000)
+
+    body = _ask(client, FakeRoutes(transit=True), leg="near", origin="Dadar").json()
+
+    assert body["guidance"]["room_paise"] == body["budget"]["room_paise"]
+
+
+def test_a_fare_the_family_said_is_shown_with_the_sentence_it_came_from(client):
+    from saathi.domain.requests import PatientRequest, RequestIntent, TravelFacts
+
+    state = client.app.state.container
+    pid = _patient(client).id
+    _limit(client, 3000)
+    state.runner.requests[pid] = [
+        PatientRequest(
+            id="r1", patient_id=pid, raw_text="tickets will be 900",
+            intent=RequestIntent.MOVE_VISIT,
+            travel=TravelFacts(stated_cost_inr=900, stated_in="tickets will be 900"),
+        )
+    ]
+
+    budget = _ask(client, FakeRoutes()).json()["budget"]
+
+    assert budget["stated_fare_paise"] == 90000
+    assert budget["stated_in"] == "tickets will be 900"
+
+
+def test_a_fare_with_no_sentence_behind_it_is_not_used(client):
+    from saathi.domain.requests import PatientRequest, RequestIntent, TravelFacts
+
+    state = client.app.state.container
+    pid = _patient(client).id
+    state.runner.requests[pid] = [
+        PatientRequest(
+            id="r1", patient_id=pid, raw_text="ok", intent=RequestIntent.MOVE_VISIT,
+            travel=TravelFacts(stated_cost_inr=900),
+        )
+    ]
+
+    assert _ask(client, FakeRoutes()).json()["budget"] is None
