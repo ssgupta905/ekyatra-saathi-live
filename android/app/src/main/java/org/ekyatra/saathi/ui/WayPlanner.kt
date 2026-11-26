@@ -290,7 +290,7 @@ fun LegGuide(api: SaathiApi, patientId: String, leg: String, refreshKey: String?
                 )
             }
         } else {
-            data.guidance.reasons.mapNotNull { reasonWord(it, s) }.takeIf { it.isNotEmpty() }?.let {
+            data.guidance.reasons.filter { it != "cost_unknown" }.mapNotNull { reasonWord(it, s) }.takeIf { it.isNotEmpty() }?.let {
                 Text(it.joinToString(" · "), fontSize = 12.sp, color = Tokens.ink3, modifier = Modifier.padding(top = 6.dp))
             }
             val best = options.firstOrNull { it.option.id == data.guidance.recommendedId } ?: options.firstOrNull()
