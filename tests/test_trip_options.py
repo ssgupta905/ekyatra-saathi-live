@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+import asyncio
+from datetime import UTC, date, datetime, timedelta, timezone
 
-from saathi.adapters.routes.google import parse
+import httpx
+from saathi.adapters.routes.google import GoogleRoutes, parse
 from saathi.domain.itinerary import FareBasis, Fit, RouteOption, Step, StepMode, Tag
-from saathi.orchestrator.trip_options import weigh
+from saathi.orchestrator.trip_options import next_visit_start, weigh
+from saathi.ports.routes import Place
 
 T0 = datetime(2026, 12, 1, 8, 0, tzinfo=UTC)
 
@@ -138,3 +141,90 @@ def test_no_fare_in_the_answer_means_no_fare_shown():
     [option] = parse(body)
 
     assert option.fare_paise is None and option.fare_basis is FareBasis.NONE
+
+
+# ---- one drive is one step, and ids never repeat between modes
+
+
+def _drive_body():
+    turns = [
+        {"travelMode": "DRIVE", "staticDuration": "600s", "distanceMeters": 9000},
+        {"travelMode": "DRIVE", "staticDuration": "1200s", "distanceMeters": 40000},
+        {"travelMode": "DRIVE", "staticDuration": "300s", "distanceMeters": 2000},
+    ]
+    return {"routes": [{"duration": "2100s", "legs": [{"steps": turns}]}]}
+
+
+def _ask(mode):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=_drive_body())
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    routes = GoogleRoutes("test-key", client=client)
+    return asyncio.run(routes.options(Place("Gaya"), Place("19.0,72.8"), mode=mode))
+
+
+def test_a_drive_is_one_step_not_one_per_turn_of_the_road():
+    [drive] = _ask("driving")
+
+    assert len(drive.steps) == 1 and drive.steps[0].mode is StepMode.TAXI
+    assert drive.steps[0].metres == 51000
+    assert drive.changes == 0
+
+
+def test_a_long_drive_is_not_ranked_as_a_hundred_changes_of_vehicle():
+    """Before, 117 road steps counted as 116 changes and sank it below any bus."""
+    [drive] = _ask("driving")
+    bus = opt("bus", 2000, changes=1)
+
+    weighed = weigh([bus, drive]).options
+
+    assert drive.changes < bus.changes
+    assert len(weighed) == 2
+
+
+def test_the_transit_and_drive_answers_get_different_ids():
+    [drive] = _ask("driving")
+    [transit] = parse(_drive_body(), prefix="google-transit")
+
+    assert drive.id != transit.id
+    assert drive.id.startswith("google-driving")
+
+
+# ---- when the next visit starts, from the hospital's own bookings
+
+IST = timezone(timedelta(hours=5, minutes=30))
+NOW = datetime(2026, 11, 27, 0, 0, tzinfo=UTC)
+
+
+def test_the_next_visit_is_the_booking_on_the_next_planned_day():
+    booked = [datetime(2026, 12, 1, 2, 30, tzinfo=UTC)]  # 08:00 in India
+
+    assert next_visit_start(booked, [date(2026, 12, 1)], tz=IST, now=NOW) == booked[0]
+
+
+def test_a_planned_day_with_no_booking_is_skipped_not_guessed():
+    booked = [datetime(2026, 12, 3, 4, 0, tzinfo=UTC)]
+
+    got = next_visit_start(booked, [date(2026, 12, 1), date(2026, 12, 3)], tz=IST, now=NOW)
+
+    assert got == booked[0]
+
+
+def test_with_no_booking_there_is_no_time():
+    assert next_visit_start([], [date(2026, 12, 1)], tz=IST, now=NOW) is None
+    assert next_visit_start([datetime(2026, 12, 1, 2, 30, tzinfo=UTC)], [], tz=IST, now=NOW) is None
+
+
+def test_a_booking_already_past_does_not_count():
+    past = [datetime(2026, 11, 26, 2, 30, tzinfo=UTC)]
+
+    assert next_visit_start(past, [date(2026, 11, 26)], tz=IST, now=NOW) is None
+
+
+def test_the_day_is_read_in_the_hospitals_timezone():
+    """01:30 in India on the 1st is still the 30th in UTC."""
+    booked = [datetime(2026, 11, 30, 20, 0, tzinfo=UTC)]
+
+    assert next_visit_start(booked, [date(2026, 12, 1)], tz=IST, now=NOW) == booked[0]
+    assert next_visit_start(booked, [date(2026, 12, 1)], tz=UTC, now=NOW) is None

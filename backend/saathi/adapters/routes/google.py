@@ -113,8 +113,12 @@ def _fare_paise(route: dict) -> int | None:
     return round(rupees * 100) if rupees > 0 else None
 
 
-def parse(body: dict) -> list[RouteOption]:
-    """A Routes response as options. Public so a recorded response can be tested."""
+def parse(body: dict, prefix: str = "google") -> list[RouteOption]:
+    """A Routes response as options. Public so a recorded response can be tested.
+
+    `prefix` keeps ids unique across the transit and drive answers, which are
+    weighed together and would otherwise both contain a `google-0`.
+    """
     found: list[RouteOption] = []
     for number, route in enumerate(body.get("routes", [])):
         legs = route.get("legs") or []
@@ -125,7 +129,7 @@ def parse(body: dict) -> list[RouteOption]:
         paise = _fare_paise(route)
         found.append(
             RouteOption(
-                id=f"google-{number}",
+                id=f"{prefix}-{number}",
                 steps=steps,
                 minutes=_minutes(route.get("duration")),
                 departs=timed[0].departs if timed else None,
@@ -144,6 +148,18 @@ def _place(place: Place) -> dict:
         return {"location": {"latLng": {"latitude": float(lat), "longitude": float(lng)}}}
     except ValueError:
         return {"address": place.text}
+
+
+def _as_one_drive(option: RouteOption) -> RouteOption:
+    """A car or taxi as a single step.
+
+    Google returns a drive as one step per turn of the road. Counted as it
+    arrives, a 30-hour drive is a hundred "changes of vehicle" and the weigher
+    ranks it as the most tiring journey there is.
+    """
+    metres = sum(s.metres or 0 for s in option.steps)
+    drive = Step(mode=StepMode.TAXI, minutes=option.minutes, metres=metres or None)
+    return option.model_copy(update={"steps": (drive,)})
 
 
 class GoogleRoutes:
@@ -187,22 +203,10 @@ class GoogleRoutes:
         if response.status_code != 200:
             logger.warning("routes refused: HTTP %s", response.status_code)
             raise RoutesUnavailable(f"the route service said {response.status_code}")
-        options = parse(response.json())
+        options = parse(response.json(), prefix=f"google-{mode}")
         if mode == "driving":
             # A car or taxi: the route service gives no price and none is made up.
-            options = [
-                o.model_copy(
-                    update={
-                        "steps": tuple(
-                            s.model_copy(update={"mode": StepMode.TAXI})
-                            if s.mode is not StepMode.WALK
-                            else s
-                            for s in o.steps
-                        )
-                    }
-                )
-                for o in options
-            ]
+            options = [_as_one_drive(o) for o in options]
         return options
 
     async def close(self) -> None:

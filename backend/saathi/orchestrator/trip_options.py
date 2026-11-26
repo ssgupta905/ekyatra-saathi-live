@@ -20,7 +20,8 @@ The reasons are codes; the screen puts them in the family's language.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from collections.abc import Iterable
+from datetime import date, datetime, timedelta, tzinfo
 
 from ..domain.itinerary import (
     Fit,
@@ -33,6 +34,29 @@ from ..domain.itinerary import (
 #: Time to get from the door of a hospital to the desk, and for a late bus.
 #: A margin, not a rate: it is shown to the family as the leave-by time.
 ARRIVAL_MARGIN = timedelta(minutes=45)
+
+
+def next_visit_start(
+    booked: Iterable[datetime],
+    scheduled_days: Iterable[date],
+    *,
+    tz: tzinfo,
+    now: datetime,
+) -> datetime | None:
+    """When the family's next booked visit starts, as the hospital holds it.
+
+    `booked` are the start times of their open appointments in the hospital's
+    system and `scheduled_days` the days their care steps are planned for. A
+    day counts only if the hospital actually holds a booking on it: a time is
+    never made up for a day that has none, because a "leave by" built on a
+    guess would be a promise nobody made. Returns None when there is none.
+    """
+    upcoming = [b for b in booked if b > now]
+    for day in sorted({d for d in scheduled_days}):
+        starts = [b for b in upcoming if b.astimezone(tz).date() == day]
+        if starts:
+            return min(starts)
+    return None
 
 
 def _minimum(values: list[int]) -> int | None:
