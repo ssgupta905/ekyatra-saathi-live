@@ -277,6 +277,14 @@ def build_routes(settings: Settings):
         from ..adapters.routes import GoogleRoutes
 
         return GoogleRoutes(settings.google_maps_api_key)
+    if kind == "osrm":
+        # No key, and the same service `tools/geo.py` already asks for every
+        # journey time on every plan. Driving only — it has no timetables, and
+        # says so by offering nothing for transit rather than dressing a car
+        # route as a bus.
+        from ..adapters.routes.osrm import DEFAULT_ROUTER, OsrmRoutes
+
+        return OsrmRoutes(settings.router_url or DEFAULT_ROUTER)
     if kind == "demo":
         from ..adapters.routes import DemoRoutes
 
