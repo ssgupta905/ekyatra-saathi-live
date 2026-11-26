@@ -399,8 +399,9 @@ async function keepTheAudio(patientId, text, language) {
   }
   const file = resolve(OUT, `hosted-voice-${language}.wav`);
   writeFileSync(file, bytes);
-  soundtrack.push({ file, atMs: at, language, spokenBy, bytes: bytes.length });
-  return { spokenBy, kb: Math.round(bytes.length / 1024), file };
+  const seconds = await secondsOf(file);
+  soundtrack.push({ file, atMs: at, language, spokenBy, bytes: bytes.length, seconds });
+  return { spokenBy, kb: Math.round(bytes.length / 1024), file, seconds };
 }
 
 /** Did the phone play it through the service voice, or its own fallback?
@@ -444,7 +445,13 @@ async function speakOnThePhone(patientId, language) {
   await forgetTheLog();
   await phoneTap(SPEAK[language]);
   const kept = await keepTheAudio(patientId, reading, language);
-  await wait(6000);
+  // Wait for the whole clip, not a guessed six seconds. The Hindi and Bengali
+  // readings run fourteen and fifteen seconds; waiting six put the English
+  // narration eight seconds into them, so two voices spoke at once and the
+  // summed track clipped — ten thousand samples hard against the ceiling.
+  // This is the family's own language being demonstrated; nothing talks over
+  // it.
+  await wait(Math.round((kept?.seconds ?? 6) * 1000) + 1200);
   const played = await playedThroughTheService();
   if (kept && !played.service) {
     // The clip is Sarvam's but the phone did not play it, so the soundtrack
@@ -1201,9 +1208,20 @@ async function addTheVoices(video) {
     .map((c, i) => `[${i + 1}:a]adelay=${c.atMs}|${c.atMs}[a${i}]`)
     .join(";");
   const mixed = soundtrack.map((_, i) => `[a${i}]`).join("");
+  // `normalize=0` so a quiet clip is not dragged down by however many others
+  // exist, then a limiter so that summing can never clip. Without the limiter
+  // any overlap at all lands on the ceiling and distorts; with it, the worst
+  // case is a moment of gentle gain reduction nobody notices.
   args.push(
-    "-filter_complex", `${delays};${mixed}amix=inputs=${soundtrack.length}:normalize=0[out]`,
-    "-map", "0:v", "-map", "[out]", "-c:v", "copy", "-c:a", "aac", out,
+    "-filter_complex",
+    `${delays};${mixed}amix=inputs=${soundtrack.length}:normalize=0[mixed];` +
+      "[mixed]alimiter=limit=0.89:level=false[out]",
+    "-map", "0:v", "-map", "[out]",
+    "-c:v", "copy",
+    // 39 kbps mono was thin for speech, and thin speech in four languages is
+    // harder to follow than thin speech in one.
+    "-c:a", "aac", "-b:a", "128k",
+    out,
   );
   await run("ffmpeg", args);
   const narration = soundtrack.filter((c) => c.language === "en");
