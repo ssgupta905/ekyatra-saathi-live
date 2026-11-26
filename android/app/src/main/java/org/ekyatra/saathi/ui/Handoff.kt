@@ -65,7 +65,18 @@ fun appsFor(kind: String, party: String?): List<PartnerApp> {
     return all.sortedBy { if (asked.contains(it.name.lowercase())) 0 else 1 }
 }
 
+/**
+ * The railway's own booking app. IRCTC takes no station, date or train from an
+ * outside app, so the screen shows the two stations and the family types them;
+ * the tap gets them into the app, or its store page, or the website.
+ */
+val IRCTC_APP = PartnerApp("IRCTC Rail Connect", "cris.org.in.prs.ima", "https://www.irctc.co.in/nget/train-search")
+
 enum class Opened { APP, STORE, WEBSITE, NOTHING }
+
+/** Open a web page. False when nothing on the phone can show one. */
+fun openWeb(context: Context, url: String): Boolean =
+    start(context, Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 
 /** The hospital's address for the family to paste, or null when there is none on record. */
 fun destinationText(trip: Trip?): String? = trip?.destination?.address?.takeIf { it.isNotBlank() }

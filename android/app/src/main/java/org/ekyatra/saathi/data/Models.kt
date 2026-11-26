@@ -306,7 +306,38 @@ data class WayGuidance(
 )
 
 @Serializable
-data class WayOptions(val leg: String, val source: String, val guidance: WayGuidance)
+data class RailStation(val name: String, val code: String)
+
+/**
+ * The train journey for a long leg: both stations with the codes IRCTC asks
+ * for. There is deliberately no train, time or fare here: no open service has
+ * them, and the screen sends the family to IRCTC for those.
+ */
+@Serializable
+data class RailGuide(
+    @SerialName("from") val origin: RailStation,
+    val to: RailStation,
+    val also: List<RailStation> = emptyList(),
+    @SerialName("visit_at") val visitAt: String? = null,
+    @SerialName("road_minutes") val roadMinutes: Int? = null,
+    @SerialName("allow_days") val allowDays: Int? = null,
+    @SerialName("irctc_url") val irctcUrl: String = "",
+    @SerialName("status_url") val statusUrl: String = "",
+)
+
+@Serializable
+data class WayOptions(
+    val leg: String,
+    val source: String,
+    val guidance: WayGuidance,
+    /** When the family must be there, from the hospital's own booking. */
+    @SerialName("arrive_by") val arriveBy: String? = null,
+    @SerialName("arrive_by_source") val arriveBySource: String? = null,
+    /** The place the last leg started from when the family typed none. */
+    @SerialName("origin_used") val originUsed: String? = null,
+    val notes: List<String> = emptyList(),
+    val rail: RailGuide? = null,
+)
 
 /* ── Near you: shops, labs and clinics around where the family will be ── */
 

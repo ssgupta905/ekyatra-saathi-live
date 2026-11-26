@@ -257,12 +257,20 @@ fun OpenInApp(kind: String, party: String?, trip: Trip?, s: Strings) {
 
 /**
  * How to actually get there. Two legs, because the realistic answer differs:
- * the long way from home to the hospital's city (train, bus or a car), and the
- * last few kilometres from where the family stands to the hospital door (metro,
- * taxi or on foot). Each button opens Maps for that mode with the time shown.
+ * the long way from home to the hospital's city (usually a train), and the last
+ * few kilometres from the station to the hospital door (bus, metro, taxi or on
+ * foot). Each leg loads its best way as the screen opens, against the day the
+ * hospital holds the visit for; Maps stays one tap away under it.
  */
 @Composable
-fun RouteCard(api: org.ekyatra.saathi.data.SaathiApi, patientId: String, home: String, trip: Trip?, s: Strings) {
+fun RouteCard(
+    api: org.ekyatra.saathi.data.SaathiApi,
+    patientId: String,
+    home: String,
+    trip: Trip?,
+    lang: Lang,
+    s: Strings,
+) {
     val destination = tripDestination(trip) ?: return
     val context = LocalContext.current
     SaathiCard(Modifier.testTag("route-card")) {
@@ -273,23 +281,32 @@ fun RouteCard(api: org.ekyatra.saathi.data.SaathiApi, patientId: String, home: S
         trip?.destination?.let {
             Text("${s.handoffWhere}: ${it.address}", fontSize = 13.sp, color = Tokens.ink2, modifier = Modifier.padding(top = 8.dp))
         }
-        Leg(s.routeFar.replace("{city}", trip?.city?.ifBlank { null } ?: trip?.destination?.name.orEmpty()),
-            listOf(TravelMode.TRANSIT to s.modeTransit, TravelMode.DRIVING to s.modeDrive), "far") { mode ->
+        val city = trip?.city?.ifBlank { null } ?: trip?.destination?.name.orEmpty()
+        LegTitle(s.routeFar.replace("{city}", city))
+        LegGuide(api, patientId, "far", trip?.arriveOn, lang, s)
+        MapsChips(s, "far", listOf(TravelMode.TRANSIT to s.modeTransit, TravelMode.DRIVING to s.modeDrive)) { mode ->
             openMaps(context, destination, home, mode)
         }
-        WayPlanner(api, patientId, "far", s)
-        Leg(s.routeNear, listOf(
-            TravelMode.TRANSIT to s.modeTransit, TravelMode.DRIVING to s.modeDrive, TravelMode.WALKING to s.modeWalk,
-        ), "near") { mode -> openMaps(context, destination, null, mode) }
-        WayPlanner(api, patientId, "near", s)
+        LegTitle(s.routeNear)
+        LegGuide(api, patientId, "near", trip?.arriveOn, lang, s)
+        MapsChips(
+            s, "near",
+            listOf(TravelMode.TRANSIT to s.modeTransit, TravelMode.DRIVING to s.modeDrive, TravelMode.WALKING to s.modeWalk),
+        ) { mode -> openMaps(context, destination, null, mode) }
         Text(s.routeNote, fontSize = 12.sp, color = Tokens.ink3, modifier = Modifier.padding(top = 10.dp))
     }
 }
 
 @Composable
-private fun Leg(title: String, modes: List<Pair<TravelMode, String>>, tag: String, open: (TravelMode) -> Unit) {
+private fun LegTitle(title: String) {
+    Text(title, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Tokens.ink, modifier = Modifier.padding(top = 18.dp))
+}
+
+/** Maps for this leg, one tap per way of travelling, for when a family wants to see it on a map. */
+@Composable
+private fun MapsChips(s: Strings, tag: String, modes: List<Pair<TravelMode, String>>, open: (TravelMode) -> Unit) {
     Column(Modifier.padding(top = 12.dp)) {
-        Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Tokens.ink)
+        Text(s.openInMaps, fontSize = 12.sp, color = Tokens.ink3)
         modes.chunked(2).forEach { pair ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
                 pair.forEach { (mode, label) ->

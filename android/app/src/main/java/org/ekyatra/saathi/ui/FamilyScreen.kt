@@ -116,7 +116,7 @@ fun FamilyScreen(vm: FamilyViewModel, onBack: () -> Unit) {
                         Boundary(lang, s)
                     }
                     Tab.PLAN -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
-                        RouteCard(vm.api, vm.patientId, ui.home?.patient?.district.orEmpty(), ui.home?.guide?.trip, s)
+                        RouteCard(vm.api, vm.patientId, ui.home?.patient?.district.orEmpty(), ui.home?.guide?.trip, lang, s)
                         Box(Modifier.height(12.dp))
                         NearYouCard(vm.api, vm.patientId, s) { showMap = true }
                         Box(Modifier.height(12.dp))

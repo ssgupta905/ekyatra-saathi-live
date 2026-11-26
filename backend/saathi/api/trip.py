@@ -8,6 +8,7 @@ service for this one request and is not kept.
 from __future__ import annotations
 
 import asyncio
+import math
 from datetime import UTC, datetime
 from typing import Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -16,7 +17,8 @@ from fastapi import APIRouter, HTTPException, Query
 
 from ..domain.enums import StepStatus
 from ..domain.itinerary import FareBasis, RouteOption
-from ..orchestrator.trip_options import next_visit_start, weigh
+from ..domain.railways import IRCTC_SEARCH, LIVE_STATUS, arrival_stations, rail_hint
+from ..orchestrator.trip_options import LONG_ROAD_MINUTES, next_visit_start, weigh
 from ..ports.routes import Place, RoutesUnavailable
 from .access import FamilyOnly
 from .deps import ContainerDep
@@ -34,6 +36,39 @@ def _room(state, patient_id: str) -> int | None:
         return None
     this_month, _ = desk.months(patient_id)
     return max(limit.monthly_paise - this_month.total_known_paise, 0)
+
+
+def _rail(
+    patient, leg: str, transit: list[RouteOption], driving: list[RouteOption], arrive_by
+) -> dict | None:
+    """Train guidance for the long leg, when a train is the realistic way.
+
+    Only when the road is long and no route service found a public way. It
+    names the two stations with the codes IRCTC asks for and links to IRCTC;
+    it does not claim a train, a time or a fare, none of which Saathi can read.
+    """
+    if leg != "far" or transit:
+        return None
+    hint = rail_hint(patient.home_district, patient.hospital_id)
+    if hint is None:
+        return None
+    road = min((o.minutes for o in driving), default=None)
+    if road is not None and road <= LONG_ROAD_MINUTES:
+        return None
+
+    def station(st):
+        return {"name": st.name, "code": st.code}
+
+    return {
+        "from": station(hint.origin),
+        "to": station(hint.nearest),
+        "also": [station(st) for st in hint.arrival[1:]],
+        "visit_at": arrive_by.isoformat() if arrive_by is not None else None,
+        "road_minutes": road,
+        "allow_days": math.ceil(road / 1440) if road else None,
+        "irctc_url": IRCTC_SEARCH,
+        "status_url": LIVE_STATUS,
+    }
 
 
 def _booked_arrival(state, patient, hospital) -> datetime | None:
@@ -83,6 +118,13 @@ async def options(
     if hospital is None or hospital.latitude is None or hospital.longitude is None:
         raise HTTPException(409, "the hospital's entrance is not on record")
     start = patient.home_district if leg == "far" else origin.strip()
+    origin_used = None
+    if not start and leg == "near":
+        # Most families arrive by train: begin from the terminal nearest the
+        # hospital, so the last leg loads without anyone typing a place.
+        arrival = arrival_stations(patient.hospital_id)
+        if arrival:
+            start, origin_used = arrival[0].place, arrival[0].name
     if not start:
         raise HTTPException(422, "say where you are starting from")
 
@@ -124,6 +166,8 @@ async def options(
         "source": planner.name,
         "arrive_by": arrive_by.isoformat() if arrive_by is not None else None,
         "arrive_by_source": arrive_source,
+        "origin_used": origin_used,
         "notes": notes,
+        "rail": _rail(patient, leg, transit, driving, arrive_by),
         "guidance": guidance.model_dump(mode="json"),
     }

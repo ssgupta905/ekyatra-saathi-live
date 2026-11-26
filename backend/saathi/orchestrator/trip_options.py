@@ -35,6 +35,9 @@ from ..domain.itinerary import (
 #: A margin, not a rate: it is shown to the family as the leave-by time.
 ARRIVAL_MARGIN = timedelta(minutes=45)
 
+#: Past this much road, a family is better off on a train, and the screen says so.
+LONG_ROAD_MINUTES = 6 * 60
+
 
 def next_visit_start(
     booked: Iterable[datetime],
