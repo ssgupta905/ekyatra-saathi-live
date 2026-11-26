@@ -51,6 +51,14 @@ import httpx
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
 
 from saathi.bootstrap.bahmni_seed import SeedAppointment, SeedPatient  # noqa: E402
+from saathi.bootstrap.openemr_seed import (  # noqa: E402
+    Client,
+    _facility,
+    _practitioner,
+    _token,
+    ensure_appointments,
+    ensure_patients,
+)
 
 
 @dataclass(frozen=True)
@@ -200,12 +208,42 @@ def write_our_records(api: str, story: Story, today: date, *, write: bool) -> li
     return did
 
 
+def write_the_hospital(
+    base_url: str, client_id: str, key_id: str, key_path: str, today: date, *, write: bool
+) -> list[str]:
+    """Register these families with the hospital and book their visits.
+
+    Without this the connector cannot find them: it matches a hospital
+    appointment to one of our families by the identifier OpenEMR holds, so a
+    family with no record there is a family no leave can reach. Through the
+    same functions the standing cast uses, with this cast passed in.
+    """
+    token = _token(base_url, client_id, key_id, key_path)
+    client = Client(base_url=base_url, token=token, write=write)
+    patients = ensure_patients(client, cast=[s.patient for s in STORIES])
+    booked = ensure_appointments(
+        client,
+        patients,
+        facility=_facility(client),
+        practitioner=_practitioner(client),
+        today=today,
+        cast=[s.appointment for s in STORIES],
+    )
+    return [*client.did, *(f"would {line}" for line in client.would)] or [
+        f"{len(booked)} booking(s) already stood"
+    ]
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--write", action="store_true", help="actually create things")
     parser.add_argument("--check", action="store_true", help="say what is there and stop")
     parser.add_argument("--api", default=None, help="the deployed API, for our own records")
     parser.add_argument("--today", default=None, help="YYYY-MM-DD; defaults to the real today")
+    parser.add_argument("--base-url", default=None, help="the hospital, e.g. http://8.231.81.219:8300")
+    parser.add_argument("--client-id", default=None)
+    parser.add_argument("--key-id", default=None)
+    parser.add_argument("--key", default="demo/openemr/openemr-key-vm.pem")
     args = parser.parse_args(argv)
 
     today = date.fromisoformat(args.today) if args.today else date.today()
@@ -227,9 +265,18 @@ def main(argv: list[str] | None = None) -> int:
         print()
 
     if not args.api:
-        print("  --api was not given, so nothing was written to any records.")
-    print("\n  The hospital half is not done here: run openemr_seed with these")
-    print("  patients so the connector can find them by identifier.")
+        print("  --api was not given, so nothing was written to our own records.")
+
+    if args.base_url and args.client_id and args.key_id:
+        print("  the hospital:")
+        for line in write_the_hospital(
+            args.base_url, args.client_id, args.key_id, args.key, today,
+            write=args.write and not args.check,
+        ):
+            print(f"    {line}")
+    else:
+        print("  --base-url, --client-id and --key-id were not all given, so the")
+        print("  hospital knows nothing about these families and no leave can reach them.")
     return 0
 
 

@@ -183,9 +183,15 @@ def _patients_by_identifier(client: Client) -> dict[str, str]:
 # ---------------- seeding ----------------
 
 
-def ensure_patients(client: Client) -> dict[str, str]:
+def ensure_patients(client: Client, cast=None) -> dict[str, str]:
+    """Register whichever families are given, defaulting to the standing cast.
+
+    Taking a cast rather than reading the module constant lets a second set of
+    families be seeded — the ones who fail in other ways — without editing the
+    list every demo already depends on.
+    """
     standing = _patients_by_identifier(client)
-    for patient in PATIENTS:
+    for patient in cast if cast is not None else PATIENTS:
         if patient.identifier in standing:
             logger.info("patient %s already exists", patient.identifier)
             continue
@@ -228,6 +234,7 @@ def ensure_appointments(
     facility: str,
     practitioner: str,
     today: date,
+    cast=None,
 ) -> dict[tuple[str, str], date]:
     """Book what is missing, and report the day each booking sits on.
 
@@ -272,7 +279,7 @@ def ensure_appointments(
         if str(row.get("status")) not in ("cancelled", "noshow"):
             held.add((identifier, moment))
 
-    for booking in APPOINTMENTS:
+    for booking in cast if cast is not None else APPOINTMENTS:
         day = today + timedelta(days=booking.days_from_today)
         starts = datetime.combine(day, booking.at, tzinfo=UTC)
         booked.setdefault((booking.patient_identifier, booking.service_name), day)
