@@ -71,6 +71,22 @@ services:
       # run; only the wording falls back to templates.
       - key: GROQ_API_KEY
         sync: false
+      # Which hospital systems to read, one entry per hospital:
+      #   TMH-MUM=fhir|https://ekyatra-hapi-fhir.onrender.com/fhir
+      #   TMH-MUM=openemr|<base>|<client id>|<key id>|<pem path>
+      # Comma-separated for more than one. Left unset, the service runs with
+      # no HMS connector at all — everything else works and nothing watches a
+      # hospital, which is a quiet way to lose half the demo.
+      #
+      # The HAPI service below is the one that fits the free tier. OpenEMR was
+      # declared here once and reverted: it runs only with MariaDB as a private
+      # service with a disk (Render's managed databases are Postgres only),
+      # both on paid instances — and its arrival clock is read from that
+      # MariaDB directly, so there is no hosted version of the "clinic is
+      # running late" figure either. Point this at an OpenEMR reachable over
+      # the internet, or keep OpenEMR on the demo host and read HAPI here.
+      - key: SAATHI_HOSPITAL_SYSTEMS
+        sync: false
       # Speech, in the languages this is for. Also not under the prefix: the
       # settings field is aliased to the name the key is issued under.
       # Without it a family can still type, but nothing can be read aloud —

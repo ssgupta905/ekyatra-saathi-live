@@ -6,7 +6,12 @@ FROM python:3.12-slim AS service
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    # A read from PyPI that stalls should be retried, not fail the build. The
+    # default is five seconds and three tries, which is enough to lose a
+    # deploy to one slow mirror response.
+    PIP_DEFAULT_TIMEOUT=120 \
+    PIP_RETRIES=10
 
 WORKDIR /app
 
@@ -15,8 +20,13 @@ WORKDIR /app
 # not a full dependency resolve.
 COPY pyproject.toml README.md ./
 COPY backend/ backend/
-# The postgres extra: the records database is Postgres (Supabase) when deployed.
-RUN pip install --no-cache-dir ".[postgres]"
+# `postgres` because the records database is Postgres (Supabase) when
+# deployed. `openemr` because without PyMySQL the arrival-clock adapter cannot
+# be constructed at all — the Console then reports that a family arrived and
+# states no delay, which is the honest degradation but also silently removes
+# the "OPD is running late" beat from any deployed demo. The driver is small
+# and reading it is still SELECT-only.
+RUN pip install --no-cache-dir ".[postgres,openemr]"
 # The committed reference cache. Without it every fact the tools need would be
 # a live fetch on a cold start, and the first page load would hang on Nominatim.
 COPY data/ data/

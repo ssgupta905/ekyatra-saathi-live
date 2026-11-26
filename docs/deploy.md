@@ -57,6 +57,69 @@ one under Registries > Staff accounts first.
 **The free plan sleeps** after 15 minutes without traffic, and the first request after that takes
 about a minute. Wake it before a demo by opening the health URL.
 
+That matters more here than it does for most services, and it is worth being plain about why.
+The hospital connector is not a cron job or a webhook — it is an in-process loop
+(`live/runner.py`, `while True: await sync.poll_once()`). A sleeping instance is not polling, so
+the claim the whole demo rests on — *a doctor marks themselves away and seconds later the family
+has been asked, with nobody touching anything* — is exactly what sleeping breaks. For an
+unattended link, pay for an instance that does not sleep. A keep-alive pinger papers over it and
+still leaves you a cold start on the day.
+
+**One worker, deliberately.** The world, the clock and the ledger are in-process state, so a
+second worker would serve a second, divergent reality. Scale this up, never out.
+
+## 2a. What can and cannot live on Render
+
+Render offers managed **Postgres** and Key Value. That one fact decides most of this.
+
+| Piece | On Render? | Notes |
+|---|---|---|
+| The API | Yes, free | Docker, on the Supabase Postgres. |
+| Console, family and partner apps | Yes, free | Three static sites. |
+| HAPI FHIR, as the hospital system | Yes, free | 512 MB with a capped heap, keeping its tables in a `hapi` schema of the same Supabase project, so Render needs no database of its own. |
+| **OpenEMR** | Only on paid instances | See below. Keep it on the demo host. |
+| **OpenEMR's arrival clock** | No | "The clinic is running late" is read from OpenEMR's own MariaDB, SELECT-only (`adapters/hospital/openemr_db.py`). No MariaDB, no derived delay — the Console then says a family arrived and claims no delay, which is the honest degradation. |
+| Bahmni / OpenMRS | No | Same reason as OpenEMR: it needs MariaDB. |
+| The Android app | n/a | It is an APK. Rebuild it pointing at the Render API and install it. |
+| The film rig | n/a | `scrcpy`, `adb` and `ffmpeg` capture a local screen and an attached phone. |
+
+**Why the hospital system here is HAPI and not OpenEMR.** Both of the obvious alternatives were
+declared in this blueprint and then reverted, and it is worth not repeating the work:
+
+- **OpenEMR** (`8a480d9`, reverted in `5877370`). It can run — MariaDB as a *private service with
+  a disk*, since Render's managed databases are Postgres only, and OpenEMR as the stock image with
+  a second disk for its sites folder. But both need **paid** instances, and it means operating a
+  MariaDB by hand.
+- **Medplum** (`2d8b95b`, reverted in `7bb4666`), a FHIR-native EHR that would have brought a staff
+  UI on Postgres. Also **paid**: a 2 GB server and a small Postgres.
+
+HAPI fits the free tier, and the connector reads it through the same port it reads OpenEMR
+through — which is the point of having a port. What the hosted copy gives up is OpenEMR's own
+clinical UI and its arrival clock, so the "unmodified hospital system, judges may click anything
+in it" half of the demo stays on the laptop.
+
+So: **everything except the OpenEMR half deploys, and all of it free.**
+
+Set `SAATHI_HOSPITAL_SYSTEMS` accordingly, or the service runs with no HMS connector at all —
+everything works and nothing watches a hospital, which is a quiet way to lose half the demo:
+
+```
+TMH-MUM=fhir|https://ekyatra-hapi-fhir.onrender.com/fhir
+```
+
+Two things a fresh deployment needs that are easy to forget, because both fail by being empty
+rather than by erroring:
+
+- **Places.** "Near you" reads our own table, not a live Overpass query. Run
+  `make load-places FILE=<export>.geojson` against the deployed database or the panel is blank.
+- **Hospital rules.** The option search needs a hospital's stated shift tolerance. Check
+  `/api/admin/policy/<hospital>` says `"used_by_planner": true`; until it does, the planner
+  refuses to offer dates rather than inventing a tolerance, and the screen looks broken when it
+  is in fact being careful.
+
+And note that **two** free services now sleep, not one: the API and HAPI. A demo that wakes the
+API but not HAPI gets a connector reading a hospital that is still starting up.
+
 ## 3. Render: the two web apps
 
 For `ekyatra-saathi-control-centre` and `ekyatra-saathi-family`, set `SAATHI_API_BASE` to
