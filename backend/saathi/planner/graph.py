@@ -118,7 +118,7 @@ class VisitPlanner:
         )
         travel_on = None
         if decision is Decision.GO:
-            travel_on = tools.earliest_safe_travel_date([], state["today"])
+            travel_on = tools.travel_date_for(state["target"], [], state["today"])
         return {"decision": decision, "travel_on": travel_on}
 
     def _bundle(self, state: PlannerState) -> PlannerState:

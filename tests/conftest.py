@@ -27,6 +27,13 @@ import pytest
 for _key in ("GROQ_API_KEY", "ANTHROPIC_API_KEY", "SARVAM_KEY", "BREVO_API_KEY"):
     os.environ[_key] = ""
 
+# `.env` holds more than keys: the records database and the hospital system too.
+# With those read, the suite wrote to the real database and polled the real
+# hospital. Tests never read the developer's `.env` at all.
+from saathi.config import Settings  # noqa: E402
+
+Settings.model_config["env_file"] = None
+
 
 @pytest.fixture(autouse=True, scope="session")
 def _settings_are_credential_free():

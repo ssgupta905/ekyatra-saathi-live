@@ -49,7 +49,7 @@ def _build_option(
     blockers = tools.describe_blockers(unmet, predictor, disruptions)
     decision = tools.decide(blockers, missing, today)
     is_go = decision is Decision.GO
-    travel_on = tools.earliest_safe_travel_date(blockers, today) if is_go else None
+    travel_on = tools.travel_date_for(target, blockers, today) if is_go else None
     bundled = tools.bundle_steps(target, steps, graph) if is_go else ()
     bundled_kinds = [s.kind for s in steps if s.id in bundled]
     return PlanOption(

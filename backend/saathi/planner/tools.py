@@ -213,6 +213,25 @@ def earliest_safe_travel_date(
     return max(latest) + timedelta(days=lead_days)
 
 
+def travel_date_for(
+    target: CareStep,
+    blockers: Sequence[BlockedPrerequisite],
+    today: date,
+    lead_days: int = 1,
+) -> date | None:
+    """The day to set out for `target`: when everything is ready, but never
+    earlier than `lead_days` before a visit the hospital has already booked.
+
+    Without this a family with a scan booked for the 1st is told to travel
+    tomorrow, because "earliest safe" says nothing about the booking itself.
+    """
+    ready = earliest_safe_travel_date(blockers, today, lead_days)
+    booked = target.scheduled_for
+    if ready is None or booked is None:
+        return ready
+    return max(ready, booked - timedelta(days=lead_days))
+
+
 def bundle_steps(
     target: CareStep,
     steps: Sequence[CareStep],

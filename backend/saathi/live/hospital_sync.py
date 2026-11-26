@@ -224,6 +224,8 @@ class HospitalSync:
     #: Leave this connector has already acted on, so a provider who is away
     #: for a week does not raise the same disruption on every poll.
     _seen_leave: set[str] = field(default_factory=set)
+    #: The same doctor marked away for the same days, entered more than once, is one leave.
+    _seen_leave_spans: set[tuple[str, str, str]] = field(default_factory=set)
     #: Orders, compared by snapshot rather than watermark. `ServiceRequest`'s
     #: `_lastUpdated` maps to `date_ordered`, which never moves when a status
     #: does — a cursor over orders would run forever and see nothing. Same
@@ -256,6 +258,7 @@ class HospitalSync:
         reporting every existing appointment as new.
         """
         self._seen_leave.clear()
+        self._seen_leave_spans.clear()
         self._acted_on_orders.clear()
         self._noted_orders.clear()
         self._told_behind.clear()
@@ -365,6 +368,15 @@ class HospitalSync:
             if leave.ref in self._seen_leave:
                 continue
             self._seen_leave.add(leave.ref)
+            span = (
+                leave.provider_ref or leave.provider_display,
+                leave.starts_at.date().isoformat(),
+                leave.ends_at.date().isoformat(),
+            )
+            if span in self._seen_leave_spans:
+                self._bump("leave:duplicate")
+                continue
+            self._seen_leave_spans.add(span)
             self._bump("leave")
             await self._act_on_leave(leave)
 

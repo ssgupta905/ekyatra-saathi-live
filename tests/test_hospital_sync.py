@@ -421,6 +421,18 @@ async def test_the_same_leave_is_not_acted_on_twice(away_rig):
     assert len(state.runner.conversation.history) == first
 
 
+async def test_the_same_doctor_entered_as_away_twice_asks_the_family_once(away_rig):
+    """Five calendar entries for one doctor and one day are one leave, not five questions."""
+    state, hms, sync, _patient_id, booked_on = away_rig
+
+    await sync.poll_once()
+    for index in range(3):
+        hms.someone_marks_leave(replace(_leave(booked_on), ref=f"leave-entry-{index}"))
+    await sync.poll_once()
+
+    assert len(state.runner.conversation.history) == 1
+
+
 async def test_a_hospital_that_cannot_publish_leave_is_skipped_silently(rig):
     """`FakeHospital` has no `providers_away`, which is Bahmni's situation.
 
