@@ -22,7 +22,7 @@ from ..graph.dependencies import DependencyGraph
 from ..readiness.conformal import ConformalReadinessPredictor
 from . import care_rules, itinerary, schedule, tools
 from .care_rules import filter_options
-from .search import Search
+from .search import Considered, Search, Verdict
 
 
 def _build_option(
@@ -369,10 +369,31 @@ def candidates_for_request(
 
     seen: set[date] = set()
     candidates: list[PlanOption] = []
+
+    def note(on: date, verdict: Verdict, detail: str = "") -> None:
+        """Record a candidate's fate, when anybody is recording.
+
+        These three rejections used to happen before `filter_options` ever saw
+        the candidate, so the search read as though they had never been tried
+        — which made "we considered one date" out of a search that considered
+        four. The filtering is unchanged; only the record is fuller.
+        """
+        if search is not None:
+            search.note(Considered(ref=on.isoformat(), on=on, verdict=verdict, detail=detail))
+
     for proposed in wanted:
-        if proposed in seen or proposed in excluded or proposed <= today:
+        if proposed in seen:
             continue
         seen.add(proposed)
+        if proposed in excluded:
+            note(proposed, Verdict.FAMILY_CANNOT, "they ruled this day out themselves")
+            continue
+        if proposed <= today:
+            # A family cannot travel overnight on a message sent this
+            # afternoon. Recorded rather than skipped, because "we tried and
+            # it was already too late" is a different fact from "never tried".
+            note(proposed, Verdict.OUTSIDE_TOLERANCE, "today or earlier")
+            continue
 
         moved = schedule.place(
             steps, calendar, graph, today, policy,
@@ -402,8 +423,16 @@ def candidates_for_request(
             disruptions=disruptions,
         )
         if option is None:
+            note(proposed, Verdict.OTHER, "no plan could be built for this date")
             continue
         if not care_rules.within_shift_tolerance(option, booked_on, tolerance):
+            note(
+                proposed,
+                Verdict.OUTSIDE_TOLERANCE,
+                f"more than {tolerance} day(s) from {booked_on.isoformat()}"
+                if tolerance is not None
+                else "",
+            )
             continue
         candidates.append(option)
 

@@ -21,6 +21,7 @@ import { Records } from "./sections/Records";
 import { Registries } from "./sections/Registries";
 import { Releases } from "./sections/Releases";
 import { Reports } from "./sections/Reports";
+import { Research } from "./sections/Research";
 import { StorySection } from "./sections/StorySection";
 import { Today } from "./sections/Today";
 
@@ -74,6 +75,7 @@ export default function App() {
         {section === "registries" && <Registries tab={route.id} onTab={(t) => go({ section: "registries", id: t })} />}
         {section === "config" && <Configuration />}
         {section === "audit" && <Audit />}
+        {section === "research" && <Research />}
       </Shell>
     </ToastProvider>
   );

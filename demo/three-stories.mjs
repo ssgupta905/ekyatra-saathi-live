@@ -62,7 +62,7 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(HERE, "../recordings");
 
-const PANEL = process.env.SAATHI_PANEL_URL ?? "http://localhost:5273";
+const PANEL = process.env.SAATHI_PANEL_URL ?? "http://localhost:5173";
 const API = process.env.SAATHI_API_URL ?? "http://127.0.0.1:8077";
 const EMR = process.env.SAATHI_OPENEMR_URL ?? "http://localhost:8300";
 const EMR_USER = process.env.SAATHI_OPENEMR_USER ?? "admin";

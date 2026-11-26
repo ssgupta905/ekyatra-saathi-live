@@ -94,6 +94,19 @@ describe("the apps", () => {
     expect(SECTIONS.find((s) => s.id === "approvals")!.roles).not.toContain("desk");
   });
 
+  it("render every section the navigation offers", async () => {
+    // A section in the list but not in the router shows up in the sidebar,
+    // takes a click, and renders a page with a heading and nothing under it.
+    // Nothing else fails — which is the worst version of this bug, because
+    // the first person to find it is whoever is clicking during a demo.
+    const { SECTIONS } = await import("./control-centre/src/sections");
+    const app = read("control-centre", "src/App.tsx");
+    const unrouted = SECTIONS.map((s) => s.id).filter(
+      (id) => !app.includes(`section === "${id}"`),
+    );
+    expect(unrouted, "sections with no component in App.tsx").toEqual([]);
+  });
+
   it("keep the family app free of the staff stylesheet", () => {
     // A phone should not download the hospital's whole kit.
     expect(read("family-web", "src/main.tsx")).not.toContain("styles.css\"");

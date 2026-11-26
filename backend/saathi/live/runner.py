@@ -500,9 +500,47 @@ class LiveRunner:
         self.world.clock.seconds_per_day = max(0.5, min(60.0, seconds_per_day))
         self._publish_state()
 
+    async def forget_working_state(self) -> None:
+        """Forget what has been asked, read and searched — and nothing else.
+
+        `reset` refuses on real records, and rightly: it rewinds the world
+        and would delete patients, steps and plans that somebody entered.
+        But a rehearsal needs to get back to "nobody has been asked yet"
+        without destroying anything, and the things in the way are not
+        records at all — they are working state this process happens to be
+        holding.
+
+        So this clears the conversation, the readings waiting on a navigator,
+        the last option search, and each connector's memory of what it has
+        already acted on. It touches no patient, no step, no plan and no
+        ledger entry, which is why it is safe on a real world where `reset`
+        is not.
+
+        Found the hard way: three takes of a film in a row produced three
+        copies of the same family's request on screen, because the demo
+        called `reset`, `reset` raised on a real world, and the caller had
+        swallowed the error.
+        """
+        async with self._lock:
+            self.conversation.reset()
+            self.requests.clear()
+            self.searches.clear()
+            self.options.clear()
+            for sync in self.hospital_syncs.values():
+                sync.forget()
+        self._bump("working_state_cleared")
+        self.bus.publish(
+            EventKind.RUNNER_STATE,
+            self.world.today.isoformat(),
+            summary="Cleared what had been asked and read; records untouched",
+        )
+
     async def reset(self, start: date | None = None) -> None:
         if self.world.real:
-            raise RuntimeError("real records cannot be reset")
+            raise RuntimeError(
+                "real records cannot be reset — use forget_working_state() to "
+                "clear what has been asked and read without deleting anything"
+            )
         async with self._lock:
             self.world.reset(start)
             self.plans.clear()
@@ -2276,6 +2314,114 @@ class LiveRunner:
             request=confirmed.model_dump(mode="json"),
         )
         return confirmed
+
+    async def replan_for_request(self, patient_id: str, request: PatientRequest) -> Search | None:
+        """Search for dates that fit what the family actually said.
+
+        This is the step that was missing. `extract_request` read her sentence,
+        a navigator agreed with the reading, and then nothing used it:
+        `candidates_for_request` — which exists, is tested, and knows how to
+        try what was asked for, the edge of the hospital's tolerance, and
+        *earlier* — had no callers at all outside its own tests. So a family
+        could state a constraint, have it confirmed, and get a re-plan that had
+        never heard of it.
+
+        Two things come out of this, for two audiences. The navigator gets
+        options that respect her constraint, to approve or not. The Console and
+        the reasoning log get the whole search — every date tried and the rule
+        that killed it — which is the only way to answer "what else did you
+        look at?" after the fact.
+
+        Returns the search, or None when there was nothing to search: no
+        patient, no target step, or a reading with no constraint in it. Those
+        are ordinary outcomes and not errors — a family saying "thank you"
+        should not produce a plan.
+        """
+        patient = self.world.patient(patient_id)
+        if patient is None:
+            return None
+        if not request.actionable:
+            return None
+
+        steps = self.world.steps_for(patient_id)
+        target_kind = request.step_kind or self.world.target_kind_for(patient_id)
+        if target_kind is None:
+            return None
+        cycle = self.world.maintenance_cycles.get(patient_id)
+
+        # Without the hospital's own rules there is no tolerance to search
+        # inside, and no slot calendar to land on. Searching anyway would mean
+        # inventing both, and a date this system made up is the one thing it
+        # must never offer a family. So it says so and stops: the reading is
+        # still confirmed and still on the record, and a navigator still sees
+        # her words — they just do not become dates until the hospital's rules
+        # are saved.
+        policy = self.planner.rules_for(patient.hospital_id)
+        if policy is None:
+            self.bus.publish(
+                EventKind.PLAN_SEARCHED,
+                self.world.today.isoformat(),
+                patient_id=patient_id,
+                summary=(
+                    f"{patient_id}: cannot search for dates — "
+                    f"{patient.hospital_id} has no saved rules, so there is no "
+                    "tolerance to search inside"
+                ),
+            )
+            return None
+
+        round_trip = await asyncio.to_thread(self.journey_hours, patient)
+
+        search = Search(patient_id=patient_id, step_kind=target_kind.value)
+        started = perf_counter()
+        async with self.working(
+            "Looking for dates that fit what the family said",
+            patient_id=patient_id,
+            detail=request.summary(),
+        ):
+            candidates = await asyncio.to_thread(
+                options_module.candidates_for_request,
+                patient,
+                steps,
+                request,
+                target_kind,
+                self.planner.graph_for(patient),
+                self.planner.predictor,
+                self.world.today,
+                policy,
+                disruptions=tuple(self.world.open_disruptions()),
+                cycle=cycle,
+                round_trip_hours=round_trip,
+                means=self.means_for(patient_id),
+                search=search,
+            )
+        elapsed = (perf_counter() - started) * 1000
+
+        self.searches[patient_id] = search
+        self.bus.publish(
+            EventKind.PLAN_SEARCHED,
+            self.world.today.isoformat(),
+            patient_id=patient_id,
+            summary=f"{patient_id}: {search.summary()}",
+            duration_ms=elapsed,
+            search=search.to_json(),
+        )
+
+        if candidates:
+            async with self._lock:
+                # Keyed to the request rather than a disruption, because a
+                # family's own constraint is not a disruption — nothing at the
+                # hospital went wrong. `approve_option` already tolerates an
+                # id with no disruption behind it, and skips the resolution
+                # step rather than inventing one.
+                self.options[patient_id] = OptionSet(
+                    patient_id=patient_id,
+                    disruption_id=f"request:{request.id}",
+                    options=candidates,
+                    created_at=datetime.now(UTC),
+                )
+                self.world.pending_approval[patient_id] = f"request:{request.id}"
+        return search
 
     def reject_request(
         self, patient_id: str, request_id: str, by: str, reason: str
