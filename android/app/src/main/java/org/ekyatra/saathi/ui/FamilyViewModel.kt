@@ -60,6 +60,28 @@ class FamilyViewModel(
     init {
         refresh()
         viewModelScope.launch { listen() }
+        viewModelScope.launch { keepUpToDate() }
+    }
+
+    /** Fetch again every so often, whatever the stream is doing.
+     *
+     *  The stream is the fast path, not the only one. It can be closed by a
+     *  proxy, dropped while the phone sleeps, or carry a kind this build does
+     *  not recognise — and every one of those fails silently: no error, no
+     *  spinner, just a screen still showing what it showed when it opened. A
+     *  family waiting to be told something would never learn they had been
+     *  told.
+     *
+     *  So this is a backstop with no opinion about events at all. Polling
+     *  costs battery, which is why the interval is tens of seconds and not
+     *  one: a message that arrives twenty seconds late is a message that
+     *  arrived.
+     */
+    private suspend fun keepUpToDate() {
+        while (currentCoroutineContext().isActive) {
+            delay(POLL_MS)
+            refresh()
+        }
     }
 
     fun refresh() {
@@ -114,7 +136,14 @@ class FamilyViewModel(
             try {
                 api.events().collect { signal ->
                     when (signal) {
-                        StreamSignal.Opened -> setConnected(true)
+                        // Fetch on connect, not only on the events that follow
+                        // it. Whatever happened while the stream was down was
+                        // delivered to nobody, and reconnecting is the moment
+                        // to find out.
+                        StreamSignal.Opened -> {
+                            setConnected(true)
+                            refresh()
+                        }
                         StreamSignal.Closed -> setConnected(false)
                         is StreamSignal.Received -> {
                             val before = mutable.value.live.revision
@@ -176,5 +205,8 @@ class FamilyViewModel(
 
     private companion object {
         const val RECONNECT_MS = 2_000L
+
+        /** How often the screen refreshes itself with no event to prompt it. */
+        const val POLL_MS = 20_000L
     }
 }

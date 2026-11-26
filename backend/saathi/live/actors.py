@@ -750,7 +750,10 @@ class GroqActors:
             REQUEST_SYSTEM, prompt, REQUEST_SCHEMA, 0.1, max_tokens=_REQUEST_TOKENS
         )
         if data is None:
-            logger.warning("could not read %s's message into a request; treating it as no answer", patient.id)
+            logger.warning(
+                "could not read %s's message into a request; treating it as no answer",
+                patient.id,
+            )
             return None
 
         def as_date(raw: str) -> str | None:

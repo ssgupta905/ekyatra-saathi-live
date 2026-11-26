@@ -2,6 +2,12 @@
 
 Branch `openemr-flow-end-to-end`, commit `eb42e6d`.
 
+## The short version
+
+The app now fetches on its own every 20 seconds while a family's screen is
+open, regardless of events. Before, it fetched only when an event arrived
+whose kind it recognised — and it did not recognise nine of them.
+
 ## What was wrong
 
 The app holds no local database — no Room, no cache, nothing. It refreshes
@@ -74,7 +80,13 @@ I could watch it.**
 3. **Watch the screen without touching it.**
 
 Before the fix: nothing happens until you close and reopen. After: the message
-appears on its own within a few seconds.
+appears on its own — within a second or two if the stream is healthy, within
+twenty if it is not, because the poll catches it either way.
+
+Worth testing the stream being broken too, since that is the case the poll
+exists for: put the phone in aeroplane mode for a minute with the screen open,
+turn it off again, and the screen should catch up without being touched. That
+exercises both the poll and the fetch-on-reconnect.
 
 Worth also checking the Console in a browser at the same time — its half is
 already live and verified in the shipped bundle, so the two should move
