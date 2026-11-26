@@ -1,0 +1,41 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>EKYATRA — what is happening</title>
+<style>
+  /* A caption band that is part of the recording rather than burned on
+     afterwards. This machine's ffmpeg has neither drawtext nor subtitles
+     (no freetype, no libass), so there is no post-processing route to text
+     — and a browser window renders Devanagari, Bengali and Tamil correctly
+     without any font wrangling, which a drawtext filter would not. */
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1220; }
+  body {
+    display: flex; align-items: center; gap: 18px; padding: 0 22px;
+    font: 500 19px/1.3 -apple-system, "SF Pro Text", Inter, system-ui, sans-serif;
+    color: #e8eef9;
+  }
+  #step {
+    flex: none; min-width: 92px; padding: 5px 12px; border-radius: 999px;
+    background: #1d4ed8; color: #fff;
+    font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: .08em; text-transform: uppercase; text-align: center;
+  }
+  #text { flex: 1 1 auto; }
+  /* The family's own words, when a caption quotes them. Rendered in the
+     script they were written in, never transliterated for our convenience. */
+  #text .said { color: #9ec5ff; font-style: normal; }
+  #text .num { font-variant-numeric: tabular-nums; color: #ffd479; }
+  #mark { flex: none; font: 600 13px/1 ui-monospace, Menlo, monospace; color: #6b7f9e; }
+</style>
+<div id="step">ready</div>
+<div id="text">Waiting for the take to begin.</div>
+<div id="mark"></div>
+<script>
+  // Driven from the film script. Nothing here decides anything; it only
+  // shows what the script has already verified actually happened.
+  window.caption = (step, html, mark) => {
+    document.getElementById('step').textContent = step;
+    document.getElementById('text').innerHTML = html;
+    document.getElementById('mark').textContent = mark || '';
+  };
+</script>

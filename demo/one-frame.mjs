@@ -372,7 +372,7 @@ async function main() {
   // take came out as eighty-two seconds. The label is corrected against the
   // clock afterwards regardless; this just stops the correction being large.
   const capture = spawn("ffmpeg", [
-    "-y", "-f", "avfoundation", "-capture_cursor", "1", "-framerate", "12",
+    "-y", "-f", "avfoundation", "-capture_cursor", "1", "-framerate", "30",
     "-i", "2", "-vf", "scale=1600:-2", "-pix_fmt", "yuv420p",
     "-preset", "ultrafast", video,
   ], { stdio: "ignore" });

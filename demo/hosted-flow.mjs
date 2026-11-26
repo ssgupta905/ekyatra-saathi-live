@@ -1,0 +1,1037 @@
+/**
+ * The deployed stack, end to end, in one unbroken frame — with captions.
+ *
+ *     SAATHI_API_URL=https://…onrender.com \
+ *     SAATHI_PANEL_URL=https://…onrender.com \
+ *     SAATHI_OPENEMR_URL=http://8.231.81.219:8300 \
+ *     node hosted-flow.mjs
+ *
+ * Everything here is addressed by environment variable and nothing defaults to
+ * localhost, because the point of this particular film is that the things on
+ * screen are the deployed ones. A missing address stops the take rather than
+ * quietly recording a laptop.
+ *
+ *     +---------------------------+--------+
+ *     |  OpenEMR (the hospital)   | phone  |
+ *     +---------------------------+ (live  |
+ *     |  EKYATRA Console          | mirror)|
+ *     +---------------------------+--------+
+ *     |  what is happening, in words        |
+ *     +-------------------------------------+
+ *
+ * WHY THE CAPTION IS A WINDOW AND NOT BURNED IN
+ *
+ * This machine's ffmpeg has neither `drawtext` nor `subtitles` — no freetype,
+ * no libass — so there is no post-processing route to text at all. A browser
+ * window is better regardless: it renders Devanagari, Bengali and Tamil
+ * correctly with no font wrangling, and it is captured as part of the frame,
+ * so the caption cannot drift out of sync with the picture it describes.
+ *
+ * THE RULE THAT MATTERS: A CAPTION FOLLOWS ITS EVIDENCE
+ *
+ * `say()` is never called before the thing it describes has been checked.
+ * Every beat reads the API back, asserts, and only then captions — and where
+ * a caption states a number, the number is the one that was just read, not
+ * one written into this file. Earlier takes of an earlier film narrated a
+ * leave over an empty day and a knowledge graph over a screen without one,
+ * both from a swallowed click. A take that fails costs ten minutes; a take
+ * that lies costs the only thing this project is selling.
+ *
+ * WHAT THIS FILM DELIBERATELY DOES NOT CLAIM
+ *
+ * The arrival clock — "the OPD is running late" — is absent. It is derived
+ * from OpenEMR's own MariaDB, and a Render service cannot hold the SSH tunnel
+ * that reaches it. Rather than show the beat against a local backend and
+ * imply it is hosted, it is left out and the Console says what it honestly
+ * can: that a family arrived, with no delay claimed.
+ */
+
+import { chromium } from "playwright";
+import { execFile, spawn } from "node:child_process";
+import { mkdirSync, openSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+
+const run = promisify(execFile);
+const HERE = dirname(fileURLToPath(import.meta.url));
+const OUT = resolve(HERE, "../recordings");
+
+//: Addresses that are not a deployment, however they are spelled.
+const LOCAL = /^(https?:\/\/)?(localhost|127\.0\.0\.1|\[?::1\]?|0\.0\.0\.0|10\.0\.2\.2)([:/]|$)/i;
+
+/** Addresses. No defaults: see the module docstring. */
+const API = must("SAATHI_API_URL");
+const PANEL = must("SAATHI_PANEL_URL");
+const EMR = must("SAATHI_OPENEMR_URL");
+const ADB =
+  process.env.ADB ?? `${process.env.HOME}/Library/Android/sdk/platform-tools/adb`;
+
+/** A deployed address, or nothing.
+ *
+ *  This film exists to show that the things on screen are the deployed ones,
+ *  so a local address is refused outright rather than defaulted away from. A
+ *  recording made against a laptop and presented as a deployment would be the
+ *  one kind of dishonesty this whole project is built to avoid — and it is an
+ *  easy mistake to make, because a local stack is the convenient thing to
+ *  have running while building the script.
+ */
+function must(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`\n  ${name} is not set. This film records the deployed stack;`);
+    console.error("  it will not quietly fall back to a local one.\n");
+    process.exit(1);
+  }
+  const address = value.replace(/\/+$/, "");
+  if (LOCAL.test(address)) {
+    console.error(`\n  ${name} is ${address}, which is this machine, not a deployment.`);
+    console.error("  This film records the deployed stack only. Point it at the");
+    console.error("  Render services and the hospital's own address, or do not run it.\n");
+    process.exit(1);
+  }
+  return address;
+}
+
+//: Logical points on a 2560x1664 Retina panel.
+const SCREEN = { w: 1280, h: 832 };
+const BAR_H = 66;
+const PHONE_W = 330;
+const TOP_H = 390;
+const LEFT_W = SCREEN.w - PHONE_W;
+const LAYOUT = {
+  emr: { x: 0, y: 0, w: LEFT_W, h: TOP_H },
+  panel: { x: 0, y: TOP_H, w: LEFT_W, h: SCREEN.h - BAR_H - TOP_H },
+  phone: { x: LEFT_W, y: 0, w: PHONE_W, h: SCREEN.h - BAR_H },
+  bar: { x: 0, y: SCREEN.h - BAR_H, w: SCREEN.w, h: BAR_H },
+};
+
+const BENGALI_FAMILY = "EKY-SHANTI";
+//: Whose id the narration borrows. The speech endpoint hangs off a patient;
+//: the narration is not about them and is never shown to them.
+const NARRATOR = "EKY-SHANTI";
+//: Answers in Hindi, and asks for a date the hospital's own rules cannot
+//: allow — so the planner's search has a real rejection in it, not only offers.
+const HINDI_FAMILY = "EKY-FATIMA";
+//: From the app's own `Translations.kt`, not retyped.
+const SPEAK = { hi: "बोलिए", bn: "বলুন", ta: "பேசுங்கள்" };
+const MESSAGES = { hi: "संदेश", bn: "বার্তা", ta: "செய்திகள்" };
+
+const soundtrack = [];
+let captureStartedAt = 0;
+let bar = null;
+
+/* ───────────────────────────── the deployed API ───────────────────────── */
+
+/** A GET against the deployed API. Slow on purpose: a free instance that has
+ *  gone to sleep takes a minute to answer its first request. */
+async function api(path, { timeout = 90000 } = {}) {
+  const response = await fetch(`${API}/api${path}`, { signal: AbortSignal.timeout(timeout) });
+  if (!response.ok) throw new Error(`GET ${path} -> ${response.status}`);
+  return response.json();
+}
+
+async function post(path, body, { timeout = 90000 } = {}) {
+  const response = await fetch(`${API}/api${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+    signal: AbortSignal.timeout(timeout),
+  });
+  if (!response.ok) {
+    throw new Error(`POST ${path} -> ${response.status} ${await response.text()}`);
+  }
+  return response.json();
+}
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Wait for something to become true, returning what made it true.
+ *
+ *  Used instead of a fixed sleep wherever the film waits on the system rather
+ *  than on a viewer's reading speed. A sleep that is long enough on a fast day
+ *  is a coin toss on a slow one, and the thing it guards is an assertion.
+ */
+async function until(what, read, ok, { tries = 30, gap = 3000 } = {}) {
+  let last;
+  for (let i = 0; i < tries; i += 1) {
+    try {
+      last = await read();
+      if (ok(last)) return last;
+    } catch (error) {
+      last = error;
+    }
+    await wait(gap);
+  }
+  const detail = last instanceof Error
+    ? last.message
+    : JSON.stringify(last)?.slice(0, 400) ?? String(last);
+  throw new Error(`${what} did not happen after ${(tries * gap) / 1000}s. Last saw: ${detail}`);
+}
+
+/* ───────────────────────────────── the phone ──────────────────────────── */
+
+const adb = (...args) => run(ADB, args).catch(() => ({ stdout: "" }));
+
+async function phoneXml() {
+  await adb("shell", "uiautomator", "dump", "/sdcard/ui.xml");
+  const { stdout } = await run(ADB, ["shell", "cat", "/sdcard/ui.xml"]);
+  return stdout;
+}
+
+async function phoneText() {
+  const xml = await phoneXml();
+  return [...xml.matchAll(/text="([^"]+)"/g)].map((m) => m[1]).join(" | ");
+}
+
+/** Tap a piece of text, read from the live view hierarchy.
+ *
+ *  Never a remembered coordinate: a tap at one of those lands on whatever has
+ *  drifted into that spot, and the film then narrates a screen nobody is
+ *  looking at. Absent text throws, which fails the take.
+ */
+async function phoneTap(label, settle = 3200) {
+  const xml = await phoneXml();
+  const found = xml.match(
+    new RegExp(`text="([^"]*${label}[^"]*)"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"`),
+  );
+  if (!found) throw new Error(`nothing on the phone reads "${label}"`);
+  const [x1, y1, x2, y2] = found.slice(2).map(Number);
+  await adb("shell", "input", "tap", String(Math.round((x1 + x2) / 2)), String(Math.round((y1 + y2) / 2)));
+  await wait(settle);
+  return found[1];
+}
+
+async function mustReadOnThePhone(fragment, what) {
+  const text = await phoneText();
+  if (!text.includes(fragment)) throw new Error(`${what} is not on the phone`);
+}
+
+/* ───────────────────────────── captions and audio ─────────────────────── */
+
+const captions = [];
+
+/** How long a wav runs, in seconds. */
+async function secondsOf(file) {
+  const { stdout } = await run("ffprobe", [
+    "-v", "error", "-show_entries", "format=duration",
+    "-of", "default=nokey=1:noprint_wrappers=1", file,
+  ]);
+  const seconds = Number(stdout.trim());
+  return Number.isFinite(seconds) ? seconds : 0;
+}
+
+/** The English narration for one caption, as audio.
+ *
+ *  Through the same endpoint and the same provider the app uses, in `en-IN`.
+ *  The film explains itself in English; the only vernacular audio in it is
+ *  the app's own, which is the thing being demonstrated rather than the thing
+ *  doing the explaining.
+ */
+async function narrationFor(html) {
+  if (process.env.SKIP_NARRATION) return null;
+  const text = html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  try {
+    const response = await fetch(`${API}/api/patients/${NARRATOR}/voice/say`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text, language: "en" }),
+      signal: AbortSignal.timeout(90000),
+    });
+    if (!response.ok) return null;
+    const file = resolve(OUT, `hosted-narration-${String(captions.length).padStart(2, "0")}.wav`);
+    const bytes = Buffer.from(await response.arrayBuffer());
+    writeFileSync(file, bytes);
+    return { file, seconds: await secondsOf(file), bytes: bytes.length };
+  } catch {
+    return null;
+  }
+}
+
+/** Put a line on the caption bar, say it aloud, and hold for as long as it
+ *  takes to say.
+ *
+ *  Called only after the assertion for the beat has passed — a caption, and
+ *  now a sentence of narration, follows its evidence and never leads it.
+ *
+ *  The audio is fetched *before* the caption appears so that the two start on
+ *  the same frame; fetching afterwards would put the voice a second or two
+ *  behind its own words. And the hold is the clip's own length rather than a
+ *  guessed number, so the film is paced by what is being said instead of by
+ *  whatever looked about right while writing it.
+ */
+async function say(step, html, mark = "") {
+  const clip = await narrationFor(html);
+  const at = Date.now() - captureStartedAt;
+  captions.push({ atMs: at, step, html });
+  if (clip) soundtrack.push({ ...clip, atMs: at, language: "en", spokenBy: "Sarvam (narration)" });
+  if (bar) {
+    await bar.evaluate(([s, h, m]) => window.caption(s, h, m), [step, html, mark]).catch(() => {});
+  }
+  console.log(`  [${step}] ${html.replace(/<[^>]+>/g, "")}`);
+  await wait(clip ? Math.round(clip.seconds * 1000) + 1100 : 3500);
+}
+
+const said = (text) => `<span class="said">${text}</span>`;
+const num = (text) => `<span class="num">${text}</span>`;
+
+/** The exact audio the app plays, kept for the soundtrack.
+ *
+ *  Same endpoint the phone calls, same text, same language, at the moment of
+ *  the tap. `X-Spoken-By` is checked rather than assumed: if Sarvam did not
+ *  speak it, the clip is dropped and nothing is claimed about it.
+ */
+async function keepTheAudio(patientId, text, language) {
+  if (process.env.SKIP_AUDIO) return null;
+  const at = Date.now() - captureStartedAt;
+  const response = await fetch(`${API}/api/patients/${patientId}/voice/say`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text, language }),
+    signal: AbortSignal.timeout(90000),
+  });
+  if (!response.ok) {
+    console.log(`  no audio kept for ${language}: the API said ${response.status}`);
+    return null;
+  }
+  const spokenBy = response.headers.get("x-spoken-by") ?? "unknown";
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (!/sarvam/i.test(spokenBy)) {
+    console.log(`  dropped the ${language} clip: spoken by "${spokenBy}", not Sarvam`);
+    return null;
+  }
+  const file = resolve(OUT, `hosted-voice-${language}.wav`);
+  writeFileSync(file, bytes);
+  soundtrack.push({ file, atMs: at, language, spokenBy, bytes: bytes.length });
+  return { spokenBy, kb: Math.round(bytes.length / 1024), file };
+}
+
+/** Did the phone play it through the service voice, or its own fallback? */
+async function playedThroughTheService() {
+  const { stdout } = await adb("logcat", "-d", "-t", "400");
+  return {
+    service: /MediaPlayerService/.test(stdout),
+    fallback: /TextToSpeech|TtsFallback/.test(stdout),
+  };
+}
+
+/** The longest text on the phone: the card body the speak button reads. */
+async function longestTextOnScreen() {
+  return (await phoneText())
+    .split(" | ")
+    .map((s) => s.trim())
+    .sort((a, b) => b.length - a.length)[0] ?? "";
+}
+
+/** Tap speak, keep exactly what it read, and verify how it was played. */
+async function speakOnThePhone(patientId, language) {
+  const reading = await longestTextOnScreen();
+  if (!reading) throw new Error(`nothing to read out on ${patientId}'s screen`);
+  await phoneTap(SPEAK[language]);
+  const kept = await keepTheAudio(patientId, reading, language);
+  await wait(6000);
+  const played = await playedThroughTheService();
+  if (kept && !played.service) {
+    // The clip is Sarvam's but the phone did not play it, so the soundtrack
+    // would be a voice the viewer never heard. Dropped by identity rather
+    // than by position: narration clips share this list, and popping the end
+    // would one day remove a sentence of narration instead.
+    const at = soundtrack.findIndex((c) => c.file === kept.file);
+    if (at >= 0) soundtrack.splice(at, 1);
+    console.log(`  dropped the ${language} clip: the phone did not use the service voice`);
+    return { reading, played, kept: null };
+  }
+  return { reading, played, kept };
+}
+
+/* ──────────────────────────────── windows ─────────────────────────────── */
+
+async function windowAt({ x, y, w, h }, url) {
+  const browser = await chromium.launch({
+    headless: false,
+    args: [
+      `--window-position=${x},${y}`,
+      `--window-size=${w},${h}`,
+      "--hide-crash-restore-bubble",
+      "--disable-infobars",
+      "--disable-session-crashed-bubble",
+    ],
+  });
+  const page = await browser.newPage({ viewport: null });
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120000 }).catch(() => {});
+  return { browser, page };
+}
+
+/* ──────────────────────────────── pre-flight ──────────────────────────── */
+
+/** The live hospital connectors, whatever shape `/hospital/now` is in.
+ *
+ *  It answers `{today, hospitals: [{connector, resources}]}` — the connector
+ *  is nested, so reading `h.live` off the outer object silently finds nothing
+ *  and the pre-flight then reports no hospital on a deployment that has one.
+ */
+function liveConnectors(now) {
+  const rows = Array.isArray(now) ? now : now.hospitals ?? [];
+  return rows
+    .map((row) => row.connector ?? row)
+    .filter((c) => c && c.live);
+}
+
+/** Everything that must be true before a frame is worth recording.
+ *
+ *  Longer than it looks necessary, and every check here is one that has gone
+ *  wrong at least once. Three of them fail *by being empty* rather than by
+ *  erroring — no hospital connector, no saved rules, no cast — and an empty
+ *  screen in a film reads as a broken product rather than a missing setting.
+ */
+async function ready() {
+  const problems = [];
+  const notes = [];
+
+  // Free instances sleep after fifteen idle minutes and take a minute to come
+  // back. Wake them before anything is timed, or act one waits on a cold start.
+  for (const [what, url] of [["the API", `${API}/api/health`], ["the Console", `${PANEL}/`]]) {
+    process.stdout.write(`  waking ${what}… `);
+    try {
+      await until(
+        `${what} answering`,
+        () => fetch(url, { signal: AbortSignal.timeout(90000) }),
+        (r) => r.ok,
+        { tries: 4, gap: 5000 },
+      );
+      console.log("awake");
+    } catch {
+      console.log("no answer");
+      problems.push(`${what} is not answering on ${url}`);
+    }
+  }
+
+  let health;
+  try {
+    health = await api("/health");
+    if (!health.actors) problems.push("no Groq actors on the deployed API — a reply cannot be read");
+    if (!health.language_layer) problems.push("no language layer on the deployed API");
+    if (!health.patients) problems.push("the deployed database has no families in it");
+    else notes.push(`${health.patients} families, sim date ${health.sim_date}`);
+  } catch (error) {
+    problems.push(`the deployed API is not healthy (${error.message})`);
+  }
+
+  // The Console proxies nothing in production — it is a static site reading
+  // config.json — so confirm it is pointed at the same API this script is.
+  try {
+    const config = await (await fetch(`${PANEL}/config.json`, { signal: AbortSignal.timeout(30000) })).json();
+    const base = (config.apiBase ?? "").replace(/\/api\/?$/, "").replace(/\/+$/, "");
+    if (base && base !== API) {
+      problems.push(`the Console is pointed at ${base}, not ${API} — the film would show two systems`);
+    } else if (base) notes.push("the Console and this script share one API");
+  } catch {
+    notes.push("could not read the Console's config.json; assuming it is pointed correctly");
+  }
+
+  // The hospital. Without a connector everything works and nothing watches a
+  // hospital, which is the quietest way to lose this entire film.
+  try {
+    const now = await api("/hospital/now");
+    const live = liveConnectors(now);
+    if (!live.length) {
+      problems.push(
+        "the deployed API has no live hospital connector — set SAATHI_HOSPITAL_SYSTEMS " +
+          "and make sure the VM's firewall admits Render's outbound addresses",
+      );
+    } else {
+      notes.push(`hospital connector live: ${live.map((c) => `${c.hospital_id}/${c.system}, ${c.appointments} appointments`).join("; ")}`);
+    }
+  } catch (error) {
+    problems.push(`cannot read /hospital/now (${error.message})`);
+  }
+
+  // The hospital's own address, reachable from here too — the film shows it.
+  try {
+    const response = await fetch(`${EMR}/interface/login/login.php?site=default`, {
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!response.ok) problems.push(`OpenEMR answered ${response.status} on ${EMR}`);
+  } catch (error) {
+    problems.push(
+      `cannot reach OpenEMR on ${EMR} (${error.message}). The VM admits one address at a ` +
+        "time; open the firewall to this machine as well as to Render",
+    );
+  }
+
+  // Saved rules, or the planner refuses to offer dates and looks broken.
+  for (const hospital of ["TMH-MUM"]) {
+    try {
+      const policy = await api(`/admin/policy/${hospital}`);
+      if (!policy.used_by_planner) {
+        problems.push(
+          `${hospital} has no saved rules on the deployed API, so the option search will ` +
+            "refuse every date. Save them on the Console's Configuration screen",
+        );
+      } else notes.push(`${hospital}'s rules are in force (version ${policy.version})`);
+    } catch (error) {
+      notes.push(`could not check ${hospital}'s rules (${error.message})`);
+    }
+  }
+
+  const { stdout } = await run(ADB, ["devices"]).catch(() => ({ stdout: "" }));
+  if (!/\s+device\s*$/m.test(stdout)) {
+    problems.push("no phone attached — start the emulator and install the APK");
+  }
+
+  if (notes.length) {
+    console.log("");
+    for (const note of notes) console.log(`  · ${note}`);
+  }
+  if (problems.length) {
+    console.error("\nNot recording. Fix these first:\n");
+    for (const problem of problems) console.error(`  - ${problem}`);
+    console.error("");
+    process.exit(1);
+  }
+  console.log("");
+  return health;
+}
+
+/* ─────────────────────────────────── main ─────────────────────────────── */
+
+async function main() {
+  const health = await ready();
+  mkdirSync(OUT, { recursive: true });
+
+  // Back to "nobody has been asked yet". `clear`, never `reset`: reset rewinds
+  // the world and is refused outright on real records, because it would delete
+  // families somebody entered. Not swallowed — a silently failed clear is what
+  // once put three copies of one family on screen for three takes running.
+  await post("/live/control", { action: "clear" });
+  await wait(10000);
+
+  const phone = spawn(
+    "scrcpy",
+    [
+      "--window-title", "Saathi — the family's phone",
+      `--window-x=${LAYOUT.phone.x}`, `--window-y=${LAYOUT.phone.y}`,
+      `--window-width=${LAYOUT.phone.w}`, `--window-height=${LAYOUT.phone.h}`,
+      "--stay-awake", "--window-borderless",
+    ],
+    { stdio: "ignore", env: { ...process.env, PATH: `${dirname(ADB)}:${process.env.PATH}` } },
+  );
+  await wait(9000);
+
+  const emr = await windowAt(LAYOUT.emr, `${EMR}/interface/login/login.php?site=default`);
+  const panel = await windowAt(LAYOUT.panel, PANEL);
+  const caption = await windowAt(LAYOUT.bar, `file://${resolve(HERE, "caption-bar.html")}`);
+  bar = caption.page;
+  await wait(3000);
+
+  const raw = resolve(OUT, "hosted-flow-raw.mp4");
+  // 30fps, because this capture device accepts only 15 or 30 and refuses
+  // anything else outright — `-framerate 12` makes ffmpeg fail to open the
+  // input at all and write no file, which cost a whole four-minute rehearsal
+  // before anyone noticed there was no video. The nominal rate barely matters
+  // anyway: the machine sustains about eleven while capturing three live
+  // windows, and the label is corrected against the wall clock afterwards.
+  // The "yuv420p not supported" warning is expected — that is the *output*
+  // format; the device hands over uyvy422 and ffmpeg converts.
+  // Keep the display awake. An unattended five-minute take let the screen
+  // sleep, and the capture dutifully recorded five minutes of black with a
+  // perfectly valid duration, frame count and soundtrack. `-d` blocks display
+  // sleep only; the machine may still idle in every other respect.
+  const awake = spawn("caffeinate", ["-d"], { stdio: "ignore" });
+
+  const captureLog = resolve(OUT, "hosted-flow-ffmpeg.log");
+  const capture = spawn("ffmpeg", [
+    "-y", "-f", "avfoundation", "-capture_cursor", "1", "-framerate", "30",
+    "-i", "2", "-vf", "scale=1600:-2", "-pix_fmt", "yuv420p",
+    "-preset", "ultrafast", raw,
+  ], { stdio: ["ignore", "ignore", openSync(captureLog, "w")] });
+  await wait(4000);
+
+  // Is it actually recording? `stdio: "ignore"` hid a capture that refused to
+  // start at all, and the take ran its full four minutes against no video.
+  // Checked here, where it costs four seconds instead.
+  const firstSize = statSync(raw, { throwIfNoEntry: false })?.size ?? 0;
+  if (!firstSize) {
+    capture.kill("SIGKILL");
+    const why = readFileSync(captureLog, "utf8").trim().split("\n").slice(-6).join("\n   ");
+    throw new Error(`the screen capture wrote nothing. ffmpeg said:\n   ${why}`);
+  }
+  captureStartedAt = Date.now();
+  console.log("  recording — do not touch the machine\n");
+
+  let failure = null;
+  let ranForMs = 0;
+  try {
+    await demo({ emr: emr.page, panel: panel.page, health });
+  } catch (error) {
+    failure = error;
+  } finally {
+    ranForMs = Date.now() - captureStartedAt;
+    capture.kill("SIGINT");
+    await wait(2500);
+    phone.kill();
+    awake.kill();
+    for (const w of [emr, panel, caption]) await w.browser.close().catch(() => {});
+  }
+
+  writeFileSync(resolve(OUT, "hosted-flow-captions.json"), JSON.stringify(captions, null, 2));
+  if (failure) throw failure;
+
+  const picture = await hasAPicture(raw);
+  if (!picture.ok) {
+    throw new Error(
+      `the capture is black (brightness ${picture.samples.join(", ")}). The display ` +
+        "almost certainly slept — everything else about the file is valid, which is " +
+        "why this is checked rather than assumed.",
+    );
+  }
+
+  const timed = await matchTheClock(raw, ranForMs);
+  const finished = await addTheVoices(timed);
+  console.log(`\n  recorded ${finished} (brightness ${picture.brightest.toFixed(0)})`);
+}
+
+/* ──────────────────────────────── the acts ────────────────────────────── */
+
+/** A click the film depends on. Missing it fails the take rather than
+ *  carrying on and captioning a screen that never changed. */
+async function mustClick(page, target, what) {
+  const locator = typeof target === "string"
+    ? page.getByText(target, { exact: true })
+    : page.getByText(target);
+  try {
+    await locator.first().click({ timeout: 20000 });
+  } catch {
+    throw new Error(`could not reach ${what} in the Console`);
+  }
+  await wait(2200);
+}
+
+/** Assert something is on the Console's screen before it is talked about. */
+async function mustSee(page, target, what) {
+  const locator = typeof target === "string"
+    ? page.getByText(target, { exact: false })
+    : page.getByText(target);
+  try {
+    await locator.first().waitFor({ state: "visible", timeout: 25000 });
+  } catch {
+    throw new Error(`${what} is not on the Console's screen`);
+  }
+}
+
+/** Sign in, or notice we already are — the persona is remembered. */
+async function signIn(page, name) {
+  const picker = page.getByText(name, { exact: true }).first();
+  if (await picker.isVisible({ timeout: 6000 }).catch(() => false)) {
+    await picker.click();
+    await wait(2500);
+    return;
+  }
+  await mustSee(page, /Today|Families|Approvals/, "the Console's own navigation");
+}
+
+/** The day to put the leave on: the one most families are already booked for.
+ *
+ *  Derived rather than hardcoded. A leave on a day nobody is booked produces
+ *  no asks at all, and the film would fail for a reason that looks like a
+ *  broken connector but is really a wrong date — which cost a take on an
+ *  earlier film when a mini-calendar's leading days moved the month.
+ */
+async function pickTheLeaveDay(health) {
+  const counts = new Map();
+  const patients = await api("/patients");
+  const list = Array.isArray(patients) ? patients : patients.patients ?? [];
+  for (const patient of list) {
+    const steps = await api(`/patients/${patient.id}/steps`).catch(() => []);
+    for (const step of steps) {
+      const on = step.scheduled_for;
+      if (!on || on <= health.sim_date) continue;
+      if (!["scheduled", "booked"].includes(String(step.status))) continue;
+      counts.set(on, (counts.get(on) ?? 0) + 1);
+    }
+  }
+  if (process.env.SAATHI_LEAVE_DAY) return { day: process.env.SAATHI_LEAVE_DAY, booked: counts.get(process.env.SAATHI_LEAVE_DAY) ?? 0 };
+  const best = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0];
+  if (!best) throw new Error("no family has an upcoming booked step, so a leave would collide with nothing");
+  return { day: best[0], booked: best[1] };
+}
+
+/** Enter a provider's leave in OpenEMR's own calendar, on camera.
+ *
+ *  Through the hospital's own form, not its database: the whole claim is that
+ *  an ordinary staff action in an unmodified system is what we react to, and a
+ *  SQL insert off camera would be a weaker version of the same beat.
+ *
+ *  `?prov=true` is the part that is not guessable — without it the form offers
+ *  only patient categories and Vacation is not among them (it is `pc_cattype`
+ *  1, a provider category). The category is then found by its name rather than
+ *  its id, because ids differ between installations.
+ */
+async function enterLeaveOnCamera(emr, day) {
+  await emr.goto(
+    `${EMR}/interface/main/calendar/add_edit_event.php?startdate=${day}&prov=true`,
+    { waitUntil: "domcontentloaded", timeout: 90000 },
+  );
+  const options = await emr.locator('[name="form_category"] option').evaluateAll(
+    (els) => els.map((e) => ({ value: e.value, label: (e.textContent ?? "").trim() })),
+  );
+  const vacation = options.find((o) => /vacation/i.test(o.label));
+  if (!vacation) {
+    throw new Error(
+      `OpenEMR's provider form offers no Vacation category (saw: ${options.map((o) => o.label).join(", ")})`,
+    );
+  }
+  await emr.selectOption('[name="form_category"]', vacation.value);
+  await wait(1500);
+  await emr.locator('[name="form_allday"]').first().check().catch(() => {});
+  await emr.fill('[name="form_date"]', day).catch(() => {});
+  await emr.fill('[name="form_title"]', "Vacation").catch(() => {});
+  await emr.fill('[name="form_comments"]', "oncology leave").catch(() => {});
+  await wait(2500);
+  await emr.click('[name="form_save"]').catch(async () => {
+    await emr.locator('button:has-text("Save")').first().click();
+  });
+  await wait(6000);
+
+  // Confirm the hospital kept it, before anything downstream is credited with
+  // noticing it — a failed save and a broken connector look identical from
+  // the far end, and this is what tells them apart.
+  //
+  // The URL matters. `index.php?pc_view=day&date=…` renders the calendar
+  // chrome and no events at all; the day's events come from PostCalendar's
+  // own view, with the date as YYYYMMDD. Checked: the first form reports no
+  // leave for a day that demonstrably has one.
+  const compact = day.replace(/-/g, "");
+  await emr.goto(
+    `${EMR}/interface/main/calendar/index.php?module=PostCalendar&func=view&tplview=&viewtype=day&Date=${compact}`,
+    { waitUntil: "domcontentloaded", timeout: 90000 },
+  ).catch(() => {});
+  await wait(4000);
+  const shown = await emr.content();
+  // The note this script typed, not merely the word "Vacation" — which could
+  // be a legend, another provider's leave, or a leftover from an earlier run.
+  if (!/oncology leave/i.test(shown)) {
+    throw new Error(
+      `OpenEMR's own day view for ${day} does not show the leave that was just saved`,
+    );
+  }
+  return vacation.label;
+}
+
+async function demo({ emr, panel, health }) {
+  /* ── one: three deployed things, named ─────────────────────────────────── */
+  await say("setup", `Three deployed services and one phone. Nothing here is running on a laptop. The hospital is OpenEMR at ${EMR.replace(/^https?:\/\//, "")}; the Console and the API are on Render.`);
+
+  await emr.fill("#authUser", process.env.SAATHI_OPENEMR_USER ?? "admin").catch(() => {});
+  await emr.fill("#clearPass", process.env.SAATHI_OPENEMR_PASS ?? "").catch(() => {});
+  await emr.click("#login-button").catch(() => {});
+  await wait(12000);
+  await emr.locator('button:has-text("Ask again later")').click().catch(() => {});
+  await say("hospital", "OpenEMR, unmodified. No module of ours is installed in it; we read its standard FHIR API and write approved bookings back through the same one.");
+
+  await signIn(panel, "Seema Kamble");
+  await mustClick(panel, /^Hospitals right now$/, "the hospital board");
+  const live = liveConnectors(await api("/hospital/now"));
+  await say("console", `The Console, reading that hospital live: ${live.map((c) => `${c.system}, ${num(String(c.appointments))} appointments`).join("; ")}. ${num(String(health.patients))} families are on this deployment.`);
+
+  /* ── two: the phone, and the family's own language ─────────────────────── */
+  await adb("shell", "am", "force-stop", "org.ekyatra.saathi");
+  await adb("shell", "am", "start", "-n", "org.ekyatra.saathi/.MainActivity");
+  await wait(8000);
+  await mustReadOnThePhone("EKY-", "the family list");
+  await say("phone", "The family's app, built against the deployed API — not a local one. Four families, each on the language their record carries.");
+
+  /* ── three: a doctor marks leave, and nobody tells the family ─────────── */
+  const { day, booked } = await pickTheLeaveDay(health);
+  await say("event", `${booked} famil${booked === 1 ? "y is" : "ies are"} booked on ${num(day)}. A doctor is about to mark themselves away that day, in the hospital's own calendar — an ordinary save by ordinary staff.`);
+
+  const category = await enterLeaveOnCamera(emr, day);
+  await say("event", `Saved in OpenEMR as “${category}”, all day. Now look at the families' appointments: unchanged. Not moved, not cancelled, status untouched — so anything watching appointments sees nothing at all.`);
+
+  // Keyed on the day the question is *about*, not on how many are open.
+  // A conversation holds one open question per family, so a family that was
+  // already mid-question has theirs replaced rather than added to — and a
+  // count then never grows, however well the connector worked. That cost a
+  // rehearsal: three families had in fact just been asked about this very day.
+  const waiting = await until(
+    `the connector noticing the leave on ${day} and asking somebody about it`,
+    () => api("/questions/waiting"),
+    (qs) => qs.some((q) => q.about_day === day && q.reason === "doctor_away"),
+    { tries: 25, gap: 4000 },
+  );
+  const asked = waiting.filter((q) => q.about_day === day && q.reason === "doctor_away");
+  const languages = [...new Set(asked.map((q) => q.language))];
+  await say("asked", `The connector read the leave and worked out which families it hits — then asked each one ${languages.length > 1 ? "in their own language" : ""}: ${asked.map((q) => `${q.name} (${q.language})`).join(", ")}. Nobody wrote a script per family.`);
+
+  await mustClick(panel, /^Approvals$/, "the approvals queue");
+  await mustSee(panel, /Asked|waiting/i, "the asked-and-waiting list");
+  await say("console", "Each question, as it was sent. Templated per language, never generated — a model that writes the question can invent a premise, and a family cannot tell which half of a fluent sentence came from a record.");
+
+  /* ── four: the Hindi voice, on the phone, from the deployed API ────────── */
+  const hindi = asked.find((q) => q.language === "hi") ?? asked[0];
+  await phoneTap(hindi.patient_id);
+  await say("phone", `${hindi.name}'s phone. The question arrived in her own script.`);
+
+  const spoken = await speakOnThePhone(hindi.patient_id, "hi");
+  if (spoken.kept) {
+    await say("voice", `Read aloud in Hindi by Sarvam — ${num(spoken.kept.kb + " KB")} fetched through the deployed API and played by the app's media player, not the phone's own text-to-speech. We check which one played, because a phone with no Hindi voice fails silently and the family simply hears nothing.`);
+  } else {
+    await say("voice", "The phone fell back to its own text-to-speech here, so no Sarvam audio is claimed for this take.");
+  }
+  await wait(6000);
+
+  await phoneTap(MESSAGES.hi);
+  await mustReadOnThePhone("नवंबर", "the Hindi question");
+  await say("phone", "And the same question in her messages, in Devanagari.");
+
+  /* ── five: she answers, in her own words, with her own figure ──────────── */
+  await post("/live/inject", {
+    patient_id: HINDI_FAMILY,
+    text: "Bees tarikh ke baad hi aa sakte hain, pehle nahi. Do log aayenge. Bus ka kiraya chaudah sau rupaye lagega.",
+  });
+  await post("/live/inject", {
+    patient_id: BENGALI_FAMILY,
+    text: "Amar sathe ami jabo. Trainer tickets 900 taka hobe. 1 tarikher age noy, salary tokhon ase.",
+  });
+  await say("reply", `Two families answer by voice, in romanised Hindi and Bengali: ${said("“Bees tarikh ke baad hi aa sakte hain… bus ka kiraya chaudah sau rupaye lagega.”")}`);
+
+  const readings = await until(
+    "both replies being read into requests",
+    () => api("/requests/waiting"),
+    (rows) => rows.length >= 2,
+    { tries: 25, gap: 4000 },
+  );
+  await panel.reload({ waitUntil: "domcontentloaded" }).catch(() => {});
+  await wait(3000);
+  await signIn(panel, "Seema Kamble");
+  await mustClick(panel, /^Approvals$/, "the approvals queue");
+  await wait(3000);
+
+  for (const row of readings) {
+    const c = row.constraint ?? {};
+    const tr = row.travel ?? {};
+    console.log(`    ${row.patient_id}: not_before=${c.not_before} companions=${tr.companions} cost=${tr.stated_cost_inr}`);
+  }
+  const quoted = readings.find((r) => (r.travel ?? {}).stated_cost_inr);
+  await say("read", `Read into constraints: ${readings.map((r) => `${r.name} not before ${num((r.constraint ?? {}).not_before ?? "—")}`).join("; ")}. ${quoted ? `And a cost of ${num("₹" + quoted.travel.stated_cost_inr)} — there because ${quoted.name} said it. There is no fare table in this system; the sentence she said it in is stored beside the number.` : ""}`);
+
+  await say("guard", "Nothing has re-planned yet. A navigator reads the family's actual sentence and agrees with the reading before the planner may act — mishearing “after the 20th” as “on the 20th” costs this family two days on a train.");
+
+  /* ── six: a person agrees, and only then does the planner search ───────── */
+  // The family whose working we will follow on screen. Fatima's reading asks
+  // for a date the hospital's rules cannot allow, so her search is the one
+  // with a rejection in it — the half worth showing.
+  const follow = readings.find((r) => r.patient_id === HINDI_FAMILY) ?? readings[0];
+
+  /** Agree to one reading the way a navigator does: by clicking it.
+   *
+   *  Scoped to that family's own row. Every row carries a button with the
+   *  same words, so an unscoped click agrees to whoever happens to be first.
+   */
+  async function agreeTo(name) {
+    const row = panel.locator("li.queue-row").filter({ hasText: name }).first();
+    const button = row.getByRole("button", { name: /^Agree/ });
+    try {
+      await button.first().click({ timeout: 20000 });
+    } catch {
+      throw new Error(`could not agree to ${name}'s reading in the Console`);
+    }
+    await wait(4000);
+  }
+
+  // Select her first. Agreeing removes the row from the queue, and the "Why"
+  // control only exists while a family is selected — so clicking her name
+  // afterwards is not possible. Cost a rehearsal to find.
+  await mustClick(panel, follow.name, `${follow.name} in the queue`);
+  await mustSee(panel, /Looking at/, "the selected family");
+
+  for (const row of readings) await agreeTo(row.name);
+  await say("human", `A navigator agrees with each reading — and only now may the planner act. ${num(String(readings.length))} readings, ${num(String(readings.length))} decisions, each by a person.`);
+
+  const searches = [];
+  for (const row of readings) {
+    const search = await api(`/patients/${row.patient_id}/search`).catch(() => null);
+    if (search && search.considered?.length) {
+      searches.push({ name: row.name, ...search });
+      console.log(`    ${row.patient_id}: ${search.summary}`);
+      for (const c of search.considered) console.log(`        ${c.line}`);
+    }
+  }
+  if (!searches.length) throw new Error("a navigator agreed and the planner searched for nothing");
+
+  const rejected = searches.find((s) => s.considered.some((c) => !c.offered));
+  const show = searches.find((s) => s.name === follow.name) ?? rejected ?? searches[0];
+  await say("plan", `The planner then searched against what she actually said. ${show.name}: ${show.summary}.`);
+
+  await mustClick(panel, /Why this family.s plan is what it is/, "the why drawer");
+  await mustSee(panel, "How this was worked out", "the reasoning log");
+  await say("audit", "Every step, as the system recorded it — published by the code that did the work, carrying the time that work actually took. Refusals are in here too and are never filtered out.");
+
+  await mustSee(panel, "What the planner considered", "the planner's search");
+  if (show.considered.some((c) => !c.offered)) {
+    const bad = show.considered.find((c) => !c.offered);
+    const good = show.considered.find((c) => c.offered);
+    await say("plan", `The half a planner normally hides: every date tried, and the rule that killed each one. ${num(new Date(bad.on + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" }))} was ruled out — ${bad.why}${bad.detail ? ` (${bad.detail})` : ""}.${good ? ` It offered ${num(new Date(good.on + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" }))} instead: the closest the hospital's own rules allow.` : ""}`);
+  } else {
+    await say("plan", `Every date the planner tried is on the record. ${show.summary} — nothing was ruled out this run, so the search shows offers only.`);
+  }
+  await wait(10000);
+
+  await mustSee(panel, /What this is built from|built from/, "the knowledge graph");
+  await say("audit", "And what it was built from. Every node is a record we hold, and each says where it came from — the hospital's calendar, our records, or the family's own words. Three different kinds of claim, kept apart.");
+
+  /* ── seven: the Bengali voice ─────────────────────────────────────────── */
+  await adb("shell", "input", "keyevent", "KEYCODE_BACK");
+  await wait(2500);
+  await phoneTap(BENGALI_FAMILY);
+  const bengali = await speakOnThePhone(BENGALI_FAMILY, "bn");
+  if (bengali.kept) {
+    await say("voice", `The same thing in Bengali — ${num(bengali.kept.kb + " KB")} from Sarvam, through the deployed API. Five languages, and the guard reads dates in all five scripts: if it cannot read the date, it refuses to send rather than send something it cannot check.`);
+  }
+  await wait(6000);
+
+  /* ── eight: what this is worth beyond four families ───────────────────── */
+  const held = await api(`/patients/${BENGALI_FAMILY}/consent`);
+  for (const grant of held.grants ?? []) {
+    if (grant.purpose === "research" && grant.active) {
+      await post(`/patients/${BENGALI_FAMILY}/consent/grants/${grant.id}/revoke`, {
+        by: "Shanti Kumari",
+        reason: "rehearsal setup — this take shows the grant being asked for and given",
+      });
+    }
+  }
+  const beforeRelease = await api("/research/release");
+  await say("research", `India has registries full of staging and survival. What nobody has is why people stop coming — distance, cost, wasted journeys, waiting. This system holds exactly that, and right now it is contributing ${num(String(beforeRelease.manifest.rows))} rows, because no family has consented.`);
+
+  const request = await post(`/patients/${BENGALI_FAMILY}/consent/requests`, {
+    purpose: "research",
+    requester_id: "NCG-IN",
+    requester_name: "National Cancer Grid (NCG), India",
+    categories: ["travel_burden"],
+    reason: "Travel and cost burden, de-identified, for research into why treatment is abandoned",
+  });
+  await post(`/patients/${BENGALI_FAMILY}/consent/requests/${request.id}/grant`, {
+    granted_by: "Shanti Kumari", capacity: "self", channel: "ivr",
+  });
+  const after = await until(
+    "the release gaining a row",
+    () => api("/research/release"),
+    (r) => r.manifest.rows > beforeRelease.manifest.rows,
+    { tries: 10, gap: 3000 },
+  );
+  await say("research", `Shanti said yes, and one row appeared — ${num(String(after.manifest.rows))} contributed, ${num(String(after.manifest.excluded_no_research_consent))} still withheld. Consent is asked per family, is revocable, and is never a condition of care.`);
+
+  await panel.goto(`${PANEL}/?persona=menon&section=research`, { waitUntil: "domcontentloaded" }).catch(() => {});
+  await wait(4000);
+  await mustSee(panel, "National Cancer Grid", "the receiving body");
+  await mustSee(panel, "Removed before anything leaves", "what is withheld");
+  await say("research", "No name, no ABHA, no patient id — not even a hashed one, because a stable key lets two releases be joined back into a person. District becomes a state, distance becomes a band, and nothing clinical leaves because there is nothing clinical in here to leak.");
+
+  await say("note", "A doctor marked themselves away. Nobody told the family — nobody ever does. Minutes later every affected family had been asked, in their own language, and a person had agreed a plan around what they answered.");
+}
+
+/* ───────────────────────────── post-processing ────────────────────────── */
+
+/** Make the video last as long as the take did.
+ *
+ *  A screen capture that cannot keep up does not slow down — it writes fewer
+ *  frames and still labels them at the rate that was asked for, so the film
+ *  plays fast by exactly the ratio it fell short by. Nothing warns: the file
+ *  is valid, the picture is sharp, and three minutes arrive as eighty seconds.
+ */
+async function matchTheClock(video, ranForMs) {
+  const seconds = ranForMs / 1000;
+  if (seconds < 5) return video;
+  const { stdout } = await run("ffprobe", [
+    "-v", "error", "-count_frames", "-select_streams", "v:0",
+    "-show_entries", "stream=nb_read_frames", "-of", "default=nokey=1:noprint_wrappers=1",
+    video,
+  ]);
+  const frames = Number(stdout.trim());
+  if (!Number.isFinite(frames) || frames < 2) return video;
+  const fps = frames / seconds;
+  // Two steps, and the first is not optional: `-r` on an mp4 with `-c copy`
+  // does nothing, because the container's own timestamps survive. Stripping to
+  // an elementary stream discards them so the remux can apply the real rate.
+  // Still no re-encoding.
+  const stream = resolve(OUT, "hosted-flow-stream.h264");
+  const out = resolve(OUT, "hosted-flow-timed.mp4");
+  await run("ffmpeg", ["-y", "-loglevel", "error", "-i", video,
+    "-c", "copy", "-bsf:v", "h264_mp4toannexb", "-f", "h264", stream]);
+  await run("ffmpeg", ["-y", "-loglevel", "error", "-fflags", "+genpts",
+    "-r", fps.toFixed(6), "-i", stream, "-c", "copy", out]);
+  console.log(`  ${frames} frames over ${seconds.toFixed(1)}s — retimed to ${fps.toFixed(2)}fps`);
+  return out;
+}
+
+/** Is there actually a picture in it?
+ *
+ *  A slept display records as black at full frame rate, and every other
+ *  measure of the file looks healthy — valid duration, 9,000 frames, the
+ *  soundtrack in the right places. Nothing downstream would notice, and the
+ *  first person to find out would be whoever opened it to watch. So the
+ *  luminance is sampled across the film and a dark one fails the take.
+ */
+async function hasAPicture(video) {
+  const samples = [];
+  for (const at of [0.2, 0.4, 0.6, 0.8]) {
+    const { stdout } = await run("ffprobe", [
+      "-v", "error", "-show_entries", "format=duration",
+      "-of", "default=nokey=1:noprint_wrappers=1", video,
+    ]);
+    const seconds = Number(stdout.trim()) * at;
+    const { stderr } = await run("ffmpeg", [
+      "-hide_banner", "-ss", seconds.toFixed(1), "-t", "1", "-i", video,
+      "-vf", "signalstats,metadata=print:key=lavfi.signalstats.YAVG",
+      "-f", "null", "-",
+    ]).catch((e) => ({ stderr: e.stderr ?? "" }));
+    const match = /YAVG=([0-9.]+)/.exec(stderr ?? "");
+    if (match) samples.push(Number(match[1]));
+  }
+  if (!samples.length) return { ok: true, samples };
+  const brightest = Math.max(...samples);
+  // A lit screen full of windows sits around 100. Anything in single figures
+  // is a dark or blank display, not a dim one.
+  return { ok: brightest > 20, samples, brightest };
+}
+
+/** Lay the kept clips on, each at the second it played.
+ *
+ *  No `-shortest`: it trims the output to the shortest stream, and the
+ *  shortest stream is the soundtrack. It once cut the closing screen off the
+ *  end of a good take.
+ */
+async function addTheVoices(video) {
+  if (!soundtrack.length) {
+    console.log("  no audio kept, so the film is silent rather than dubbed");
+    return video;
+  }
+  const out = resolve(OUT, "hosted-flow.mp4");
+  const args = ["-y", "-loglevel", "error", "-i", video];
+  for (const clip of soundtrack) args.push("-i", clip.file);
+  const delays = soundtrack
+    .map((c, i) => `[${i + 1}:a]adelay=${c.atMs}|${c.atMs}[a${i}]`)
+    .join(";");
+  const mixed = soundtrack.map((_, i) => `[a${i}]`).join("");
+  args.push(
+    "-filter_complex", `${delays};${mixed}amix=inputs=${soundtrack.length}:normalize=0[out]`,
+    "-map", "0:v", "-map", "[out]", "-c:v", "copy", "-c:a", "aac", out,
+  );
+  await run("ffmpeg", args);
+  const narration = soundtrack.filter((c) => c.language === "en");
+  if (narration.length) {
+    const spoken = narration.reduce((n, c) => n + (c.seconds ?? 0), 0);
+    console.log(`  narration: ${narration.length} lines, ${spoken.toFixed(0)}s of English`);
+  }
+  for (const c of soundtrack.filter((c) => c.language !== "en")) {
+    console.log(`  the app speaking ${c.language}: ${Math.round(c.bytes / 1024)} KB from ${c.spokenBy} at ${(c.atMs / 1000).toFixed(1)}s`);
+  }
+  return out;
+}
+
+main().catch((error) => {
+  console.error(`\n  the take failed: ${error.message}`);
+  console.error("  nothing was published; fix it and run again.\n");
+  process.exit(1);
+});
