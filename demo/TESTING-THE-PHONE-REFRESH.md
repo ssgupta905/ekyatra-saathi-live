@@ -43,6 +43,37 @@ up-to-date on precisely the change it exists to catch. `build.gradle.kts` now
 declares it. If you ever see that test pass suspiciously fast after touching
 `live.ts`, that is what to check.
 
+## Setup on your machine
+
+Nothing new is needed for the backend or the web — `e194ecf` made the tests
+stop reading your `.env`, so they are self-contained. The Android side has
+four requirements and none of them are in the repo:
+
+1. **`local.properties`** — gitignored, so it is not in your checkout. One
+   line, pointing at your own SDK:
+   ```
+   sdk.dir=/Users/<you>/Library/Android/sdk
+   ```
+   Opening the `android/` folder once in Android Studio writes it for you.
+
+2. **JDK 17.** The build sets source and target compatibility to 17. Android
+   Studio's bundled JBR will do. There is no `java` on PATH on this machine,
+   so I build with:
+   ```bash
+   export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+   ```
+
+3. **Android SDK Platform 37.** `compileSdk = 37`, which is recent enough that
+   you may not have it. SDK Manager → SDK Platforms → Android SDK Platform 37.
+   This is the one most likely to stop you, and the error names it clearly.
+
+4. **A device.** Developer options on, USB debugging accepted, and the phone
+   unlocked when you plug it in — the authorisation prompt does not appear on
+   a locked screen. `adb devices` showing `unauthorized` means the prompt is
+   waiting on the handset.
+
+Gradle itself needs nothing: the wrapper fetches 9.8.2 on first run.
+
 ## What to run
 
 ```bash
