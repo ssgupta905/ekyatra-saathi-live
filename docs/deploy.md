@@ -76,29 +76,32 @@ Render offers managed **Postgres** and Key Value. That one fact decides most of 
 |---|---|---|
 | The API | Yes, free | Docker, on the Supabase Postgres. |
 | Console, family and partner apps | Yes, free | Three static sites. |
-| HAPI FHIR, as the hospital system | Yes, free | 512 MB with a capped heap, keeping its tables in a `hapi` schema of the same Supabase project, so Render needs no database of its own. |
-| **OpenEMR** | Only on paid instances | See below. Keep it on the demo host. |
-| **OpenEMR's arrival clock** | No | "The clinic is running late" is read from OpenEMR's own MariaDB, SELECT-only (`adapters/hospital/openemr_db.py`). No MariaDB, no derived delay — the Console then says a family arrived and claims no delay, which is the honest degradation. |
+| HAPI FHIR, as the hospital system | **No** | Tried on a free instance with a capped heap and a Supabase schema; Render killed it for using over 512 MB. Runs on the Google Cloud VM instead (§2b). |
+| **OpenEMR** | No | Needs MariaDB (Render's managed databases are Postgres only), disks and 1-2 GB. Runs on the Google Cloud VM instead (§2b). |
+| **OpenEMR's arrival clock** | Not from Render | Read from OpenEMR's MariaDB, SELECT-only (`adapters/hospital/openemr_db.py`). The VM keeps that database closed to the internet, so a hosted API cannot reach it; without it the Console says a family arrived and claims no delay, which is the honest degradation. |
 | Bahmni / OpenMRS | No | Same reason as OpenEMR: it needs MariaDB. |
 | The Android app | n/a | It is an APK. Rebuild it pointing at the Render API and install it. |
 | The film rig | n/a | `scrcpy`, `adb` and `ffmpeg` capture a local screen and an attached phone. |
 
-**Why the hospital system here is HAPI and not OpenEMR.** Both of the obvious alternatives were
-declared in this blueprint and then reverted, and it is worth not repeating the work:
+**Two hospital systems, and neither is on Render.** HAPI proves the connector reads any conformant
+FHIR server; OpenEMR is the one with its own clinical UI, the system a judge can be handed and
+invited to click anything in. Both need more memory and disk than Render's free tier gives (HAPI
+was tried there and was killed at 512 MB), so both run on a Google Cloud VM — §2b. Both are read through the same port, which is what
+"plugs into any HMS" has to mean to be worth saying.
 
-- **OpenEMR** (`8a480d9`, reverted in `5877370`). It can run — MariaDB as a *private service with
-  a disk*, since Render's managed databases are Postgres only, and OpenEMR as the stock image with
-  a second disk for its sites folder. But both need **paid** instances, and it means operating a
-  MariaDB by hand.
-- **Medplum** (`2d8b95b`, reverted in `7bb4666`), a FHIR-native EHR that would have brought a staff
-  UI on Postgres. Also **paid**: a 2 GB server and a small Postgres.
+**Do not port OpenEMR to Postgres.** It is asked often enough to be worth answering with numbers
+from the running instance: 293 tables and 3,932 columns, of which 178 are `AUTO_INCREMENT`, 267
+are `tinyint`, 14 are `enum` and 33 carry `ON UPDATE CURRENT_TIMESTAMP` — none of which Postgres
+has. In the PHP there are 391 files with backtick-quoted SQL (a syntax error in Postgres), 103
+using `DATE_FORMAT`, 40 using `IFNULL`, 36 using `INSERT … ON DUPLICATE KEY UPDATE`, across
+54,554 files, and the data layer pins its driver outright (`$ADODB_LASTDB = 'mysqli_log'`). That
+is a fork of a twenty-year-old application, not a configuration change.
 
-HAPI fits the free tier, and the connector reads it through the same port it reads OpenEMR
-through — which is the point of having a port. What the hosted copy gives up is OpenEMR's own
-clinical UI and its arrival clock, so the "unmodified hospital system, judges may click anything
-in it" half of the demo stays on the laptop.
-
-So: **everything except the OpenEMR half deploys, and all of it free.**
+And it would cost the thing the architecture is actually for. The claim this project defends is
+*OpenEMR runs unmodified; we read standard APIs and write back through them*. A forked HMS is a
+different, much weaker claim, and a reviewer would be right to say so. **Medplum** (`2d8b95b`,
+reverted in `7bb4666`) was tried as the FHIR-native way out of MariaDB — also paid, a 2 GB server
+plus its own Postgres, and it is not the system anyone's staff actually use.
 
 Set `SAATHI_HOSPITAL_SYSTEMS` accordingly, or the service runs with no HMS connector at all —
 everything works and nothing watches a hospital, which is a quiet way to lose half the demo:
@@ -117,8 +120,71 @@ rather than by erroring:
   refuses to offer dates rather than inventing a tolerance, and the screen looks broken when it
   is in fact being careful.
 
-And note that **two** free services now sleep, not one: the API and HAPI. A demo that wakes the
-API but not HAPI gets a connector reading a hospital that is still starting up.
+And note that the free API sleeps. A demo that wakes the API but not the hospital VM (or the other
+way round) gets a connector reading a hospital that is not there.
+
+## 2b. The hospital systems on Google Cloud
+
+OpenEMR (with MariaDB) and the HAPI FHIR server run on one Compute Engine VM, from the stock
+images and nothing of ours inside them. The script and the exact commands are in
+`demo/openemr/gcp/` (`startup.sh`, `README.md`). In short: one VM in Mumbai (`asia-south1`), a
+firewall rule that lets only your own IP reach OpenEMR (port 8300) and HAPI (port 8080), the
+database kept closed to the internet, and a random admin password generated on the VM (read it
+over SSH: `sudo cat /root/openemr-admin-password.txt`).
+
+It runs on the Google Cloud free-trial credit, so it is free while the trial lasts; stop or delete
+the VM before the credit ends. Render's free instance cannot host these (see §2a), and the paid
+Render route was tried and dropped in favour of this.
+
+Because the firewall admits only your IP, the hosted API (on Render) cannot reach the VM. Opening
+that deliberately — HTTPS in front, strong passwords, an allow-list for the API's addresses — is a
+separate piece of work; do not simply open the ports to the world with the demo defaults.
+
+**Then three one-time steps, in this order.** None can be expressed in the blueprint.
+
+1. **The read-only account.** The arrival clock reads MariaDB directly, and must do so with an
+   account that can only read. `demo/openemr/readonly-user.sql` creates `saathi_ro` for the
+   laptop; run the same two statements against the hosted database **with a different password**,
+   from an SSH session on the VM (`sudo docker exec -it openemr-mysql-1 mariadb -uroot -p`):
+
+   ```sql
+   CREATE USER IF NOT EXISTS 'saathi_ro'@'%' IDENTIFIED BY '<a new password>';
+   GRANT SELECT ON openemr.* TO 'saathi_ro'@'%';
+   ```
+
+   The connector's read-only claim rests on three independent things — every query in
+   `openemr_db.py` is a SELECT and a test fails otherwise, the session is opened `SET SESSION
+   TRANSACTION READ ONLY`, and this grant means even a bug could not write. The laptop password is
+   in a committed file; do not reuse it on anything reachable.
+
+2. **Register the SMART client**, against the deployed address rather than localhost:
+
+   ```bash
+   SAATHI_OPENEMR_BASE_URL=http://<the VM's address>:8300 \
+     .venv/bin/python -m saathi.bootstrap.openemr_seed --register
+   ```
+
+   This prints a client id, a key id and a PEM. OpenEMR also needs its API and its
+   `system/*` scopes enabled once in Administration → Config; `docs/openemr.md` has the list.
+
+3. **Put the PEM in a Render Secret File** (on the API service), not an environment variable:
+   filename `openemr.pem`, which Render mounts at `/etc/secrets/openemr.pem`. The code reads the
+   key from a path on purpose — a private key pasted into a deployment variable ends up in logs,
+   dashboards and shoulder-surfing range — and a secret file is exactly that path without the
+   exposure.
+
+Then set `SAATHI_HOSPITAL_SYSTEMS` on the API service. One line, six fields after the kind, and
+the last three are what turn the arrival clock on:
+
+```
+TMH-MUM=openemr|http://<the VM's address>:8300|<client id>|<key id>|/etc/secrets/openemr.pem|<db host>:3307/openemr|saathi_ro|<the password from step 1>
+```
+
+The database is closed to the internet on the VM, so the hosted API cannot read it and the last
+three fields do not apply there. Drop them and everything still works except the derived delay.
+
+To read both hospitals at once, comma-separate the entries — one `openemr` line and one `fhir`
+line pointing at HAPI.
 
 ## 3. Render: the two web apps
 
