@@ -60,6 +60,32 @@ const OUT = resolve(HERE, "../recordings");
 //: Addresses that are not a deployment, however they are spelled.
 const LOCAL = /^(https?:\/\/)?(localhost|127\.0\.0\.1|\[?::1\]?|0\.0\.0\.0|10\.0\.2\.2)([:/]|$)/i;
 
+/** Read `.env` into the environment, without overriding what is already set.
+ *
+ *  The VM's OpenEMR password is not the local Docker one, and it has no place
+ *  in this repository or in a shell history. `.env` is already git-ignored and
+ *  already holds the Groq and Sarvam keys, so it is where this belongs too.
+ *  Anything exported before the run still wins, which is what makes a one-off
+ *  `SAATHI_LEAVE_DAY=…` on the command line work.
+ */
+function loadEnvFile() {
+  let text;
+  try {
+    text = readFileSync(resolve(HERE, "../.env"), "utf8");
+  } catch {
+    return;
+  }
+  for (const line of text.split("\n")) {
+    const match = /^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)$/i.exec(line);
+    if (!match) continue;
+    const [, name, raw] = match;
+    if (process.env[name] !== undefined) continue;
+    process.env[name] = raw.trim().replace(/^(['"])(.*)\1$/, "$2");
+  }
+}
+
+loadEnvFile();
+
 /** Addresses. No defaults: see the module docstring. */
 const API = must("SAATHI_API_URL");
 const PANEL = must("SAATHI_PANEL_URL");
@@ -156,7 +182,9 @@ const SPEAK = { hi: "बोलिए", bn: "বলুন", ta: "பேசுங�
 const MESSAGES = { hi: "संदेश", bn: "বার্তা", ta: "செய்திகள்" };
 //: The home tab. Coming back to a family reopens whichever tab was last
 //: used, and the speak button lives only on this one.
-const TODAY = { hi: "आज", bn: "আজ", ta: "இன்று" };
+const TODAY = { hi: "आज", bn: "আজ", ta: "இன்று", en: "Today" };
+const PLAN_TAB = { hi: "योजना", bn: "পরিকল্পনা", ta: "திட்டம்", en: "Plan" };
+const STAY = { hi: "ठहरने की जगह", bn: "থাকার জায়গা", ta: "தங்குவதற்கு இடம்", en: "Somewhere to stay" };
 //: 1080x2340 on the handset being filmed. scrcpy will not stretch past it.
 const PHONE_ASPECT = 1080 / 2340;
 
@@ -413,6 +441,17 @@ async function keepTheAudio(patientId, text, language) {
  *  and two perfectly good Sarvam clips were dropped from a finished take as
  *  "the phone did not use the service voice" when it demonstrably had.
  */
+/** The live connector's own tally of what it has done to the hospital.
+ *
+ *  Read from `/hospital/now` rather than counted here, so every number the
+ *  film says about the write-back is the number the connector itself kept.
+ */
+async function connectorCounts() {
+  const now = await api("/hospital/now").catch(() => ({ hospitals: [] }));
+  const live = (now.hospitals ?? []).find((b) => b.connector?.live);
+  return live?.connector?.counts ?? {};
+}
+
 async function forgetTheLog() {
   await adb("logcat", "-c");
 }
@@ -947,6 +986,7 @@ async function demo({ emr, panel, health }) {
     hi: "Bees tarikh ke baad hi aa sakte hain, pehle nahi. Do log aayenge. Bus ka kiraya chaudah sau rupaye lagega.",
     bn: "Amar sathe ami jabo. Trainer tickets 900 taka hobe. 1 tarikher age noy, salary tokhon ase.",
     ta: "Irupathu theti ku appuram thaan vara mudiyum. Rendu per varuvom. Bus kattanam aayiram roobai aagum.",
+    en: "Can't do a weekday, I lose the day's wages. After the 4th is fine, and only me coming. Train and bus is about 60 rupees each way.",
   };
   const replying = asked.filter((q) => WORDS[q.language]).slice(0, 2);
   if (!replying.length) throw new Error("nobody was asked in a language this film has words for");
@@ -1054,6 +1094,66 @@ async function demo({ emr, panel, health }) {
   await mustSee(panel, /What this is built from|built from/, "the knowledge graph");
   await say("audit", "And what it was built from. Every node is a record we hold, and each says where it came from — the hospital's calendar, our records, or the family's own words. Three different kinds of claim, kept apart.");
 
+  /* ── six and a half: a person approves, and the hospital's diary changes ─ */
+  //
+  // The brief's single approval action, and the only thing in this system that
+  // writes. `approve_option` puts the date into the hospital's own diary
+  // *before* it records anything or rings anybody: if OpenEMR refuses, the
+  // option stays pending and no family is told a time the hospital never
+  // agreed to.
+  const beforeWrite = await connectorCounts();
+  const queued = (await api("/disruptions/pending").catch(() => [])).filter(
+    (row) => readings.some((r) => r.patient_id === row.patient_id),
+  );
+  if (!queued.length) throw new Error("the planner offered dates and nothing reached the approvals queue");
+  const chosen = queued.find((row) => row.patient_id === follow.patient_id) ?? queued[0];
+  const chosenName = (readings.find((r) => r.patient_id === chosen.patient_id) ?? {}).name ?? chosen.patient_id;
+  const offered = await api(`/disruptions/${encodeURIComponent(chosen.disruption_id)}/options/${chosen.patient_id}`);
+  const first = (offered.options ?? [])[0] ?? {};
+
+  await say("human", `Now the one action in this system that writes anything. ${chosenName}'s options are ranked, and a navigator picks one — nothing here approves itself.`);
+  await mustClick(panel, chosenName, `${chosenName} in the approvals queue`);
+  await wait(3000);
+  await mustClick(panel, /^Approve as /, "the approval button");
+  await wait(9000);
+
+  const afterWrite = await until(
+    "the hospital accepting the booking",
+    connectorCounts,
+    (c) => (c.booked ?? 0) > (beforeWrite.booked ?? 0),
+    { tries: 12, gap: 4000 },
+  );
+  await say(
+    "write",
+    `Approved — and the booking went into OpenEMR through its own FHIR API, on ${num(new Date(first.target_on + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" }))}: the date her own sentence produced. The write happens before anybody is told, so a hospital that refuses the slot means nobody was promised it.`,
+  );
+
+  // Show it in OpenEMR's own calendar rather than assert it from our side.
+  await emr.goto(`${EMR}/interface/main/calendar/index.php?module=PostCalendar&func=view&tplview=&viewtype=day&Date=${first.target_on}`, { waitUntil: "domcontentloaded" }).catch(() => {});
+  await wait(7000);
+  await say("hospital", `The hospital's own calendar, on that day. Nothing of ours is installed here — this is the appointment OpenEMR now holds, written through the same standard API we read it with.`);
+
+  // The loop closing. Her journey is planned backwards from an appointment
+  // time, and that time is now read back out of the hospital rather than held
+  // by us — so the write-back is not a claim this film makes, it is the thing
+  // the next question's answer depends on.
+  const afterTrip = await api(`/patients/${chosen.patient_id}/trip/options`).catch(() => null);
+  if (afterTrip?.arrive_by_source === "hospital_booking" && (afterTrip.arrive_by ?? "").startsWith(first.target_on)) {
+    await say(
+      "write",
+      `And this is the loop closing. Her journey is worked out backwards from the time she has to be there — and that time now reads ${num(new Date(afterTrip.arrive_by).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }))}, taken from the hospital's own booking. Not from anything we kept: the write-back is what the next answer depends on.`,
+    );
+  }
+
+  // And the half a demo would quietly skip.
+  if ((afterWrite["rebook:old-slot-left-open"] ?? 0) > (beforeWrite["rebook:old-slot-left-open"] ?? 0)) {
+    await say(
+      "guard",
+      "And the part worth saying out loud: the old slot is still there. OpenEMR's FHIR Appointment has create but no update, so this system cannot cancel — and rather than pretend, it books the new date, leaves the old one standing, and records that a person must release it in the calendar. A demo that showed the old slot vanishing would be showing you something that did not happen.",
+    );
+    await wait(4000);
+  }
+
   /* ── seven: the new plan, read to each family in their own language ───── */
   //
   // Now there is something to read. Before the agreement these cards carried
@@ -1081,6 +1181,54 @@ async function demo({ emr, panel, health }) {
       );
     }
   }
+  /* ── seven and a half: the part of the journey nobody plans for them ──── */
+  //
+  // A new date is a new night away from home, 1,300 km from it. The places
+  // here are real OpenStreetMap records loaded into the deployment's own
+  // table, and the ordering puts a dharamshala above a hotel when the family
+  // has told us money is tight — the same rule that puts a Jan Aushadhi above
+  // a pharmacy. We never quote a price, because nobody gave us one.
+  const trips = {};
+  for (const who of replying) trips[who.patient_id] = await api(`/patients/${who.patient_id}/trip/options`).catch(() => null);
+  const stayFor = replying.find((w) => trips[w.patient_id]?.rail) ?? replying[0];
+  await adb("shell", "input", "keyevent", "KEYCODE_BACK").catch(() => {});
+  await wait(2200);
+  await phoneTap(stayFor.patient_id).catch(() => {});
+  await phoneTap(PLAN_TAB[stayFor.language] ?? PLAN_TAB.hi).catch(() => {});
+  await wait(3500);
+  await phoneTap(STAY[stayFor.language] ?? STAY.hi).catch(() => {});
+  await wait(5000);
+  const near = await api(`/patients/${stayFor.patient_id}/nearby?need=stay`).catch(() => null);
+  const top = (near?.places ?? near?.ranked ?? [])[0];
+  if (top) {
+    const place = top.place ?? top;
+    await say(
+      "stay",
+      `Somewhere to stay, for the night her new date now needs — ${said(place.name ?? "")} at ${num(Math.round(top.metres ?? 0) + " m")}. Real OpenStreetMap records, and a dharamshala is put above a hotel because she told us what the journey costs her. No price is shown, because nobody gave us one and this system does not invent a figure.`,
+    );
+  } else {
+    await say("stay", "The nearby-stay lookup returned nothing on this take, so nothing is claimed about it here.");
+  }
+  await wait(4000);
+
+  // The hand-off, stated as a hand-off. We hold station codes, not timetables.
+  const rail = trips[stayFor.patient_id]?.rail;
+  if (rail) {
+    await say(
+      "book",
+      `And the train. We name the stations — ${said(rail.from.name + " (" + rail.from.code + ")")} to ${said(rail.to.name + " (" + rail.to.code + ")")}, with ${num(String((rail.also ?? []).length))} other Mumbai terminals that also serve this hospital — and hand her to IRCTC to book it. No train number, no time, no fare: we have no timetable licence, and a wrong train number 1,300 km from home is worse than no train number.`,
+    );
+    await wait(4000);
+  }
+  const money = trips[stayFor.patient_id]?.budget ?? {};
+  if (money.stated_fare_paise) {
+    await say(
+      "money",
+      `The only figure in here is hers: ${num("₹" + Math.round(money.stated_fare_paise / 100))}, and the sentence she said it in is stored beside it. This system holds no fare table and quotes no price — a number we guessed and a number she gave us look identical on a screen, and only one of them is true.`,
+    );
+    await wait(3500);
+  }
+
   await say("note", "Five languages, and the guard reads dates in all five scripts. If it cannot read the date in a message, it refuses to send it rather than send something it could not check.");
   await wait(6000);
 
