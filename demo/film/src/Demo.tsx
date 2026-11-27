@@ -46,7 +46,7 @@ type Line = {
    * the addendum recorded after two of those roadmap features were built —
    * working software again, and badged so nobody has to remember which.
    */
-  part?: "next" | "built";
+  part?: "next" | "built" | "compact";
   /**
    * Seconds of navigation to cut off the front of the clip.
    *
@@ -58,6 +58,12 @@ type Line = {
    * and cut rather than guessed at by eye.
    */
   trim?: number;
+  /**
+   * A floor on the section, in seconds, for a clip whose own sound is the
+   * point. The Hindi read-aloud needs room to be heard after the narrator
+   * stops; the narration that introduces it is deliberately short.
+   */
+  hold?: number;
 };
 
 const SCENES: Record<string, React.FC> = {
@@ -136,6 +142,8 @@ export const lines: Line[] = usable.filter((line) => !line.part);
 export const nextLines: Line[] = usable.filter((line) => line.part === "next");
 //: The addendum: the two roadmap features, now recorded running.
 export const builtLines: Line[] = usable.filter((line) => line.part === "built");
+//: The ten-minute cut: everything, once, at the pace a viewer will sit through.
+export const compactLines: Line[] = usable.filter((line) => line.part === "compact");
 
 /** Seconds of clip this line has to show, after any dead lead-in is cut. */
 const clipSeconds = (line: Line) =>
@@ -175,6 +183,61 @@ export const nextFrames = () =>
 
 export const builtFrames = () =>
   Math.max(FPS, builtLines.reduce((sum, line) => sum + framesFor(line), 0));
+
+/* ─────────────────────────── the compact cut ───────────────────────────── */
+
+/**
+ * The full film shows every clip whole, and runs nineteen minutes. This one
+ * has to cover the same ground in ten, and the arithmetic says which lever to
+ * pull: forty clips are nineteen minutes of footage on their own, so showing
+ * all of each is impossible at any speed a person can read. Even at 1.8x —
+ * already rejected once as unwatchable — it lands at eleven minutes.
+ *
+ * So the rule inverts. The narration decides how long a section is, and the
+ * clip shows a window of itself rather than the whole take. Each window
+ * starts at the section's `trim`, chosen so it opens on the thing being
+ * described rather than on somebody clicking through a sidebar.
+ *
+ * Nothing is claimed that is not shown. A shorter look at a real recording is
+ * still a real recording; what would not be acceptable is narration
+ * describing a part of the clip that got cut, and the trims exist to prevent
+ * exactly that.
+ */
+const COMPACT_CAP = 1.2;
+
+/**
+ * How much longer than its sentence a section may run, so a clip is not
+ * yanked away the instant the narrator stops.
+ *
+ * Both numbers are solved, not chosen. The brief is ten minutes; the search
+ * was for the *slowest* clip speed that fits inside it, because speed is what
+ * costs the viewer. 1.2x and 1.75 land at 9.9 minutes — barely faster than
+ * life, and a world away from the 1.8x that made an earlier cut unwatchable.
+ */
+const COMPACT_BREATH = 1.75;
+
+const compactFloor = (line: Line) =>
+  (line.seconds ?? 4) +
+  (line.scene && !line.scene.endsWith("-divider") ? READING_TAIL : TAIL);
+
+export const compactSecondsFor = (line: Line) => {
+  const floor = Math.max(compactFloor(line), line.hold ?? 0);
+  const available = clipSeconds(line);
+  if (!available) return floor;
+  //: Never faster than the cap, never longer than a sentence plus a breath.
+  return Math.max(floor, Math.min(available / COMPACT_CAP, compactFloor(line) * COMPACT_BREATH));
+};
+
+export const compactFramesFor = (line: Line) => Math.round(compactSecondsFor(line) * FPS);
+
+/** Never slower than life, never past the cap, and never at all for a voice. */
+export const compactSpeedFor = (line: Line) =>
+  isAudible(line)
+    ? 1
+    : Math.min(COMPACT_CAP, Math.max(1, clipSeconds(line) / compactSecondsFor(line)));
+
+export const compactFrames = () =>
+  Math.max(FPS, compactLines.reduce((sum, line) => sum + compactFramesFor(line), 0));
 
 /* ────────────────────────────── the furniture ──────────────────────────── */
 
@@ -290,12 +353,16 @@ const whichSurface = (clip: string) => {
 
 /* ──────────────────────────────── the film ─────────────────────────────── */
 
-const Reel: React.FC<{ of: Line[] }> = ({ of: reel }) => {
+const Reel: React.FC<{
+  of: Line[];
+  frames?: (line: Line) => number;
+  speed?: (line: Line) => number;
+}> = ({ of: reel, frames = framesFor, speed = speedFor }) => {
   let at = 0;
   return (
     <AbsoluteFill style={{ backgroundColor: C.ground }}>
       {reel.map((line) => {
-        const length = framesFor(line);
+        const length = frames(line);
         const from = at;
         at += length;
         const Scene = line.scene ? SCENES[line.scene] : null;
@@ -306,7 +373,7 @@ const Reel: React.FC<{ of: Line[] }> = ({ of: reel }) => {
                 <Clip
                   file={HAVE[line.clip].file}
                   label={whichSurface(line.clip)}
-                  speed={speedFor(line)}
+                  speed={speed(line)}
                   audible={isAudible(line)}
                   narrationFrames={Math.round(((line.seconds ?? 4) + TAIL) * FPS)}
                   trimFrames={Math.round((line.trim ?? 0) * FPS)}
@@ -330,3 +397,6 @@ const Reel: React.FC<{ of: Line[] }> = ({ of: reel }) => {
 export const Demo: React.FC = () => <Reel of={lines} />;
 export const Roadmap: React.FC = () => <Reel of={nextLines} />;
 export const Built: React.FC = () => <Reel of={builtLines} />;
+export const Compact: React.FC = () => (
+  <Reel of={compactLines} frames={compactFramesFor} speed={compactSpeedFor} />
+);

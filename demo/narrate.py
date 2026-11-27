@@ -1,5 +1,16 @@
 """Narration for the film, spoken by Kokoro — or Sarvam when it cannot be.
 
+    python demo/narrate.py                 # every line
+    python demo/narrate.py --part compact  # only that cut's lines
+
+**Why the compact cut is read by Sarvam on purpose.** Kokoro is American
+English, and this film is full of words it has no idea about: Gaya,
+Muzaffarpur, Nalanda, dharamshala, Kamla Devi, ABHA, Tata Memorial. It says
+them the way an American reads them off a page, which is distracting at best
+and, for an Indian audience, slightly insulting. Sarvam's `en-IN` voices are
+built for exactly this and get them right, so the ten-minute cut is read by
+one and the engine is pinned rather than left to a fallback.
+
 One WAV per line, written to `demo/film/public/vo/<id>.wav`, with a JSON index
 beside them carrying each line's duration so the composition can lay picture
 against speech without anybody timing it by hand.
@@ -70,12 +81,19 @@ def _with_kokoro(lines: list[dict]) -> str | None:
 
 
 def _with_sarvam(lines: list[dict]) -> str:
-    """Speak every line with Sarvam — the engine every take so far has used."""
+    """Speak every line with Sarvam, in Indian English."""
     import httpx
 
     key = os.environ.get("SARVAM_KEY")
     if not key:
         raise SystemExit("  neither Kokoro nor SARVAM_KEY is available; no narration possible")
+
+    # `anand` reads long-form at a measured pace and handles the place names
+    # this film is made of. Pace 1.15 is where the voice stops being leisurely
+    # and before it starts clipping its own consonants; past about 1.25 the
+    # model ignores the increase anyway.
+    speaker = os.environ.get("SARVAM_SPEAKER", "anand")
+    pace = float(os.environ.get("SARVAM_PACE", "1.15"))
 
     for line in lines:
         out = VO / f"{line['id']}.wav"
@@ -85,9 +103,10 @@ def _with_sarvam(lines: list[dict]) -> str:
             json={
                 "inputs": [line["text"]],
                 "target_language_code": "en-IN",
-                "speaker": os.environ.get("SARVAM_SPEAKER", "anushka"),
+                "speaker": speaker,
                 "model": "bulbul:v3",
                 "speech_sample_rate": 24000,
+                "pace": pace,
             },
             timeout=180,
         )
@@ -96,15 +115,29 @@ def _with_sarvam(lines: list[dict]) -> str:
 
         out.write_bytes(base64.b64decode(response.json()["audios"][0]))
         print(f"    {line['id']}  {_seconds(out):5.1f}s  {line['text'][:58]}")
-    return "sarvam · bulbul:v3"
+    return f"sarvam · bulbul:v3 · {speaker} · en-IN"
 
 
 def main() -> None:
     if not SCRIPT.exists():
         raise SystemExit(f"  no script at {SCRIPT}")
     script = json.loads(SCRIPT.read_text(encoding="utf-8"))
-    lines = script["lines"]
     VO.mkdir(parents=True, exist_ok=True)
+
+    # One cut at a time, so re-reading the compact script does not re-record
+    # nineteen minutes of narration the long film has already been cut against.
+    part = None
+    if "--part" in sys.argv:
+        part = sys.argv[sys.argv.index("--part") + 1]
+    lines = [
+        line
+        for line in script["lines"]
+        if part is None or (line.get("part") or "main") == part
+    ]
+    if not lines:
+        raise SystemExit(f"  no lines with part={part!r}")
+    if part:
+        print(f"  speaking {len(lines)} line(s) of the {part} cut")
 
     forced = os.environ.get("NARRATOR", "").lower()
     engine = None
@@ -118,7 +151,8 @@ def main() -> None:
     # drifts the moment a line is reworded.
     for line in lines:
         line["seconds"] = round(_seconds(VO / f"{line['id']}.wav"), 3)
-    script["engine"] = engine
+    # Keyed by cut, so one engine's name never stands for a reel it did not read.
+    script.setdefault("engines", {})[part or "main"] = engine
     script["total_seconds"] = round(sum(line["seconds"] for line in lines), 2)
     SCRIPT.write_text(json.dumps(script, indent=2, ensure_ascii=False), encoding="utf-8")
 

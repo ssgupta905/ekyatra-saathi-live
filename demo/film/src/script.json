@@ -1,7 +1,7 @@
 {
   "title": "EKYATRA Saathi",
   "engine": "kokoro · am_michael",
-  "total_seconds": 1051.7,
+  "total_seconds": 325.43,
   "lines": [
     {
       "id": "01",
@@ -400,6 +400,383 @@
       "scene": "built-close",
       "text": "Everything else you have just watched is the deployed system, recorded as it happened. Three bugs were found by pointing a camera at it, and fixed before this was cut.",
       "seconds": 10.525
+    },
+    {
+      "id": "c01",
+      "part": "compact",
+      "text": "EKYATRA Saathi. Care logistics for families who travel a long way to be treated for cancer.",
+      "scene": "logo",
+      "seconds": 4.436
+    },
+    {
+      "id": "c02",
+      "part": "compact",
+      "text": "India has twenty-eight comprehensive cancer centres for one point four billion people. A family from Gaya travels a thousand kilometres to Mumbai, and back, for a single appointment.",
+      "scene": "problem-distance",
+      "seconds": 8.294
+    },
+    {
+      "id": "c03",
+      "part": "compact",
+      "text": "That journey costs about nine hundred rupees each way, in a household earning a few thousand a month. So what makes people stop coming is rarely the medicine. It is a wasted journey — and the commonest reason a journey is wasted is that nobody told them not to travel.",
+      "scene": "problem-wasted",
+      "seconds": 11.929
+    },
+    {
+      "id": "c04",
+      "part": "compact",
+      "text": "This is a real hospital system. Open E M R, running on a cloud machine, untouched. Saathi reads its appointments over the standard F-H-I-R interface — and here a clinician has just put in leave.",
+      "clip": "01-hospital-leave",
+      "trim": 2,
+      "seconds": 9.85
+    },
+    {
+      "id": "c05",
+      "part": "compact",
+      "text": "Nothing is written back yet. Saathi noticed by comparing snapshots, because this system has no field that says a record changed. The hospital is the source of truth, and it stays that way.",
+      "clip": "02-appointments-untouched",
+      "seconds": 8.575
+    },
+    {
+      "id": "c06",
+      "part": "compact",
+      "text": "The control centre groups what changed by the question it raises, not by the record it came from. One leave, and every family it lands on.",
+      "clip": "03-board",
+      "trim": 2,
+      "seconds": 6.789
+    },
+    {
+      "id": "c07",
+      "part": "compact",
+      "text": "Open a row and the reasoning is there: every step the agents took, timed in real milliseconds, and every date the planner tried.",
+      "clip": "04-board-opened",
+      "trim": 2,
+      "seconds": 5.695
+    },
+    {
+      "id": "c08",
+      "part": "compact",
+      "text": "The family is asked. The question is templated, never generated — a model that writes the question can invent the premise it rests on.",
+      "clip": "05-question-arrives",
+      "trim": 4,
+      "seconds": 6.291
+    },
+    {
+      "id": "c09",
+      "part": "compact",
+      "text": "She answers in her own words, in Hindi, typed the way people actually type. A language model reads that into a constraint — a date she cannot travel before, how many are coming, what the bus costs. Every date is re-checked before anyone acts on it.",
+      "clip": "06-she-answers",
+      "trim": 4,
+      "seconds": 11.78
+    },
+    {
+      "id": "c10",
+      "part": "compact",
+      "text": "And a person has to agree with the reading before the planner may use it. That is structural, not a setting.",
+      "clip": "07-a-person-agrees",
+      "trim": 3,
+      "seconds": 4.636
+    },
+    {
+      "id": "c11",
+      "part": "compact",
+      "text": "Then it searches. Every date it rejected is kept with the reason — the clinician is away, the report will not be back, the family said not before the twentieth.",
+      "clip": "08-planner-search",
+      "trim": 2,
+      "seconds": 8.367
+    },
+    {
+      "id": "c12",
+      "part": "compact",
+      "text": "What she gets back is not a notification. It is a sentence, an approximate cost, and a question: does this suit you, and if not, tell us what would.",
+      "clip": "09-saathi-proposes",
+      "trim": 3,
+      "seconds": 7.756
+    },
+    {
+      "id": "c13",
+      "part": "compact",
+      "text": "And every figure says whose it is. The fare she told us is hers. The estimate is ours, with the rate table it came from. Saathi never asks a family to do the arithmetic.",
+      "clip": "10-whose-number",
+      "trim": 4,
+      "seconds": 9.108
+    },
+    {
+      "id": "c14",
+      "part": "compact",
+      "text": "Her own books, on her own phone. What a trip cost, what is coming, what she has left. Staff are told when a family needs help. They are never shown the figures.",
+      "clip": "27-her-own-books",
+      "trim": 4,
+      "seconds": 7.622
+    },
+    {
+      "id": "c15",
+      "part": "compact",
+      "text": "A re-plan that touches treatment timing needs a clinician, not a navigator. The system will not let the wrong person approve it.",
+      "clip": "11-navigator-approves",
+      "trim": 3,
+      "seconds": 6.439
+    },
+    {
+      "id": "c16",
+      "part": "compact",
+      "text": "Approved, it is written back into the hospital's own record over the same interface it was read from.",
+      "clip": "12-written-back",
+      "trim": 2,
+      "seconds": 4.585
+    },
+    {
+      "id": "c17",
+      "part": "compact",
+      "text": "And where it does not know, it says so. The guard refuses a date nobody gave it, and sends the question to a human instead.",
+      "clip": "13-will-not-pretend",
+      "seconds": 6.285
+    },
+    {
+      "id": "c18",
+      "part": "compact",
+      "text": "The plan, read aloud in Hindi, for a family who would rather listen than read.",
+      "clip": "14-read-aloud",
+      "trim": 8,
+      "hold": 24,
+      "seconds": 3.325
+    },
+    {
+      "id": "c19",
+      "part": "compact",
+      "text": "The whole journey on one screen — what is done, what is waiting, what to bring, and where to go first when they arrive.",
+      "clip": "15-the-journey",
+      "trim": 6,
+      "seconds": 5.791
+    },
+    {
+      "id": "c20",
+      "part": "compact",
+      "text": "A real route, a real map, and the hospital entrance they actually need. Train, bus or car, with the fare beside it.",
+      "clip": "28-the-map",
+      "trim": 10,
+      "seconds": 6.29
+    },
+    {
+      "id": "c21",
+      "part": "compact",
+      "text": "Hindi, Bengali, Odia, Tamil and English — the app's own words, not a translation layer bolted on.",
+      "clip": "29-five-languages",
+      "trim": 4,
+      "seconds": 5.25
+    },
+    {
+      "id": "c21b",
+      "part": "compact",
+      "clip": "24-what-it-was-built-from",
+      "trim": 6,
+      "text": "And every question the system has sent, exactly as it went out — Bengali, Hindi, Odia — each tagged with what it was trying to find out.",
+      "seconds": 7.329
+    },
+    {
+      "id": "c22",
+      "part": "compact",
+      "text": "A second household, a different constraint, the same machinery. A salary that arrives on the first, so nothing before it is possible.",
+      "clip": "16-a-second-family",
+      "trim": 5,
+      "seconds": 6.124
+    },
+    {
+      "id": "c23",
+      "part": "compact",
+      "text": "The same app in a browser, for a family without a smartphone.",
+      "clip": "18-without-a-smartphone",
+      "seconds": 3.087
+    },
+    {
+      "id": "c24",
+      "part": "compact",
+      "text": "And what a cab firm or a hotel desk sees: one job, a first name, a district, a day. Three answers. No family, no care, nothing clinical.",
+      "clip": "17-what-a-partner-sees",
+      "seconds": 9.108
+    },
+    {
+      "id": "c25",
+      "part": "compact",
+      "text": "A navigator's day opens on who needs them now, not on a dashboard.",
+      "clip": "20-the-navigators-day",
+      "trim": 3,
+      "seconds": 3.008
+    },
+    {
+      "id": "c26",
+      "part": "compact",
+      "text": "Every journey against every party, so it is obvious who is holding what up.",
+      "clip": "21-the-network",
+      "trim": 4,
+      "seconds": 3.325
+    },
+    {
+      "id": "c27",
+      "part": "compact",
+      "text": "Hospitals, centres, clinicians and staff accounts, all editable.",
+      "clip": "22-who-is-registered",
+      "trim": 4,
+      "seconds": 3.84
+    },
+    {
+      "id": "c28",
+      "part": "compact",
+      "text": "The machines and the people a visit depends on, and what happens to each family when one of them breaks.",
+      "clip": "23-what-can-break",
+      "trim": 4,
+      "seconds": 5.768
+    },
+    {
+      "id": "c29",
+      "part": "compact",
+      "text": "Partners are onboarded and reachable, with a fallback when one cannot.",
+      "clip": "30-how-a-partner-joins",
+      "trim": 4,
+      "seconds": 3.468
+    },
+    {
+      "id": "c30",
+      "part": "compact",
+      "text": "Every family's pathway on one board.",
+      "clip": "31-the-plan-boards",
+      "trim": 4,
+      "seconds": 1.902
+    },
+    {
+      "id": "c31",
+      "part": "compact",
+      "text": "And every report against the window it should land in, across the whole cohort.",
+      "clip": "32-what-it-adds-up-to",
+      "trim": 4,
+      "seconds": 3.543
+    },
+    {
+      "id": "c32",
+      "part": "compact",
+      "text": "Behind all of it, a hash-chained ledger. Every fact this system asserted, where it came from, and who acted on it.",
+      "clip": "25-the-ledger",
+      "trim": 3,
+      "seconds": 5.695
+    },
+    {
+      "id": "c33",
+      "part": "compact",
+      "text": "One family, end to end — the question, the answer, the re-plan, the write-back, and the evidence for each.",
+      "clip": "26-one-family-whole",
+      "trim": 4,
+      "seconds": 5.102
+    },
+    {
+      "id": "c34",
+      "part": "compact",
+      "text": "And what it can give back. Travel and cost burden, de-identified, for the families who agreed — no name, no health I D, not even a hashed patient id. That is the gap nobody has data on: why people stop coming.",
+      "clip": "19-what-it-is-worth",
+      "seconds": 11.111
+    },
+    {
+      "id": "c35",
+      "part": "compact",
+      "text": "Two things our roadmap slides called not built. Both now exist, and both are narrower than the slides promised.",
+      "scene": "built-divider",
+      "seconds": 5.474
+    },
+    {
+      "id": "c36",
+      "part": "compact",
+      "text": "The first is a molecular register. Open E M R has no genomics resource at all — asking for a molecular sequence returns a four-oh-four, because the route does not exist. So Saathi holds the fact of the test, never the result.",
+      "clip": "37-no-consent-is-not-no-tests",
+      "trim": 12,
+      "seconds": 12.138
+    },
+    {
+      "id": "c37",
+      "part": "compact",
+      "text": "Asked about a family nobody has asked, it says exactly that — rather than an empty list. No consent and no tests look identical in a table, and they are opposite conclusions.",
+      "clip": "37-no-consent-is-not-no-tests",
+      "trim": 13,
+      "seconds": 8.515
+    },
+    {
+      "id": "c38",
+      "part": "compact",
+      "text": "So it is asked for, as its own purpose. Agreeing here touches nothing else they agreed to, and withdrawing it later does not touch their care.",
+      "clip": "38-its-own-consent",
+      "trim": 13,
+      "seconds": 7.244
+    },
+    {
+      "id": "c39",
+      "part": "compact",
+      "text": "An immunohistochemistry panel in Gaya last November. A targeted panel at Tata Memorial in March. Which test, which lab, who ordered it, and where the report is.",
+      "clip": "39-what-was-already-done",
+      "trim": 13,
+      "seconds": 8.887
+    },
+    {
+      "id": "c40",
+      "part": "compact",
+      "text": "And the number it leads with: one report cannot be fetched from here. A test listed as done is only a reason not to repeat it if the report can actually be produced — and a repeat panel is twenty-five to eighty thousand rupees.",
+      "clip": "39-what-was-already-done",
+      "trim": 36,
+      "seconds": 12.597
+    },
+    {
+      "id": "c41",
+      "part": "compact",
+      "text": "It holds no result and there is nowhere to put one. Type a finding into the note — E G F R positive — and the server refuses it, naming the word that tripped it.",
+      "clip": "40-it-will-not-hold-a-finding",
+      "trim": 16,
+      "seconds": 7.932
+    },
+    {
+      "id": "c42",
+      "part": "compact",
+      "text": "The second is a vendor login. A car service in Gaya applying with no account at all — what it covers, what it offers, and what it charges.",
+      "clip": "33-a-vendor-applies",
+      "trim": 3,
+      "seconds": 7.329
+    },
+    {
+      "id": "c43",
+      "part": "compact",
+      "text": "That route needs no sign-in, which is only safe because of what it creates. The applicant is in the directory already, and switched off. Every rule that picks a vendor checks that flag, so nothing can route to them.",
+      "clip": "34-in-the-directory-switched-off",
+      "trim": 9,
+      "seconds": 9.542
+    },
+    {
+      "id": "c44",
+      "part": "compact",
+      "text": "A person decides, seeing everything they said about themselves — including their prices, which is the part that can actually be checked.",
+      "clip": "35-the-review-queue",
+      "trim": 8,
+      "seconds": 6.288
+    },
+    {
+      "id": "c45",
+      "part": "compact",
+      "text": "Terms agreed, and the flag changes. Five per cent commission, capped in the code at eight, and taken off our side: the family is told the vendor's price and pays the vendor's price.",
+      "clip": "36-letting-them-in",
+      "trim": 22,
+      "seconds": 8.146
+    },
+    {
+      "id": "c46",
+      "part": "compact",
+      "text": "What it does not do, said plainly.",
+      "scene": "built-limits",
+      "seconds": 2.133
+    },
+    {
+      "id": "c47",
+      "part": "compact",
+      "text": "Everything in this film is the deployed system, recorded as it happened. Nothing was staged, and where a thing could not be shown, it was left out and said so.",
+      "scene": "closing",
+      "seconds": 7.698
     }
-  ]
+  ],
+  "engines": {
+    "compact": "sarvam · bulbul:v3 · anand · en-IN"
+  }
 }
