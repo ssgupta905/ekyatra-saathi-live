@@ -166,6 +166,15 @@ async function openLayer(page, title) {
   await wait(2500);
 }
 
+/** A date input takes a value, not keystrokes: typing into one lands in
+ *  whichever segment has focus and silently produces a different date. */
+async function setDate(page, label, iso) {
+  const field = page.getByLabel(label, { exact: false }).first();
+  await field.scrollIntoViewIfNeeded().catch(() => {});
+  await field.fill(iso);
+  await wait(500);
+}
+
 /** Type like a person rather than pasting, so the viewer can read along. */
 async function type(page, label, text) {
   const field = page.getByLabel(label, { exact: false }).first();
@@ -363,6 +372,8 @@ const CLIPS = [
         await wait(2000);
         await type(page, "Lab that ran it", "Tata Memorial molecular pathology");
         await type(page, "Centre that ordered it", "TMH Mumbai");
+        await setDate(page, "Taken on", "2026-03-02");
+        await setDate(page, "Reported on", "2026-03-21");
         await type(page, "Where the document is", "tmh/lab/7781");
         await wait(2500);
         await page.getByRole("button", { name: /Record it/i }).first().click();
@@ -376,6 +387,9 @@ const CLIPS = [
         await page.getByLabel("Where the report is", { exact: false }).first()
           .selectOption({ label: "Exists, but not reachable from here" }).catch(() => {});
         await type(page, "Lab that ran it", "Magadh Medical College, Gaya");
+        await type(page, "Centre that ordered it", "Magadh Medical College");
+        await setDate(page, "Taken on", "2025-11-04");
+        await setDate(page, "Reported on", "2025-11-18");
         await wait(2500);
         await page.getByRole("button", { name: /Record it/i }).first().click();
         await wait(9000);

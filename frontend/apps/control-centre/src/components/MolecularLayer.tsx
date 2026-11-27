@@ -57,6 +57,20 @@ const TESTS: { id: MolecularTest; label: string }[] = [
   { id: "other", label: "Other" },
 ];
 
+/** What the server said, preferring its sentence over the transport's summary. */
+function said(error: unknown): string {
+  if (error instanceof ApiError) {
+    const { detail } = error;
+    if (typeof detail === "string" && detail.trim()) return detail;
+    if (detail && typeof detail === "object" && "detail" in detail) {
+      const inner = (detail as { detail?: unknown }).detail;
+      if (typeof inner === "string" && inner.trim()) return inner;
+    }
+    return error.message;
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
 const BLANK = {
   test: "targeted_panel" as MolecularTest,
   state: "held" as MolecularState,
@@ -95,7 +109,7 @@ export function MolecularLayer({
         setError(
           e instanceof ApiError && e.status === 403
             ? "Only a doctor may read this register."
-            : String(e),
+            : said(e),
         ),
       );
   }, [patientId]);
@@ -121,8 +135,12 @@ export function MolecularLayer({
       load();
     } catch (e: unknown) {
       // The server's refusals here are the feature working, not a failure, so
-      // they are shown where the typing happened rather than as an error.
-      setRefused(e instanceof ApiError ? String(e.message ?? e) : String(e));
+      // they are shown where the typing happened rather than as an error — and
+      // shown as what the server actually said. `ApiError.message` is the
+      // transport's own summary ("POST … failed: 422"), which tells the person
+      // who just typed a finding nothing at all; the sentence naming the word
+      // that tripped it is in `detail`.
+      setRefused(said(e));
     }
   };
 
