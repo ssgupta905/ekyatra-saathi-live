@@ -30,13 +30,16 @@ recording is the hero and the Console sits small beside it.
 | Id | Action | Who | Check |
 |---|---|---|---|
 | R1 | Wake all four Render services (`/api/health`, Console, Partner, Family). The first hit after sleep takes ~60 s. | Claude | `health.status == ok`, `ledger_intact == true` |
-| R2 | **OpenEMR:** delete leave entries left by earlier takes: `DELETE FROM openemr_postcalendar_events WHERE pc_hometext LIKE '%oncology leave%'` on the VM over `gcloud compute ssh saathi-hms` (needs `CLOUDSDK_PYTHON=python3.11`). | Claude, **after you approve** | OpenEMR day view shows no leave on the take's day |
+| R2 | **OpenEMR** (use `CLOUDSDK_CONFIG=~/.config/gcloud-saathi`; it holds the working `ekyatrasaathi` account, and the default profile's accounts have expired): delete leave entries left by earlier takes: `DELETE FROM openemr_postcalendar_events WHERE pc_hometext LIKE '%oncology leave%'` on the VM over `gcloud compute ssh saathi-hms` (needs `CLOUDSDK_PYTHON=python3.11`). | Claude, **after you approve** | OpenEMR day view shows no leave on the take's day |
 | R3 | **OpenEMR:** re-set any demo appointment a write-back moved. Earlier takes left `rebook:old-slot-left-open`, so cancel the old slot in the calendar. | You or Claude | Each EKY family has exactly one future appointment |
 | R4 | **Saathi:** `POST /api/live/control {"action":"clear"}`. This forgets questions asked, readings waiting, option searches and connector memory. It deletes no patient, step or plan. | Claude | `GET /questions/waiting` → `[]`, `GET /requests/waiting` → `[]` |
 | R5 | **Saathi records (Supabase):** remove demo leftovers only: the stray `MRI-2 machine_down "test"` disruption, option sets and approvals from earlier takes, demo family messages and unconfirmed spend entries for the EKY/SHOW families. **The hash-chained evidence ledger is never touched.** | Claude, **after you approve** | `GET /disruptions` shows none from earlier takes |
+| R5b | **Restart the API after R5.** Messages already sent sit in the server's memory, and `clear` does not drop them, so a phone keeps showing an earlier take's thread until the service restarts. A push to the branch redeploys it. | Claude | Kamla's phone thread shows no earlier take's plan |
 | R6 | Hospital rules saved for `TMH-MUM` (`used_by_planner: true`). | Claude | `GET /policy/TMH-MUM` |
 | R7 | Phone: unlock, stay-awake on, `adb shell svc power stayon usb`, notifications cleared, app force-stopped then opened on the family picker. | Claude | Screenshot shows the picker |
 | R8 | Sign into OpenEMR in the browser pane. **You type the password.** Claude never enters it. | You | Calendar visible |
+
+**One shared deployment.** If anyone else runs `demo/hosted-flow.mjs` against it during a take, it adds a leave as OpenEMR `admin` and approves as "Seema Kamble", which spoils a take. Check OpenEMR's calendar for "oncology leave" right before each scenario.
 
 ---
 
