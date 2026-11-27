@@ -978,8 +978,15 @@ async function demo({ emr, panel, health }) {
 
   /* ── two: the phone, and the family's own language ─────────────────────── */
   await adb("shell", "am", "force-stop", "org.ekyatra.saathi");
+  // Force-stop first. `am start` resumes an already-running activity wherever
+  // it was left, so a take that ended inside a family — or a hand that reset
+  // the phone between takes — begins on her screen rather than the picker, and
+  // the film fails with "the family list is not on the phone" having never
+  // looked at one. The take must not depend on how the last one ended.
+  await adb("shell", "am", "force-stop", "org.ekyatra.saathi").catch(() => {});
+  await wait(2000);
   await adb("shell", "am", "start", "-n", "org.ekyatra.saathi/.MainActivity");
-  await wait(8000);
+  await wait(9000);
   await mustReadOnThePhone("EKY-", "the family list");
   await say("phone", "The family's app, built against the deployed API — not a local one. Four families, each on the language their record carries.");
 
