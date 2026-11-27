@@ -215,13 +215,18 @@ export function Directory() {
                         )}
                       </td>
                       <td>
+                        {/* "applied" means nobody has decided yet, which is
+                            true only while there is no decision on record. An
+                            approved vendor later switched off is inactive, and
+                            calling that "applied" would put it back in a queue
+                            it has already been through. */}
                         <Chip tone={o.active ? "go" : o.declined_reason ? "critical" : "neutral"}>
-                          {o.active
-                            ? "active"
-                            : o.declined_reason
-                              ? "declined"
-                              : o.applied_on
-                                ? "applied"
+                          {o.declined_reason
+                            ? "declined"
+                            : o.applied_on && !o.approved_on
+                              ? "applied"
+                              : o.active
+                                ? "active"
                                 : "inactive"}
                         </Chip>
                         {o.declined_reason && <div className="hint">{o.declined_reason}</div>}
