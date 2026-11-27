@@ -264,11 +264,31 @@ async function phoneText() {
  *  looking at. Absent text throws, which fails the take.
  */
 async function phoneTap(label, settle = 3200) {
-  const xml = await phoneXml();
-  const found = xml.match(
-    new RegExp(`text="([^"]*${label}[^"]*)"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"`),
-  );
-  if (!found) throw new Error(`nothing on the phone reads "${label}"`);
+  const locate = async () => {
+    const xml = await phoneXml();
+    return xml.match(
+      new RegExp(`text="([^"]*${label}[^"]*)"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"`),
+    );
+  };
+  let found = await locate();
+
+  // Scroll to it if it is below the fold. The family picker is alphabetical and
+  // this deployment carries thirty-two of them, so the family a take wants is
+  // routinely off screen — which is not the same thing as absent, and failing
+  // the take for it cost one. Stop as soon as the list stops moving, so a label
+  // that genuinely is not there still throws rather than scrolling for ever.
+  if (!found) {
+    let last = "";
+    for (let swipe = 0; swipe < 12 && !found; swipe += 1) {
+      const before = await phoneText();
+      if (before === last) break;
+      last = before;
+      await adb("shell", "input", "swipe", "540", "1800", "540", "900", "260");
+      await wait(900);
+      found = await locate();
+    }
+  }
+  if (!found) throw new Error(`nothing on the phone reads "${label}", and scrolling did not reveal it`);
   const [x1, y1, x2, y2] = found.slice(2).map(Number);
   await adb("shell", "input", "tap", String(Math.round((x1 + x2) / 2)), String(Math.round((y1 + y2) / 2)));
   await wait(settle);

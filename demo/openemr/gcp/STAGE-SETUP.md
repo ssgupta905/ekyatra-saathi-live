@@ -6,8 +6,19 @@ signing key are git-ignored.
 
 ## One-time (already done)
 
-1. `gcloud` signed in to project `project-44d0b1f7-f267-47b5-9b2` in an isolated profile
-   (`CLOUDSDK_CONFIG=~/.config/gcloud-saathi`); the VM is `saathi-hms`, zone `asia-south1-c`.
+1. `gcloud` signed in to project `project-44d0b1f7-f267-47b5-9b2`; the VM is `saathi-hms`,
+   zone `asia-south1-c`.
+
+   An isolated profile (`CLOUDSDK_CONFIG=~/.config/gcloud-saathi`) was the intent, but the
+   account that exists is in the **default** profile — `gcloud auth list` under the isolated
+   one reports "No credentialed accounts", and every command then fails with *"You do not
+   currently have an active account selected"*. Either sign the isolated profile in once, or
+   leave `CLOUDSDK_CONFIG` unset and use the default. Check which you have before a demo:
+
+   ```bash
+   gcloud auth list                     # the default profile
+   CLOUDSDK_CONFIG=$HOME/.config/gcloud-saathi gcloud auth list
+   ```
 2. On the VM, in OpenEMR's database (the three things OpenEMR does not allow over HTTP):
    ```sql
    UPDATE globals SET gl_value='1' WHERE gl_name IN ('rest_api','rest_fhir_api','rest_system_scopes_api');
@@ -26,7 +37,8 @@ signing key are git-ignored.
 ## Every time
 
 ```bash
-export CLOUDSDK_CONFIG=$HOME/.config/gcloud-saathi PATH=/opt/homebrew/share/google-cloud-sdk/bin:$PATH
+export PATH=/opt/homebrew/share/google-cloud-sdk/bin:$PATH
+# ...and CLOUDSDK_CONFIG=$HOME/.config/gcloud-saathi only if that profile is signed in; see above.
 
 # 1. the VM's firewall admits one IP: update it to the venue's first
 gcloud compute firewall-rules update saathi-hms-ports --source-ranges "$(curl -s https://api.ipify.org)/32"
@@ -51,3 +63,17 @@ gcloud compute ssh saathi-hms --zone asia-south1-c --quiet --command \
 - `GROQ_API_KEY` in `.env` (the stage script's "actors/language true" check).
 - Save the hospital's rules once on the Console's Configuration screen (`used_by_planner` must be true).
 - OpenEMR's admin password is generated on the VM: `sudo cat /root/openemr-admin-password.txt`.
+  `demo/hosted-flow.mjs` reads it from `.env` as `SAATHI_OPENEMR_PASS` (and `SAATHI_OPENEMR_USER`,
+  default `admin`). Append it without putting it on screen or in a shell history:
+
+  ```bash
+  printf 'SAATHI_OPENEMR_PASS=%s\n' "$(gcloud compute ssh saathi-hms --zone asia-south1-c \
+    --quiet --command 'sudo cat /root/openemr-admin-password.txt')" >> .env
+  ```
+
+  It survives a reboot (`startup.sh` keeps the file) but **not** a rebuild of the VM, which
+  generates a new one. The `admin`/`pass` in `demo/openemr/docker-compose.yml` is the local
+  Docker instance's, and will not log you into the VM.
+- Between film takes, clear the leave the last take entered, or the connector re-asks the same
+  families before the new leave is saved and the "nothing has happened yet" beat is untrue. The
+  cleanup command is in the block above.
