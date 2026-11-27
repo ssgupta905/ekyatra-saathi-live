@@ -138,3 +138,61 @@ class TestTheConfirmEndpoint:
         patient = client.app.state.container.world.patients()[0]
         response = client.post(f"/api/patients/{patient.id}/requests/nope/confirm")
         assert response.status_code == 404
+
+
+# --------------------------------------------------- the turn that offers back
+
+
+@pytest.mark.anyio
+async def test_a_search_that_finds_a_day_puts_it_to_the_family(client) -> None:
+    """A system that only ever asks leaves the family doing the planning.
+
+    `ask_family` poses a question and waits. This is the other half: the day
+    the planner found goes back to them, with what it would likely cost, and
+    asks whether it suits — so the next reply is either agreement or the
+    constraint that makes a better plan.
+    """
+    container = client.app.state.container
+    runner = container.runner
+    patient = container.world.patients()[0]
+    target = container.world.target_kind_for(patient.id)
+    runner.planner.rules_for = lambda _h: _with_tolerance(patient.hospital_id, target, 7)
+
+    search = await runner.replan_for_request(patient.id, _reading(patient.id))
+    assert search is not None
+
+    asked = runner.conversation.pending(patient.id)
+    assert asked is not None, "the planner found a day and told nobody"
+    assert asked.reason.value == "plan_proposed"
+    assert asked.asked_text, "a proposal with no text is not a proposal"
+
+    # The day in the message is the day it found, and the guard has already
+    # refused any text naming a date it was not handed.
+    offered = runner.options[patient.id].options[0]
+    assert asked.about_day == offered.target_on.isoformat()
+
+
+@pytest.mark.anyio
+async def test_a_family_who_told_us_a_figure_is_shown_their_own(client) -> None:
+    """Their number is evidence; ours is arithmetic. Never correct them."""
+    container = client.app.state.container
+    runner = container.runner
+    patient = container.world.patients()[0]
+
+    costed = runner.cost_of_visit(patient.id, people=2)
+    assert costed is None or not costed.any_stated
+
+    base = _reading(patient.id)
+    reading = base.model_copy(update={
+        "travel": base.travel.model_copy(update={
+            "stated_cost_inr": 900,
+            "stated_in": "Trainer tickets 900 taka hobe",
+        })
+    })
+    runner.requests.setdefault(patient.id, []).append(reading)
+
+    theirs = runner.cost_of_visit(patient.id, people=2)
+    assert theirs is not None and theirs.any_stated
+    travel = next(i for i in theirs.items if i.stated)
+    assert travel.low_paise == travel.high_paise == 90_000
+    assert "900 taka" in travel.said

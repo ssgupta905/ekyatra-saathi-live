@@ -55,6 +55,7 @@ from ..domain.models import (
     PlanOption,
     VisitPlan,
 )
+from ..domain.places import PlaceKind
 from ..domain.requests import PatientRequest, RequestIntent
 from ..language import guard
 from ..language.advice import already_travelling, leave_later
@@ -67,7 +68,7 @@ from ..language.questions import (
     compose_proposal,
     compose_question,
 )
-from ..money import JourneyCost
+from ..money import JourneyCost, cost_of_journey, load_rates
 from ..planner import options as options_module
 from ..planner.graph import VisitPlanner
 from ..planner.process_facts import resolve_process_fact
@@ -2443,6 +2444,23 @@ class LiveRunner:
                     created_at=datetime.now(UTC),
                 )
                 self.world.pending_approval[patient_id] = f"request:{request.id}"
+
+            # Put the best of them to the family, with what it would cost.
+            #
+            # A navigator still approves; this is not the family booking
+            # anything. It is the difference between a system that decides and
+            # then informs, and one that offers and then listens — and the
+            # reply, if it is "no, after the 15th", is the next constraint.
+            best = candidates[0]
+            if best.target_on is not None:
+                await self.propose_to_family(
+                    patient_id,
+                    on_day=best.target_on,
+                    cost=self.cost_of_visit(
+                        patient_id, people=1 + (request.travel.companions or 0)
+                    ),
+                    disruption_id=f"request:{request.id}",
+                )
         return search
 
     def reject_request(
@@ -2554,6 +2572,51 @@ class LiveRunner:
             question=question.model_dump(mode="json"),
         )
         return question
+
+    def cost_of_visit(self, patient_id: str, *, people: int = 1) -> JourneyCost | None:
+        """What coming in for one visit would likely cost this family.
+
+        Built from what we actually hold about them: how far they live from
+        the hospital, how long the round trip takes, how many are coming, and
+        whether they have ever told us a figure themselves. A family who has
+        told us one gets their own number back; everybody else gets published
+        rates with the publication named.
+
+        None when there is nothing honest to say — an unknown family, or a
+        journey we hold no rate for. A missing cost line is better than a
+        filled-in one.
+        """
+        patient = self.world.patient(patient_id)
+        if patient is None:
+            return None
+
+        said = self.stated_fare_for(patient_id)
+        costed = cost_of_journey(
+            load_rates(),
+            km=patient.home_distance_km,
+            people=max(1, people),
+            round_trip_hours=self.journey_hours(patient),
+            # The bed we would actually offer them, not the dearest one. The
+            # ordering families are promised in "Near you" has to hold here
+            # too, or the figure contradicts the recommendation.
+            stay_kind=PlaceKind.DHARAMSHALA,
+            stated_paise=said[0] if said else None,
+            stated_in=said[1] if said else "",
+            as_of=self.world.today,
+        )
+        return costed if costed.items else None
+
+    def stated_fare_for(self, patient_id: str) -> tuple[int, str] | None:
+        """The last figure this family gave us for their journey, in paise.
+
+        Theirs beats ours everywhere it exists — see `money/__init__.py`. The
+        sentence comes back with it so a screen can show whose number it is.
+        """
+        for request in reversed(self.requests.get(patient_id, ())):
+            rupees = getattr(request.travel, "stated_cost_inr", None)
+            if rupees:
+                return int(rupees) * 100, getattr(request.travel, "stated_in", "") or ""
+        return None
 
     async def propose_to_family(
         self,
