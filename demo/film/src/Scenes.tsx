@@ -566,3 +566,243 @@ export const Ledger: React.FC = () => {
     </Shell>
   );
 };
+
+/* ───────────────────── what is not built yet, said so ─────────────────── */
+
+/**
+ * The badge every roadmap scene wears.
+ *
+ * Thirty-two clips of working software come before these, and the only thing
+ * separating them is that somebody says so. A sentence of narration is not
+ * enough: a frame screenshotted out of context, or a viewer who joined late,
+ * must still be able to tell intention from evidence. So it is on the screen
+ * the whole time, in a colour nothing else in the film uses.
+ */
+const NotBuilt: React.FC = () => (
+  <div
+    style={{
+      position: "absolute",
+      top: 44,
+      right: 56,
+      padding: "11px 22px",
+      borderRadius: 999,
+      background: C.warn,
+      color: "#fff",
+      fontFamily: FONT,
+      fontSize: 20,
+      fontWeight: 650,
+      letterSpacing: 2,
+    }}
+  >
+    NEXT · NOT BUILT
+  </div>
+);
+
+/** The line between what works and what is only intended. */
+export const NextDivider: React.FC = () => (
+  <Shell dark>
+    <Rise style={{ fontSize: 24, letterSpacing: 3, color: C.warn, marginBottom: 26 }}>
+      EVERYTHING BEFORE THIS IS RUNNING SOFTWARE
+    </Rise>
+    <Head>Two things we have not built yet.</Head>
+    <Rise
+      delay={18}
+      style={{ fontSize: 32, color: "rgba(247,248,251,.72)", marginTop: 36, maxWidth: 1400, lineHeight: 1.5 }}
+    >
+      They are where this goes next, and nothing in the next ninety seconds exists today.
+    </Rise>
+  </Shell>
+);
+
+/** Slide 7: the molecular profile. */
+export const MolecularNext: React.FC = () => (
+  <Shell>
+    <NotBuilt />
+    <Kicker>Next</Kicker>
+    <Head delay={4}>A longitudinal molecular profile</Head>
+    <Rise delay={12} style={{ fontSize: 27, color: C.inkSoft, marginTop: 16, maxWidth: 1500 }}>
+      Built only from tests the doctor has already ordered.{" "}
+      <strong style={{ color: C.go }}>
+        Saathi never suggests a test and never interprets one.
+      </strong>
+    </Rise>
+
+    <div style={{ display: "flex", gap: 20, marginTop: 40 }}>
+      {[
+        {
+          step: "1 · CAPTURE",
+          head: "Every molecular report, in one place",
+          bullets: [
+            "Karyotyping, genome or exome sequencing, transcriptomic and proteomic panels",
+            "Pulled from the lab over FHIR Genomics, with consent",
+            "Linked to the patient's ABHA ID",
+          ],
+          tone: C.blue,
+          ground: "#fff",
+        },
+        {
+          step: "2 · KEEP",
+          head: "A molecular timeline across the disease",
+          bullets: [
+            "Germline predispositions and tumour alterations over time",
+            "Helps treating doctors with biomarker interpretation and molecular monitoring",
+            "Moves with the patient between centres",
+          ],
+          tone: C.blue,
+          ground: "#fff",
+        },
+        {
+          step: "3 · SHARE · OPT-IN ONLY",
+          head: "Contribute to cancer research",
+          bullets: [
+            "A separate consent from the patient and family, managed in Saathi",
+            "De-identified data to research repositories such as NCI's GDC, home of TCGA",
+            "Withdraw at any time",
+          ],
+          tone: C.go,
+          ground: C.goSoft,
+        },
+      ].map((col, i) => (
+        <Rise
+          key={col.step}
+          delay={18 + i * 8}
+          style={{
+            flex: 1,
+            background: col.ground,
+            borderLeft: `4px solid ${col.tone}`,
+            borderRadius: "0 14px 14px 0",
+            padding: "26px 26px 30px",
+          }}
+        >
+          <div style={{ fontSize: 18, letterSpacing: 1.6, color: C.inkSoft, marginBottom: 12 }}>
+            {col.step}
+          </div>
+          <div style={{ fontSize: 30, fontWeight: 650, color: col.tone, lineHeight: 1.2, marginBottom: 18 }}>
+            {col.head}
+          </div>
+          {col.bullets.map((b) => (
+            <div key={b} style={{ fontSize: 21, color: C.ink, lineHeight: 1.45, marginBottom: 11 }}>
+              • {b}
+            </div>
+          ))}
+        </Rise>
+      ))}
+    </div>
+
+    <div style={{ display: "flex", gap: 12, marginTop: 34, flexWrap: "wrap" }}>
+      {[
+        ["Separate consent per purpose", C.blue],
+        ["Encrypted store, doctor-only access", C.blue],
+        ["DPDP Act 2023 · ICMR ethics guidelines", C.blue],
+        ["Outside the treatment pipeline", C.go],
+      ].map(([chip, tone], i) => (
+        <Rise
+          key={chip as string}
+          delay={44 + i * 5}
+          style={{
+            padding: "12px 20px",
+            borderRadius: 999,
+            fontSize: 20,
+            fontWeight: 600,
+            color: tone as string,
+            background: tone === C.go ? C.goSoft : C.blueSoft,
+          }}
+        >
+          {chip}
+        </Rise>
+      ))}
+    </div>
+  </Shell>
+);
+
+/** Slide 8: the vendor login and the partner network. */
+export const PartnerNext: React.FC = () => (
+  <Shell>
+    <NotBuilt />
+    <Kicker>Next</Kicker>
+    <Head delay={4}>A vendor login and partner network</Head>
+    <Rise delay={12} style={{ fontSize: 27, color: C.inkSoft, marginTop: 16, maxWidth: 1500 }}>
+      Today a cab firm or a hotel sees only its own jobs.{" "}
+      <strong style={{ color: C.go }}>
+        Next, any service a journey needs joins one verified network.
+      </strong>
+    </Rise>
+
+    <div style={{ display: "flex", gap: 30, marginTop: 38 }}>
+      <Rise
+        delay={18}
+        style={{
+          flex: 1.05,
+          background: "#fff",
+          borderLeft: `4px solid ${C.blue}`,
+          borderRadius: "0 14px 14px 0",
+          padding: "26px 28px 30px",
+        }}
+      >
+        <div style={{ fontSize: 18, letterSpacing: 1.6, color: C.inkSoft, marginBottom: 12 }}>
+          VENDOR LOGIN
+        </div>
+        <div style={{ fontSize: 31, fontWeight: 650, color: C.blue, marginBottom: 18 }}>
+          One screen per partner
+        </div>
+        {[
+          "Self-onboarding with GST and licence checks",
+          "Accept, decline and update jobs in real time",
+          "Set prices and patient-family rates",
+          "Payouts, invoices and an SLA dashboard",
+          "Sees a first name, district and day; a phone number only if the family agrees",
+        ].map((b) => (
+          <div key={b} style={{ fontSize: 21, color: C.ink, lineHeight: 1.45, marginBottom: 11 }}>
+            • {b}
+          </div>
+        ))}
+      </Rise>
+
+      <div style={{ flex: 1 }}>
+        <Rise delay={24} style={{ fontSize: 18, letterSpacing: 1.6, color: C.inkSoft, marginBottom: 14 }}>
+          PARTNER NETWORK · SERVICE CATEGORIES
+        </Rise>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 11 }}>
+          {[
+            "Labs and sample pickup", "Pharmacies and distributors",
+            "Stays and dharamshalas", "Cabs and ambulances",
+            "Home care and nursing", "NGO and scheme help desks",
+            "Insurers and TPAs",
+          ].map((cat, i) => (
+            <Rise
+              key={cat}
+              delay={28 + i * 4}
+              style={{
+                padding: "14px 20px",
+                borderRadius: 10,
+                fontSize: 21,
+                fontWeight: 600,
+                color: C.blue,
+                background: C.blueSoft,
+              }}
+            >
+              {cat}
+            </Rise>
+          ))}
+        </div>
+        <Rise delay={58} style={{ fontSize: 20, color: C.inkSoft, marginTop: 18, lineHeight: 1.5 }}>
+          Partners plug in through the vendor app or their own MCP server. Agents route each job
+          by price band, distance, accessibility and SLA history.
+        </Rise>
+      </div>
+    </div>
+
+    <div style={{ display: "flex", gap: 40, marginTop: 34, borderTop: `1px solid ${C.line}`, paddingTop: 26 }}>
+      {[
+        ["More options", "the budget agent finds cheaper, closer services"],
+        ["Quality loop", "ratings and missed SLAs feed the ranking"],
+        ["Revenue", "capped commission, never added to the family's price"],
+      ].map(([head, sub], i) => (
+        <Rise key={head} delay={62 + i * 6} style={{ flex: 1 }}>
+          <div style={{ fontSize: 27, fontWeight: 650, color: C.go, marginBottom: 7 }}>{head}</div>
+          <div style={{ fontSize: 21, color: C.inkSoft, lineHeight: 1.4 }}>{sub}</div>
+        </Rise>
+      ))}
+    </div>
+  </Shell>
+);

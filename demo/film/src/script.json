@@ -1,7 +1,7 @@
 {
   "title": "EKYATRA Saathi",
   "engine": "kokoro · am_michael",
-  "total_seconds": 707.35,
+  "total_seconds": 800.3,
   "lines": [
     {
       "id": "01",
@@ -278,6 +278,27 @@
       "scene": "closing",
       "text": "No name, no health ID, no patient identifier, not even a hashed one. A doctor marked themselves away, nobody told the family, and nobody ever does. Minutes later every affected household had been asked, in their own language, and a person had agreed a plan around what they answered.",
       "seconds": 19.15
+    },
+    {
+      "id": "29a",
+      "part": "next",
+      "scene": "next-divider",
+      "text": "Everything you have just seen is running software. These last two things are not. They are where this goes next, and we have not built either of them yet.",
+      "seconds": 9.7
+    },
+    {
+      "id": "29b",
+      "part": "next",
+      "scene": "next-molecular",
+      "text": "The first is a longitudinal molecular profile. Every molecular report a doctor has already ordered — karyotyping, sequencing, transcriptomic and proteomic panels — pulled from the lab over FHIR Genomics with consent, and linked to the patient's ABHA identity. Kept as a timeline across the disease, so germline predispositions and tumour alterations travel with the patient between centres. And, on a separate opt-in consent that can be withdrawn at any time, contributed de-identified to research repositories such as the National Cancer Institute's Genomic Data Commons. Saathi would never suggest a test and never interpret one. It would carry them.",
+      "seconds": 44.2
+    },
+    {
+      "id": "29c",
+      "part": "next",
+      "scene": "next-partners",
+      "text": "The second is a vendor login. Today a cab firm or a hotel desk sees only its own jobs. Next, any service a journey needs joins one verified network — labs, pharmacies, stays and dharamshalas, cabs and ambulances, home nursing, scheme help desks, insurers. Self-onboarding with licence checks, their own prices and patient-family rates, and a partner who sees a first name, a district and a day, with a phone number only if the family agrees. More options for the budget agent to find something cheaper and closer, ratings that feed the ranking, and a capped commission that is never added to the family's price.",
+      "seconds": 39.05
     }
   ]
 }

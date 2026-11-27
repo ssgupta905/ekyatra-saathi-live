@@ -1,6 +1,6 @@
 # Everything EKYATRA Saathi actually does
 
-Scanned from the code on 27 Nov 2026, not from memory. Each row says whether it
+Scanned from the code on 27 Nov 2026 and extended on 28 Nov 2026, not from memory. Each row says whether it
 is **real** (wired, running, demonstrable on the deployed stack), **real but
 unlit** (code exists and works, nothing in a UI reaches it), or **absent**.
 
@@ -74,6 +74,14 @@ The demo must only claim the first column.
 | Directory of hospitals, clinics, partners, desks | real | `domain/directory.py`, `api/directory.py` |
 | Registry: resources (machines, staff, supply) per hospital | real | `domain/registry.py`, `api/registry.py` |
 | Partner onboarding + partner web app | real | `api/onboarding.py`, `apps/partner-web` |
+| **Vendor self-onboarding** — a vendor applies with no account; what it creates is an organisation with `active` false, which every selection rule already skips | real | `api/partner.py:apply`, `apps/partner-web/src/Apply.tsx` |
+| Review queue: approve on agreed terms (creating the login in one step) or decline **with a reason that stays on the record** | real | `api/partner.py:approve`, `components/VendorApplications.tsx` |
+| Vendor states its **own rate card**, replaced wholesale | real | `domain/directory.py:VendorRate`, `api/partner.py:set_rates` |
+| Vendor standing — **counted, never scored**: asked, confirmed, could-not, late. No rating field exists | real | `api/partner.py:_standing` |
+| Commission **capped in the domain** at 8%, taken off the vendor's side; a test proves the family's books hold the vendor's quote whole | real | `directory.py:MOST_COMMISSION_PCT`, `tests/test_vendor_network.py` |
+| A vendor's own books name the job and nothing about the family — not the internal tracing reference either | real | `api/partner.py:earnings` |
+| Licence/permit verification on an application | absent — a reviewer reads the application and decides; nothing is checked against a register | — |
+| An approved vendor's stated rates feeding the budget agent's estimates | absent — the rate card is held and shown, not yet read by `money/rates.py` | — |
 | **Beckn / ONDC** mobility — client, registry, signing, BPP | real but unlit — no live network | `adapters/beckn/` |
 | IRCTC hand-off: real station codes, deep link, **never a train number or fare** | real | `domain/railways.py` |
 | Uber / Ola / Rapido hand-off by deep link | real | `ui/Handoff.kt` |
@@ -135,6 +143,11 @@ Operator, Configuration, Audit, Boards, Cohort, Issues, Story.
 | Research release: no name, no ABHA, **no patient id even hashed** | real |
 | District → state, distance → band, nothing clinical | real |
 | Contributes to the gap nobody has data on: *why people stop coming* | real |
+| **Molecular register** — which panels a patient has had, which lab, and where the report is. Doctor-only, its own consent purpose, and withdrawal deletes the rows | real |
+| The register **holds no result, and has nowhere to put one** — every free-text field is screened and a note that reads like a finding is refused, naming the word | real |
+| The planner, orchestrator and live layer **cannot import it** — enforced by a module-level rule, not a convention | real |
+| Structured molecular results from the HMS | absent, and not a gap we can close — OpenEMR has no genomics resource at all: `MolecularSequence` returns 404 because the route does not exist |
+| A timeline of variants, or contribution to a genomic data commons | absent — the film's roadmap scene describes this, and it is not built |
 
 ---
 

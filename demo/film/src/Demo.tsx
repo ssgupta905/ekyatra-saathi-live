@@ -39,6 +39,8 @@ type Line = {
   clip?: string;
   scene?: string;
   seconds?: number;
+  /** "next" marks a roadmap section: intention, not working software. */
+  part?: "next";
 };
 
 const SCENES: Record<string, React.FC> = {
@@ -50,6 +52,9 @@ const SCENES: Record<string, React.FC> = {
   "solution-network": S.Network,
   "solution-agents": S.Agents,
   "solution-money": S.MoneyRules,
+  "next-divider": S.NextDivider,
+  "next-molecular": S.MolecularNext,
+  "next-partners": S.PartnerNext,
   readiness: S.Readiness,
   guard: S.Guard,
   roles: S.Roles,
@@ -95,16 +100,40 @@ const AUDIBLE = new Set(["14-read-aloud"]);
 
 const isAudible = (line: Line) => Boolean(line.clip && AUDIBLE.has(line.clip));
 
-export const lines: Line[] = (script.lines as Line[]).filter(
-  (line) => !line.clip || HAVE[line.clip],
-);
+const usable = (script.lines as Line[]).filter((line) => !line.clip || HAVE[line.clip]);
+
+/**
+ * The film proper, and the roadmap that follows it.
+ *
+ * Kept as two compositions rather than one, for a reason that is practical
+ * rather than aesthetic: the main film is nineteen minutes of mostly video and
+ * takes the better part of an hour to render, because every frame goes through
+ * a browser. The roadmap is seventy seconds of drawn scenes and renders in
+ * about a minute. Splitting them means appending a slide does not cost an hour,
+ * and the finished film is concatenated rather than re-encoded.
+ */
+export const lines: Line[] = usable.filter((line) => line.part !== "next");
+export const nextLines: Line[] = usable.filter((line) => line.part === "next");
 
 /** Seconds of clip this line has to show, if any. */
 const clipSeconds = (line: Line) => (line.clip ? HAVE[line.clip]?.seconds ?? 0 : 0);
 
+/**
+ * A roadmap scene is read, not watched.
+ *
+ * The clips elsewhere move, and the narration carries them. These two are
+ * dense slides — three columns of bullets, a row of chips — and the voice
+ * finishes well before anybody has got through the third column. They hold
+ * for a while after the narrator stops, which is the difference between a
+ * slide somebody read and a slide that went past.
+ */
+const READING_TAIL = 10;
+
 export const secondsFor = (line: Line) =>
   Math.max(
-    (line.seconds ?? 4) + TAIL,
+    (line.seconds ?? 4) + (line.part === "next" && line.scene !== "next-divider"
+      ? READING_TAIL
+      : TAIL),
     clipSeconds(line) / (isAudible(line) ? 1 : MAX_SPEED),
   );
 
@@ -116,6 +145,9 @@ export const speedFor = (line: Line) =>
 
 export const totalFrames = () =>
   Math.max(FPS, lines.reduce((sum, line) => sum + framesFor(line), 0));
+
+export const nextFrames = () =>
+  Math.max(FPS, nextLines.reduce((sum, line) => sum + framesFor(line), 0));
 
 /* ────────────────────────────── the furniture ──────────────────────────── */
 
@@ -215,11 +247,11 @@ const whichSurface = (clip: string) => {
 
 /* ──────────────────────────────── the film ─────────────────────────────── */
 
-export const Demo: React.FC = () => {
+const Reel: React.FC<{ of: Line[] }> = ({ of: reel }) => {
   let at = 0;
   return (
     <AbsoluteFill style={{ backgroundColor: C.ground }}>
-      {lines.map((line) => {
+      {reel.map((line) => {
         const length = framesFor(line);
         const from = at;
         at += length;
@@ -250,3 +282,6 @@ export const Demo: React.FC = () => {
     </AbsoluteFill>
   );
 };
+
+export const Demo: React.FC = () => <Reel of={lines} />;
+export const Roadmap: React.FC = () => <Reel of={nextLines} />;

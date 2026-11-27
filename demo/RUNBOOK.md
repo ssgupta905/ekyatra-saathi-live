@@ -292,3 +292,71 @@ so rewording re-times the film automatically.
 2. `EKYATRA-full-demo.mp4` (27 Nov, 18:10) **contains live API keys** for
    Groq, Sarvam, Render and OpenEMR, from 3:25 to ~4:25. Do not distribute.
    Rotate those four and delete the file.
+
+---
+
+## The two roadmap features, now in the code (28 Nov 2026)
+
+Both were drawn slides in the film, badged `NEXT · NOT BUILT`. Part of each is
+now real, which means **the film's roadmap narration is now partly false** —
+see "What the film still says" below before showing it.
+
+### A · The molecular register — `/api/patients/{id}/molecular`
+
+What it is: which molecular tests a patient has had, which lab, and where the
+report is. **No result, and nowhere to put one.**
+
+The scope was set by what the HMS actually holds, checked rather than assumed:
+OpenEMR has no genomics resource at all. `MolecularSequence` returns **404**,
+because the route does not exist; DocumentReference, DiagnosticReport, Specimen
+and Procedure return 401 (scope not registered); Observation returns 200 with
+zero entries. So a "longitudinal molecular profile" pulled over FHIR Genomics
+is not a thing that can be built against this stack, and what is worth holding
+is the *fact* of the test — the thing whose loss makes a second centre re-order
+a ₹25,000–80,000 panel.
+
+To show it:
+
+1. Console → **Families** → a family, as a **doctor** or **admin**. A navigator
+   does not see the layer at all, and the server refuses them if they ask.
+2. Layer **“What the family has agreed to share”** → purpose
+   **“A register of molecular tests done”** → ask → grant as the family.
+   Its own purpose: granting it touches nothing else, withdrawing it touches
+   no care.
+3. Layer **“Molecular tests already done”** → *Record a test*.
+   - `held` + a document reference → a report a second centre can be sent.
+   - `elsewhere` → it exists and we cannot produce it. **This is the count
+     that leads the screen**, because a test listed as done is only a reason
+     not to repeat it if the report can actually be produced.
+   - Type a finding into any field — `EGFR positive`, `no mutation detected` —
+     and the server refuses it, naming the word that tripped it.
+4. *Delete the register (withdrawal)* → the rows go. Not a flag.
+
+### B · The vendor network — `/api/partner/*`, partner-web `#apply`
+
+1. Partner app → **Apply to join the network** (the one route with no sign-in).
+   Fill in the business, the districts, and **its own rates**.
+2. What that creates is an organisation with `active` false. Console →
+   **Directory → The network** shows it as **applied**, switched off. Nothing
+   routes to it: `tests/test_vendor_network.py` proves the real chooser will
+   not return it even when it is named as the preferred vendor.
+3. Console → **Directory → Applications** (any staff can read; only an admin
+   can decide) → *Decide* → agree a commission and create the login in one
+   step, or **decline with a reason that stays on the record**.
+4. Sign in to the partner app as that vendor → **Your business**: its rates
+   (editable, replaced wholesale), its standing (**counted, never scored** —
+   there is no rating field in the API), and its money.
+5. The money screen states **what the family pays beside what the vendor
+   keeps**, with the commission between them. Capped at 8% in the domain, taken
+   off our side. The test that matters asserts the family's own books hold the
+   vendor's quote **whole**.
+
+### What the film still says
+
+`demo/film/src/script.json` lines `29a`–`29c` say "we have not built either of
+them yet", and describe more than what exists — FHIR Genomics ingestion, a
+variant timeline, contribution to a genomic data commons, licence verification,
+and ratings feeding the ranking. None of those are built. The `Roadmap`
+composition renders in 1–2 minutes, so correcting the narration and re-joining
+is cheap; until that is done, the roadmap tail of the film overstates the code
+in one direction and understates it in another.
