@@ -534,3 +534,9 @@ a.cc-card { flex-direction: column; align-items: flex-start; gap: 2px; }
   background: var(--sunken); border-radius: 0 var(--r-sm) var(--r-sm) 0;
   font-size: 15px; line-height: 1.55; color: var(--ink);
 }
+
+/* A vendor's own price list inside a directory row. Stated figures, shown as
+   theirs: the list is unstyled and plain on purpose, because anything that
+   made it look computed would be a lie about where the numbers came from. */
+.cc-rates { margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.cc-rates li { margin-bottom: 2px; }

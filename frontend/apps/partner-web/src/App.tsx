@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { partner, type PartnerJob, type PartnerQueue } from "@saathi/api-client";
+import { Business } from "./Business";
 import { Job } from "./Job";
 
 /**
@@ -13,10 +14,16 @@ import { Job } from "./Job";
  * It shows the least that lets the job be done — a first name, a district, a
  * day when there is one. There is nothing here about anyone's care, and there
  * is no screen to reach it from: the role cannot read a family at all.
+ *
+ * There is a second screen now — the vendor's own business: its rates, how it
+ * stands, what it is owed. It is behind a switch rather than beside the jobs,
+ * because a desk that opens this app has one question ("is anybody waiting on
+ * me?") and the answer to it must not be below the fold.
  */
 export default function App() {
   const [queue, setQueue] = useState<PartnerQueue | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<"jobs" | "business">("jobs");
 
   const refresh = useCallback(() => {
     partner
@@ -44,18 +51,35 @@ export default function App() {
       <header className="pt-top">
         <span className="pt-brand">Saathi</span>
         <span className="pt-org">{queue?.organisation.name ?? "…"}</span>
+        <nav className="pt-tabs">
+          <button
+            type="button"
+            className={view === "jobs" ? "on" : ""}
+            onClick={() => setView("jobs")}
+          >
+            Jobs{waiting.length > 0 ? ` (${waiting.length})` : ""}
+          </button>
+          <button
+            type="button"
+            className={view === "business" ? "on" : ""}
+            onClick={() => setView("business")}
+          >
+            Your business
+          </button>
+        </nav>
       </header>
 
       <main className="pt-scroll">
         {error && <p className="pt-error">{error}</p>}
+        {view === "business" && <Business />}
 
-        {queue && waiting.length === 0 && (
+        {view === "jobs" && queue && waiting.length === 0 && (
           <p className="pt-empty">
             Nothing is waiting on you. We will show a job here the moment one is.
           </p>
         )}
 
-        {waiting.length > 0 && (
+        {view === "jobs" && waiting.length > 0 && (
           <>
             <h2 className="pt-h2">Waiting on you</h2>
             {waiting.map((job: PartnerJob) => (
@@ -64,7 +88,7 @@ export default function App() {
           </>
         )}
 
-        {settled.length > 0 && (
+        {view === "jobs" && settled.length > 0 && (
           <>
             <h2 className="pt-h2">Answered</h2>
             {settled.map((job: PartnerJob) => (

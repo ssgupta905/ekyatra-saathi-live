@@ -77,7 +77,14 @@ export const readiness = {
     }),
 };
 
-export type ConsentPurpose = "care_coordination" | "record_movement" | "research";
+export type ConsentPurpose =
+  | "care_coordination"
+  | "record_movement"
+  | "research"
+  //: Keeping a register of which molecular tests this patient has had.
+  //: Asked on its own, because agreeing to visit coordination is not
+  //: agreeing to this, and withdrawing it must not withdraw care.
+  | "molecular_records";
 export type ConsentCapacity = "self" | "nominee" | "guardian";
 
 export interface ConsentGrantView {

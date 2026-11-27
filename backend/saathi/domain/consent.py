@@ -51,6 +51,11 @@ class ConsentPurpose(StrEnum):
     RECORD_MOVEMENT = "record_movement"
     #: Optional, and never a condition of care.
     RESEARCH = "research"
+    #: Holding a register of which molecular tests this patient has had, and
+    #: where the reports are. Asked separately from everything else because a
+    #: family consenting to visit coordination has not consented to this, and
+    #: because withdrawing it must be possible without withdrawing care.
+    MOLECULAR_RECORDS = "molecular_records"
 
 
 class ConsentCapacity(StrEnum):

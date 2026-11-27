@@ -1,0 +1,304 @@
+{
+  "title": "EKYATRA Saathi",
+  "engine": "kokoro · am_michael",
+  "total_seconds": 800.3,
+  "lines": [
+    {
+      "id": "01",
+      "scene": "logo",
+      "text": "EKYATRA Saathi. Care logistics for families who travel a long way to be treated.",
+      "seconds": 6.475
+    },
+    {
+      "id": "02",
+      "scene": "problem-distance",
+      "text": "India has twenty-eight comprehensive cancer centres for one point four billion people. A family in Darbhanga, in north Bihar, travels one thousand eight hundred kilometres to Mumbai for treatment that lasts two years.",
+      "seconds": 14.925
+    },
+    {
+      "id": "03",
+      "scene": "problem-money",
+      "text": "That journey costs them about nine hundred rupees each way, in a household that earns a few hundred a day. The treatment may be free. The getting there is not.",
+      "seconds": 10.475
+    },
+    {
+      "id": "04",
+      "scene": "problem-wasted",
+      "text": "So the thing that makes people stop coming is rarely the medicine. It is a wasted journey. Arriving to find the doctor away, or a report not back, and going home again having spent a week's income on nothing.",
+      "seconds": 13.6
+    },
+    {
+      "id": "05",
+      "scene": "problem-sequence",
+      "text": "Cancer treatment makes this worse than it sounds, because it is a sequence. A scan before a dose. A report before a review. Move one link and everything after it moves too, and every move is another journey somebody has to pay for.",
+      "seconds": 15.35
+    },
+    {
+      "id": "06",
+      "scene": "solution-network",
+      "text": "So we built the logistics layer that nobody owns. Hospitals, clinics, railways, state buses, cabs, pharmacies, equipment suppliers and dharamshalas, registered into one network, so a change in any of them can be planned around.",
+      "seconds": 16.1
+    },
+    {
+      "id": "07",
+      "scene": "solution-agents",
+      "text": "Agents do the work that is routine and predictable. They read what a hospital publishes, read what a family writes back in their own language, and search for dates that fit both. Every one of them stops at a person.",
+      "seconds": 13.85
+    },
+    {
+      "id": "08",
+      "clip": "01-hospital-leave",
+      "text": "It starts in the hospital's own system. This is OpenEMR, open source, unmodified. No module of ours is installed in it. An oncologist marks themselves away on the twenty-ninth — an ordinary save, by ordinary staff.",
+      "seconds": 15.875
+    },
+    {
+      "id": "09",
+      "clip": "02-appointments-untouched",
+      "text": "Now look at the families booked that day. Nothing has changed. Their appointments are not moved, not cancelled, status untouched. Anything watching appointments would see nothing at all. This is why nobody is told.",
+      "seconds": 14.025
+    },
+    {
+      "id": "10",
+      "clip": "03-board",
+      "text": "We read it, over the hospital's standard FHIR interface, and work out who it lands on. Three families — and this is the board a navigator opens: one change, grouped by what happened, not by who it happened to.",
+      "seconds": 14.525
+    },
+    {
+      "id": "10b",
+      "clip": "20-the-navigators-day",
+      "text": "This is the whole of a navigator's day. Who needs a decision, who has been asked and not answered, who is travelling tomorrow. One person can hold a hundred families here, because the routine part has already been done for them.",
+      "seconds": 14.55
+    },
+    {
+      "id": "10c",
+      "clip": "31-the-plan-boards",
+      "text": "And every family's pathway on one board. Eleven households here, each with how far they travel and where their plan stands — go, wait, or uncertain with the number of things still in the way. Nobody has to open eleven records to find the one that is stuck.",
+      "seconds": 16.525
+    },
+    {
+      "id": "11",
+      "clip": "04-board-opened",
+      "text": "Open a row and you get the agent's own working: every step, published by the code that did it, carrying the time that work actually took. Refusals are in here too, and are never filtered out.",
+      "seconds": 12.7
+    },
+    {
+      "id": "11b",
+      "clip": "24-what-it-was-built-from",
+      "text": "And every question, exactly as it was sent. Shanti's in Bengali, Josephine's in Hindi, each tagged with what it is trying to find out — which days they can travel, how many are coming, what it costs them. Templated per language and never generated, because a model that writes the question can invent a premise, and a family cannot tell which half of a fluent sentence came from a record.",
+      "seconds": 23.6
+    },
+    {
+      "id": "12",
+      "clip": "05-question-arrives",
+      "text": "Within a minute each family is asked — on their own phone, in their own script. Not transliterated, not English. The question is templated per language and never generated, because a model that writes the question can invent a premise.",
+      "seconds": 15.05
+    },
+    {
+      "id": "13",
+      "clip": "06-she-answers",
+      "text": "She answers in her own words, the way people actually type. A language model reads it into a constraint: not before the twentieth, two people travelling, the bus costs fourteen hundred rupees.",
+      "seconds": 13.275
+    },
+    {
+      "id": "14",
+      "clip": "07-a-person-agrees",
+      "text": "And then it stops. Nothing re-plans until a person has read her actual sentence and agreed with the reading — because mishearing after the twentieth as on the twentieth costs this family two days on a train.",
+      "seconds": 13.475
+    },
+    {
+      "id": "15",
+      "clip": "08-planner-search",
+      "text": "Only now does the planner search. And it shows the half a planner normally hides: every date it tried, and the rule that refused each one. The day the clinician is away is refused. It will not offer back the very day the re-plan exists because of.",
+      "seconds": 16.6
+    },
+    {
+      "id": "15c",
+      "clip": "26-one-family-whole",
+      "text": "All of it gathers into one record per family. What they were asked, what they said, what was planned, what they were told, and what it cost them. A navigator picking this up cold can see the whole of it in one screen.",
+      "seconds": 13.75
+    },
+    {
+      "id": "15b",
+      "scene": "readiness",
+      "text": "One rule in that search is worth pulling out. Before it offers a date, it asks whether the report that date depends on will actually be back — not as a guess, but as an interval with a coverage guarantee. Being wrong by two days costs this family a five-hundred-kilometre round trip, so the planner refuses to plan behind a result it cannot promise.",
+      "seconds": 22.95
+    },
+    {
+      "id": "16",
+      "clip": "09-saathi-proposes",
+      "text": "What she gets is not a notification that a decision was made. It is a sentence, a figure, and a question. We can move your visit to this date. It would cost about this much. Does that suit you — and if not, tell us what would.",
+      "seconds": 14.375
+    },
+    {
+      "id": "17",
+      "clip": "10-whose-number",
+      "text": "The working is folded underneath, and opens on a tap. Every line says whose number it is: the fourteen hundred is hers, kept with the sentence she said it in. The bed is ours, from a published rate, and labelled an estimate.",
+      "seconds": 14.475
+    },
+    {
+      "id": "17b",
+      "scene": "guard",
+      "text": "Everything Saathi sends passes a guard first. No clinical language, no reassurance it has no business giving, and no date it was not handed. It reads dates in all five scripts — and if it cannot read the date in a message it is about to send, it refuses to send it and gives the message to a person instead.",
+      "seconds": 20.375
+    },
+    {
+      "id": "18",
+      "scene": "solution-money",
+      "text": "That distinction is the whole of how we handle money. Rail fares from the railway's own distance slabs, bus fares from state transport rates, lodging as a band for a kind of place. Every figure carries its source. We never put a number against a company whose prices we cannot see.",
+      "seconds": 18.475
+    },
+    {
+      "id": "19",
+      "clip": "11-navigator-approves",
+      "text": "A navigator approves. This is the one action in the system that writes anything, and an option that touches treatment or dose timing cannot be approved by a navigator at all — only a doctor. That is enforced on the server, not hinted at in the interface.",
+      "seconds": 16.85
+    },
+    {
+      "id": "19b",
+      "scene": "roles",
+      "text": "Who may decide what is not a matter of which buttons are shown. A desk can report an outage and confirm a record. A navigator can approve a re-plan. Only a doctor can approve one that touches treatment or a dose date. The server refuses the rest, so typing the word doctor into a form changes nothing.",
+      "seconds": 20.05
+    },
+    {
+      "id": "20",
+      "clip": "12-written-back",
+      "text": "And the booking goes into the hospital's own calendar, through the same standard interface we read it with. The write happens before anybody is told, so a hospital that refuses the slot means nobody was promised it.",
+      "seconds": 14.225
+    },
+    {
+      "id": "21",
+      "clip": "13-will-not-pretend",
+      "text": "Here is something we will not fake. OpenEMR's interface can create an appointment but not update one, so we cannot cancel the old slot. The system books the new date, leaves the old one standing, and records that a person must release it.",
+      "seconds": 15.825
+    },
+    {
+      "id": "21b",
+      "scene": "limits",
+      "text": "There are four more things this system will not do. It holds no train timetable, so it names stations and hands you to I-R-C-T-C. It cannot read the arrival clock on the hosted stack, so it says a family arrived and claims no delay. It sees an appointment cancelled but not one deleted. And where two families want the same slot, it has no answer yet. Each of those is written down rather than hidden.",
+      "seconds": 25.125
+    },
+    {
+      "id": "22",
+      "clip": "14-read-aloud",
+      "text": "The plan is read aloud in her own language, by a service voice rather than the phone's. We check which one played — because a handset with no Hindi voice fails silently, and the family simply hears nothing.",
+      "seconds": 13.675
+    },
+    {
+      "id": "22b",
+      "clip": "29-five-languages",
+      "text": "And it is not one language with the others bolted on. Hindi, Bengali, Odia, Tamil and English, each in its own script — the questions, the plans, the costs and the app's own chrome. A family switches, and the whole thing follows.",
+      "seconds": 15.05
+    },
+    {
+      "id": "23",
+      "clip": "15-the-journey",
+      "text": "Then the rest of the journey. Somewhere to stay, with a dharamshala ranked above a hotel when money is tight. Real places from OpenStreetMap. Routes from a real routing engine. And her own book of what this is costing her.",
+      "seconds": 14.425
+    },
+    {
+      "id": "23b",
+      "clip": "28-the-map",
+      "text": "And the map, in her own app. Real OpenStreetMap tiles, the route to the hospital, and the things she might need around it — medicines, tests, equipment, a clinic — each a filter. Nineteen hundred kilometres, twenty-two hours by road, and a hand-off to Maps when she wants turn-by-turn.",
+      "seconds": 17.85
+    },
+    {
+      "id": "24",
+      "clip": "16-a-second-family",
+      "text": "The same change, a different household. A different language, a different distance, a different right answer. One event does not have one solution; it has as many as there are families it touched.",
+      "seconds": 12.675
+    },
+    {
+      "id": "25",
+      "clip": "17-what-a-partner-sees",
+      "text": "The network is not a diagram. This is what a cab firm, a hotel desk or a pharmacy actually sees: one job at a time, three answers, built for a phone held in one hand at a desk already doing something else.",
+      "seconds": 14.425
+    },
+    {
+      "id": "25b",
+      "clip": "21-the-network",
+      "text": "Behind that is the network board: every hospital, desk and partner in the system, and what each of them just did. This is the layer that makes a change in one place reach a family in another.",
+      "seconds": 12.575
+    },
+    {
+      "id": "25c",
+      "clip": "22-who-is-registered",
+      "text": "Who is in it is not a diagram either. Hospitals, day-care centres, radiology desks, cab firms, pharmacies — each registered, each with the districts they serve, each reachable by the planner.",
+      "seconds": 13.05
+    },
+    {
+      "id": "25d",
+      "clip": "23-what-can-break",
+      "text": "And what can break is registered too. The machines, the staff roles and the supplies a plan depends on, with their state. A dialysis station going down is not an email to somebody — it is a fact the planner reads.",
+      "seconds": 14.675
+    },
+    {
+      "id": "25e",
+      "clip": "30-how-a-partner-joins",
+      "text": "And joining is a form, not an integration project. A dharamshala with a phone and twelve beds can be in this network the same afternoon, which is the only way a logistics layer like this ever covers the places that need it.",
+      "seconds": 15.1
+    },
+    {
+      "id": "26",
+      "clip": "18-without-a-smartphone",
+      "text": "And the same family app runs in a browser, because the household that needs this most is often the one without a smartphone in it.",
+      "seconds": 8.75
+    },
+    {
+      "id": "27",
+      "clip": "19-what-it-is-worth",
+      "text": "India's registries hold staging and survival. What nobody has is why people stop coming — distance, cost, wasted journeys, waiting. This system holds exactly that, and releases it only with consent that is asked per family and can be withdrawn.",
+      "seconds": 17.05
+    },
+    {
+      "id": "27b",
+      "scene": "ledger",
+      "text": "And all of it is written to a hash-chained ledger — every reading, every refusal, every approval, with the evidence each was based on. Nothing is deleted and refusals are never filtered out, because a record that only holds the times a system was right is not a record anybody should trust.",
+      "seconds": 19.175
+    },
+    {
+      "id": "26b",
+      "clip": "27-her-own-books",
+      "text": "She also keeps her own book. What this treatment is actually costing her household, entered in her own words and her own language, and never shared without her saying so.",
+      "seconds": 10.9
+    },
+    {
+      "id": "27d",
+      "clip": "32-what-it-adds-up-to",
+      "text": "It also learns. Every report this hospital has turned around, with how many days it took — which is what the readiness prediction is built from. Not a guess about this report, but the distribution of every one before it.",
+      "seconds": 14.45
+    },
+    {
+      "id": "27c",
+      "clip": "25-the-ledger",
+      "text": "And every one of those steps is written to a hash-chained ledger — each reading, each refusal, each approval, with the evidence it rested on. Nothing is deleted. A record that only holds the times a system was right is not a record anybody should trust.",
+      "seconds": 16.925
+    },
+    {
+      "id": "28",
+      "scene": "closing",
+      "text": "No name, no health ID, no patient identifier, not even a hashed one. A doctor marked themselves away, nobody told the family, and nobody ever does. Minutes later every affected household had been asked, in their own language, and a person had agreed a plan around what they answered.",
+      "seconds": 19.15
+    },
+    {
+      "id": "29a",
+      "part": "next",
+      "scene": "next-divider",
+      "text": "Everything you have just seen is running software. These last two things are not. They are where this goes next, and we have not built either of them yet.",
+      "seconds": 9.7
+    },
+    {
+      "id": "29b",
+      "part": "next",
+      "scene": "next-molecular",
+      "text": "The first is a longitudinal molecular profile. Every molecular report a doctor has already ordered — karyotyping, sequencing, transcriptomic and proteomic panels — pulled from the lab over FHIR Genomics with consent, and linked to the patient's ABHA identity. Kept as a timeline across the disease, so germline predispositions and tumour alterations travel with the patient between centres. And, on a separate opt-in consent that can be withdrawn at any time, contributed de-identified to research repositories such as the National Cancer Institute's Genomic Data Commons. Saathi would never suggest a test and never interpret one. It would carry them.",
+      "seconds": 44.2
+    },
+    {
+      "id": "29c",
+      "part": "next",
+      "scene": "next-partners",
+      "text": "The second is a vendor login. Today a cab firm or a hotel desk sees only its own jobs. Next, any service a journey needs joins one verified network — labs, pharmacies, stays and dharamshalas, cabs and ambulances, home nursing, scheme help desks, insurers. Self-onboarding with licence checks, their own prices and patient-family rates, and a partner who sees a first name, a district and a day, with a phone number only if the family agrees. More options for the budget agent to find something cheaper and closer, ratings that feed the ranking, and a capped commission that is never added to the family's price.",
+      "seconds": 39.05
+    }
+  ]
+}

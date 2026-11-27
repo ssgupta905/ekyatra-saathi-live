@@ -1069,6 +1069,30 @@ async function demo({ emr, panel, health }) {
   await say("asked", `The connector read the leave and worked out which families it hits — then asked each one ${languages.length > 1 ? "in their own language" : ""}: ${asked.map((q) => `${q.name} (${q.language})`).join(", ")}. Nobody wrote a script per family.`);
 
   await mustClick(panel, /^Approvals$/, "the approvals queue");
+
+  // The board first: one event, and everybody it landed on. A navigator
+  // opening this screen should see the shape of the day before any single
+  // family's detail.
+  const onBoard = await mustSee(panel, /What one change did, and to whom/, "the disruption board")
+    .then(() => true)
+    .catch(() => false);
+  if (onBoard) {
+    await say(
+      "board",
+      `One change, and everyone it reached. ${num(String(asked.length))} famil${asked.length === 1 ? "y" : "ies"}, grouped by what happened rather than by who it happened to — because a clinician marking themselves away disrupts a day, not a patient. The rows are built to look unlike each other: different languages, different distances, each at a different point in the same conversation.`,
+    );
+    // Open one, so the agent's own trace and its refusals are on screen rather
+    // than behind something a reader has to decide to open.
+    const row = panel.locator(".board-row-head").filter({ hasText: asked[0].name }).first();
+    await row.click({ timeout: 15000 }).catch(() => {});
+    await wait(5000);
+    await say(
+      "board",
+      `Opened, it shows the agent's working so far — every step published by the code that did it, carrying the time that work actually took. Nobody has replied yet, so there is no sentence of theirs to show; when one arrives it sits at the top of this. Refusals are in here too and are never filtered out: a reader who never sees one has no reason to believe they happen.`,
+    );
+    await wait(4000);
+  }
+
   await mustSee(panel, /Asked|waiting/i, "the asked-and-waiting list");
   await say("console", "Each question, as it was sent. Templated per language, never generated — a model that writes the question can invent a premise, and a family cannot tell which half of a fluent sentence came from a record.");
 

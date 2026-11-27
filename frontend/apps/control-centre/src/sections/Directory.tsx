@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { directory, type Organisation, type OrgType, type RoleSummary } from "@saathi/api-client";
 import { Card, Chip } from "@saathi/ui-web";
 import { RecordForm, errorText, type Field } from "../components/RecordForm";
+import { VendorApplications } from "../components/VendorApplications";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { usePersona } from "../session";
 import { EmptyState } from "../ui/kit";
@@ -9,6 +10,10 @@ import { Building } from "../ui/icons";
 
 const TABS = [
   { value: "network" as const, label: "The network" },
+  //: Vendors who applied for themselves and are in the directory switched
+  //: off. Its own tab rather than a filter on the network list, because a
+  //: decision waiting on somebody should not have to be searched for.
+  { value: "applications" as const, label: "Applications" },
   { value: "roles" as const, label: "People and roles" },
 ];
 
@@ -123,6 +128,8 @@ export function Directory() {
       <SegmentedControl options={TABS} value={tab} onChange={setTab} aria-label="Directory view" />
       {error && <p className="auth-error" role="alert">{error}</p>}
 
+      {tab === "applications" && <VendorApplications canDecide={canEdit} />}
+
       {tab === "network" && (
         <>
           {editing && (
@@ -170,6 +177,7 @@ export function Directory() {
                     <th>Serves</th>
                     <th>How it answers</th>
                     <th>If it cannot</th>
+                    <th>Their rates</th>
                     <th>Status</th>
                     {canEdit && <th />}
                   </tr>
@@ -187,7 +195,40 @@ export function Directory() {
                         {o.mode === "people" ? "a person answers" : `says ${o.answer === "ready" ? "ready" : "can't do"} after ${o.delay_seconds}s`}
                       </td>
                       <td>{nameOf(o.alternate_id)}</td>
-                      <td><Chip tone={o.active ? "go" : "neutral"}>{o.active ? "active" : "inactive"}</Chip></td>
+                      <td>
+                        {/* The vendor's own figures, shown as theirs. A
+                            navigator about to book somebody wants the price
+                            they stated, and nothing here averages or adjusts
+                            it. Empty for an organisation an administrator
+                            entered from a phone call. */}
+                        {o.rate_card && o.rate_card.length > 0 ? (
+                          <ul className="cc-rates">
+                            {o.rate_card.map((rate, index) => (
+                              <li key={`${rate.service}-${index}`}>
+                                {rate.service} — ₹{rate.amount_inr.toLocaleString("en-IN")} {rate.unit}
+                                {rate.note && <span className="hint"> {rate.note}</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <span className="hint">none stated</span>
+                        )}
+                      </td>
+                      <td>
+                        <Chip tone={o.active ? "go" : o.declined_reason ? "critical" : "neutral"}>
+                          {o.active
+                            ? "active"
+                            : o.declined_reason
+                              ? "declined"
+                              : o.applied_on
+                                ? "applied"
+                                : "inactive"}
+                        </Chip>
+                        {o.declined_reason && <div className="hint">{o.declined_reason}</div>}
+                        {o.active && o.commission_pct ? (
+                          <div className="hint">{o.commission_pct}% commission, ours not theirs</div>
+                        ) : null}
+                      </td>
                       {canEdit && (
                         <td>
                           <button type="button" className="btn small" onClick={() => setEditing({ record: o })}>Edit</button>

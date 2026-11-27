@@ -66,6 +66,17 @@ import org.osmdroid.views.overlay.Polyline
 /** Something on the map the family can pick. */
 private data class Target(val name: String, val lat: Double, val lon: Double, val phone: String? = null)
 
+/** Beyond this, nobody is walking, and offering to is not help. */
+private const val WALKABLE_METRES = 3_000.0
+
+/** Straight-line metres between two points, or null when either is unknown. */
+private fun metresApart(from: GeoPoint?, to: Target?): Double {
+    if (from == null || to == null) return Double.MAX_VALUE
+    val results = FloatArray(1)
+    android.location.Location.distanceBetween(from.latitude, from.longitude, to.lat, to.lon, results)
+    return results[0].toDouble()
+}
+
 private val NEEDS = listOf("medicine", "tests", "equipment", "clinic")
 
 private fun needLabel(need: String, s: Strings) = when (need) {
@@ -137,7 +148,15 @@ fun TripMap(api: SaathiApi, patientId: String, trip: Trip?, s: Strings, onClose:
     var places by remember { mutableStateOf<List<NearRanked>>(emptyList()) }
     var me by remember { mutableStateOf(lastKnown(context)) }
     var selected by remember { mutableStateOf(hospital) }
-    var way by remember { mutableStateOf(Way.WALK) }
+    // Walking is right for a pharmacy two hundred metres away and absurd for a
+    // hospital two thousand kilometres away — the map opened on a family's
+    // journey to Mumbai and offered them a twenty-two day walk. Default to
+    // whichever the distance makes sensible; the family can still switch.
+    var way by remember {
+        mutableStateOf(
+            if (metresApart(me, hospital) > WALKABLE_METRES) Way.CAR else Way.WALK,
+        )
+    }
     var line by remember { mutableStateOf<RouteLine?>(null) }
     var noRoute by remember { mutableStateOf(false) }
     val routing = remember { Routing(api.client) }

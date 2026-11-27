@@ -45,10 +45,17 @@ export interface AuthGateProps {
   way: "staff" | "family";
   /** Who may use this app. Anyone else is told so. */
   roles: Principal["role"][];
+  /**
+   * Shown under the sign-in form, for the one thing an app may legitimately
+   * offer somebody with no account: a way to ask for one. The partner app uses
+   * it for "apply to join"; nothing else does, and nothing here follows a link
+   * on its own.
+   */
+  footer?: ReactNode;
   children: ReactNode;
 }
 
-export function AuthGate({ app, way, roles, children }: AuthGateProps) {
+export function AuthGate({ app, way, roles, footer, children }: AuthGateProps) {
   const [state, setState] = useState<State>({ kind: "loading" });
 
   const start = useCallback(async () => {
@@ -111,6 +118,7 @@ export function AuthGate({ app, way, roles, children }: AuthGateProps) {
         ) : (
           <FamilySignIn onSignedIn={(principal) => setState({ kind: "ready", principal })} />
         )}
+        {footer}
       </Page>
     );
   }

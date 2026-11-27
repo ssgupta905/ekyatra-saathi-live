@@ -28,6 +28,7 @@ import {
 } from "@saathi/ui-web";
 import { CallBrief } from "../components/CallBrief";
 import { ConsentLayer } from "../components/ConsentLayer";
+import { MolecularLayer } from "../components/MolecularLayer";
 import { PartnersLayer } from "../components/PartnersLayer";
 import { DecisionHero } from "../components/DecisionHero";
 import { FamilyList } from "../components/FamilyList";
@@ -194,6 +195,10 @@ function FamilyWorkspace({
   const blockers = plan?.plan?.blocked_by.length ?? 0;
   const bring = plan?.plan?.what_to_bring.length ?? 0;
   const held = plan?.routed_to_care_team;
+  // A register of which panels somebody has had is a clinical record, not a
+  // logistics one. The server enforces this on every call; the layer is
+  // hidden as well so a navigator is not shown a door that will not open.
+  const seesMolecular = ["doctor", "admin"].includes(persona.role);
   const onToggle = (id: string) => {
     toggle(id);
     if (!open.has(id)) onLayer(id);
@@ -286,6 +291,18 @@ function FamilyWorkspace({
             />
           )}
         </Layer>
+        {seesMolecular && (
+          <Layer id="molecular" title="Molecular tests already done" icon={<I.FileText size={16} />} open={open.has("molecular")} onToggle={onToggle}
+            summary="which panels, where their reports are, and which cannot be fetched">
+            {() => (
+              <MolecularLayer
+                patientId={patient.id}
+                revision={revision}
+                canRecord={["desk", "doctor", "admin"].includes(persona.role)}
+              />
+            )}
+          </Layer>
+        )}
         <Layer id="pathway" title="Pathway diagram" icon={<I.Graph size={16} />} open={open.has("pathway")} onToggle={onToggle}
           summary="what waits on what">
           {() => <BoardLayer patientId={patient.id} revision={revision} />}

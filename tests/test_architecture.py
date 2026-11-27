@@ -145,3 +145,81 @@ def test_the_pure_layers_import_nothing_from_the_product():
         if m.split(".")[0] in PURE_LAYERS
     ]
     assert not offenders, offenders
+
+
+# ---------------------------------------------------------------------------
+# The molecular register sits outside the logistics core.
+#
+# The package-level table above cannot express this, because the register
+# lives in `domain` and `ports` — packages the planner is rightly allowed to
+# import. The rule is about one module, not one package: a planner that read a
+# molecular report and moved a visit because of it would be making a clinical
+# decision dressed as a scheduling one, and the whole separation this project
+# rests on would be gone with nothing failing.
+
+#: Modules nobody in the decision path may import, however convenient.
+CLINICAL_ONLY = {
+    "domain.molecular",
+    "ports.molecular",
+    "adapters.molecular",
+    "api.molecular",
+}
+
+#: Everything that decides when a family travels, or acts on that decision.
+DECISION_PATH = {"planner", "orchestrator", "live", "engagement", "readiness", "graph"}
+
+
+def _dotted_imports(path: Path) -> set[str]:
+    """Every in-package module this file imports, as a dotted path under saathi."""
+    module = _module_name(path)
+    pkg_parts = module.split(".") if module else []
+    if path.name != "__init__.py":
+        pkg_parts = pkg_parts[:-1]
+
+    out: set[str] = set()
+    for node in ast.walk(ast.parse(path.read_text())):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.split(".")[0] == "saathi":
+                    out.add(alias.name.split(".", 1)[1] if "." in alias.name else "")
+        elif isinstance(node, ast.ImportFrom):
+            if node.level == 0:
+                name = node.module or ""
+                if name.split(".")[0] == "saathi":
+                    out.add(name.split(".", 1)[1] if "." in name else "")
+            else:
+                base = pkg_parts[: len(pkg_parts) - (node.level - 1)]
+                target = base + ((node.module or "").split(".") if node.module else [])
+                out.add(".".join(target))
+                # `from ..domain import molecular` names the module in the alias.
+                for alias in node.names:
+                    out.add(".".join([*target, alias.name]))
+    return out
+
+
+def test_the_decision_path_cannot_read_molecular_records():
+    offenders = []
+    for path in sorted(PACKAGE.rglob("*.py")):
+        module = _module_name(path)
+        if module.split(".")[0] not in DECISION_PATH:
+            continue
+        for imported in _dotted_imports(path):
+            if imported in CLINICAL_ONLY:
+                offenders.append((module, imported))
+    assert not offenders, (
+        "the molecular register must stay out of the scheduling path — a visit "
+        "moved because of a report is a clinical decision:\n"
+        + "\n".join(f"  {a} -> {b}" for a, b in sorted(offenders))
+    )
+
+
+def test_the_molecular_rule_resolves_relative_imports():
+    """The rule above is only worth having if its resolver actually works.
+
+    `api/molecular.py` imports the register through a relative path — the same
+    shape a stray planner import would take. If the resolver cannot see it
+    here, it would not see it there either, and the rule would pass by being
+    blind rather than by being obeyed.
+    """
+    seen = _dotted_imports(PACKAGE / "api" / "molecular.py")
+    assert "domain.molecular" in seen, sorted(seen)

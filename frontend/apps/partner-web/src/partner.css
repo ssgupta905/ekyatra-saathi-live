@@ -120,3 +120,71 @@
 @media (max-width: 400px) {
   .pt-btn { flex-basis: 100%; }
 }
+
+/* — the vendor's own business ———————————————————————————————————
+   A second screen behind a switch in the header, not a tab bar at the bottom:
+   this app is read standing up at a counter, and a thumb reaching for the
+   bottom of the screen is a thumb that has put the phone down.
+
+   Forms here use the same oversized targets as the answers above. A rate line
+   is a small card rather than a table row, because four short fields in a row
+   on a 360px screen is four fields nobody can read. */
+
+.pt-tabs { margin-left: auto; display: flex; gap: 4px; }
+.pt-tabs button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill, 980px);
+  background: none;
+  color: var(--ink-3, #6e6e73);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.pt-tabs button.on {
+  border-color: var(--line, #d2d2d7);
+  background: var(--sunken, #fafafa);
+  color: var(--ink, #1d1d1f);
+  font-weight: 500;
+}
+
+.pt-fields { display: grid; gap: 14px; margin: 16px 0 4px; }
+.pt-fields label,
+.pt-rate label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--ink-3, #6e6e73);
+}
+.pt-fields input,
+.pt-fields select,
+.pt-rate input {
+  min-height: 46px;
+  padding: 10px 13px;
+  border: 1px solid var(--line, #d2d2d7);
+  border-radius: var(--r-md, 12px);
+  background: var(--surface, #fff);
+  color: var(--ink, #1d1d1f);
+  font: inherit;
+  font-size: 16px;
+}
+
+.pt-rate {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line, #d2d2d7);
+  border-radius: var(--r-lg, 18px);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+/* An anchor styled as a button still has to look pressable and sit on the
+   same baseline as its neighbours. */
+a.pt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}

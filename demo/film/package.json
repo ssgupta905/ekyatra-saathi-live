@@ -1,0 +1,21 @@
+{
+  "name": "ekyatra-film",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render Demo ../../recordings/EKYATRA-demo.mp4 --concurrency=6 --timeout=120000"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.547",
+    "@remotion/transitions": "4.0.547",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "4.0.547"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "typescript": "5.8.2"
+  },
+  "main": "src/index.ts"
+}

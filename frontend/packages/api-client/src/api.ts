@@ -1195,6 +1195,111 @@ export interface PartnerQueue {
   jobs: PartnerJob[];
 }
 
+/* ── the vendor's own business ─────────────────────────────────────────────
+   Its rates, its standing, its money. Nothing here is about a family, and
+   there is no shape in these types that one could be put in. */
+
+/** One line of a vendor's price list, in the vendor's own words. */
+export interface VendorRate {
+  service: string;
+  unit: string;
+  amount_inr: number;
+  note: string;
+}
+
+/**
+ * How a vendor has actually behaved: counted, never scored. There is no
+ * rating field, deliberately — a rating is an opinion with a number's
+ * authority, and the counts are what a desk choosing whom to ring wants.
+ */
+export interface VendorStanding {
+  asked: number;
+  confirmed: number;
+  accepted_not_yet_confirmed: number;
+  could_not: number;
+  waiting_on_you: number;
+  past_the_time_promised: number;
+  how_this_is_worked_out: string;
+}
+
+export interface VendorSelf {
+  id: string;
+  name: string;
+  type: string;
+  services: string[];
+  districts: string[];
+  contact: string;
+  hours: string;
+  active: boolean;
+  applied_on: string | null;
+  approved_on: string | null;
+  rate_card: VendorRate[];
+  commission_pct: number;
+  commission_cap_pct: number;
+  commission_note: string;
+  standing: VendorStanding;
+}
+
+export interface VendorEarnings {
+  organisation: { id: string; name: string };
+  quoted_inr: number;
+  commission_pct: number;
+  commission_inr: number;
+  you_keep_inr: number;
+  /** Always equal to `quoted_inr`: the commission is ours, not theirs. */
+  family_pays_inr: number;
+  note: string;
+  lines: { on: string; amount_inr: number; category: string; status: string; job: string }[];
+}
+
+/** A rate line as it is submitted: the note is optional, the price is not. */
+export interface RateIn {
+  service: string;
+  unit?: string;
+  amount_inr: number;
+  note?: string;
+}
+
+/** What a vendor says about itself when it asks to join. No commission, no `active`. */
+export interface VendorApplication {
+  id: string;
+  name: string;
+  type: string;
+  contact: string;
+  districts: string[];
+  services: string[];
+  address?: string;
+  hours?: string;
+  rate_card: RateIn[];
+  note?: string;
+}
+
+/**
+ * An application as a reviewer at the hospital sees it: the whole organisation
+ * record as stored, plus two counted fields. Deliberately not `VendorSelf` —
+ * that carries a standing and a commission note which this endpoint does not
+ * return, and a type that claims them would be a lie about the contract.
+ */
+export interface VendorApplicationRow {
+  id: string;
+  name: string;
+  type: string;
+  services: string[];
+  districts: string[];
+  contact: string;
+  hours: string;
+  address: string;
+  active: boolean;
+  applied_on: string | null;
+  approved_on: string | null;
+  applicant_note: string;
+  declined_reason: string;
+  commission_pct: number;
+  rate_card: VendorRate[];
+  rate_lines: number;
+  awaiting_review: boolean;
+}
+
 export const partner = {
   jobs: () => request<PartnerQueue>("/partner/jobs"),
   /** `quoteInr`: the vendor's own price in whole rupees, kept as their quote in the family's books. */
@@ -1202,5 +1307,31 @@ export const partner = {
     request<{ item_id: string; status: string; detail: string }>(
       `/partner/jobs/${encodeURIComponent(itemId)}`,
       { method: "POST", body: JSON.stringify({ answer, reason, quote_inr: quoteInr ?? null }) },
+    ),
+  /** The vendor's own record: what it offers, what it charges, how it stands. */
+  me: () => request<VendorSelf>("/partner/me"),
+  /** Replaced wholesale: a half-updated price list is worse than an old one. */
+  setRates: (rates: VendorRate[]) =>
+    request<{ rate_card: VendorRate[] }>("/partner/rates", {
+      method: "PUT",
+      body: JSON.stringify(rates),
+    }),
+  earnings: () => request<VendorEarnings>("/partner/earnings"),
+  /** The one call here that needs no sign-in. What it creates cannot be given work. */
+  apply: (body: VendorApplication) =>
+    request<{ id: string; status: string; what_happens_next: string }>("/partner/apply", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  applications: () => request<VendorApplicationRow[]>("/partner/applications"),
+  approve: (id: string, body: { commission_pct: number; username?: string; password?: string }) =>
+    request<{ id: string; active: boolean; commission_pct: number; account: string | null }>(
+      `/partner/applications/${encodeURIComponent(id)}/approve`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  decline: (id: string, reason: string) =>
+    request<{ id: string; declined_reason: string }>(
+      `/partner/applications/${encodeURIComponent(id)}/decline`,
+      { method: "POST", body: JSON.stringify({ reason }) },
     ),
 };

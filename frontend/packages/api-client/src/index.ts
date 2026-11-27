@@ -3,6 +3,7 @@ export * from "./auth";
 export * from "./client";
 export * from "./hospital";
 export * from "./live";
+export * from "./molecular";
 export * from "./onboarding";
 export * from "./orchestration";
 export * from "./records";
