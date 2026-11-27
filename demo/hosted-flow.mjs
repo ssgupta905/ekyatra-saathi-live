@@ -1057,7 +1057,7 @@ async function demo({ emr, panel, health }) {
   const ownScript = onCamera.language !== "en";
   await say(
     "phone",
-    `${onCamera.name}'s phone. The question has arrived ${ownScript ? "in her own script — not transliterated, and not in English" : "in the language her record carries"}.`,
+    `${onCamera.name}'s phone. The question has arrived ${ownScript ? "in their own script — not transliterated, and not in English" : "in the language their record carries"}.`,
   );
 
   // Nothing is read aloud yet, and that is not an omission. The speak button
@@ -1067,7 +1067,7 @@ async function demo({ emr, panel, health }) {
   // voice belongs after the agreement, which is the better place for it —
   // what she hears is then the plan her own words produced.
 
-  /* ── five: she answers, in her own words, with her own figure ──────────── */
+  /* ── five: the family answers, in their own words, with their own figure ── */
   // Whoever was actually asked answers — not a hardcoded pair. The leave hits
   // a different set of families on a deployment than it does locally, and a
   // reply injected for somebody who was never asked lands in a void: no open
@@ -1118,7 +1118,7 @@ async function demo({ emr, panel, health }) {
     console.log(`    ${row.patient_id}: not_before=${c.not_before} companions=${tr.companions} cost=${tr.stated_cost_inr}`);
   }
   const quoted = readings.find((r) => (r.travel ?? {}).stated_cost_inr);
-  await say("read", `Read into constraints: ${readings.map((r) => `${r.name} not before ${num((r.constraint ?? {}).not_before ?? "—")}`).join("; ")}. ${quoted ? `And a cost of ${num("₹" + quoted.travel.stated_cost_inr)} — there because ${quoted.name} said it. There is no fare table in this system; the sentence she said it in is stored beside the number.` : ""}`);
+  await say("read", `Read into constraints: ${readings.map((r) => `${r.name} not before ${num((r.constraint ?? {}).not_before ?? "—")}`).join("; ")}. ${quoted ? `And a cost of ${num("₹" + quoted.travel.stated_cost_inr)} — there because ${quoted.name} said it. There is no fare table in this system; the sentence they said it in is stored beside the number.` : ""}`);
 
   await say("guard", "Nothing has re-planned yet. A navigator reads the family's actual sentence and agrees with the reading before the planner may act — mishearing “after the 20th” as “on the 20th” costs this family two days on a train.");
 
@@ -1166,7 +1166,7 @@ async function demo({ emr, panel, health }) {
 
   const rejected = searches.find((s) => s.considered.some((c) => !c.offered));
   const show = searches.find((s) => s.name === follow.name) ?? rejected ?? searches[0];
-  await say("plan", `The planner then searched against what she actually said. ${show.name}: ${show.summary}.`);
+  await say("plan", `The planner then searched against what they actually said. ${show.name}: ${show.summary}.`);
 
   await mustClick(panel, /Why this family.s plan is what it is/, "the why drawer");
   await mustSee(panel, "How this was worked out", "the reasoning log");
@@ -1233,7 +1233,7 @@ async function demo({ emr, panel, health }) {
   );
   await say(
     "write",
-    `Approved — and the booking went into OpenEMR through its own FHIR API, on ${num(new Date(first.target_on + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" }))}: the date her own sentence produced. The write happens before anybody is told, so a hospital that refuses the slot means nobody was promised it.`,
+    `Approved — and the booking went into OpenEMR through its own FHIR API, on ${num(new Date(first.target_on + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" }))}: the date their own sentence produced. The write happens before anybody is told, so a hospital that refuses the slot means nobody was promised it.`,
   );
 
   // Show it in OpenEMR's own calendar rather than assert it from our side.
@@ -1249,7 +1249,7 @@ async function demo({ emr, panel, health }) {
   if (afterTrip?.arrive_by_source === "hospital_booking" && (afterTrip.arrive_by ?? "").startsWith(first.target_on)) {
     await say(
       "write",
-      `And this is the loop closing. Her journey is worked out backwards from the time she has to be there — and that time now reads ${num(new Date(afterTrip.arrive_by).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }))}, taken from the hospital's own booking. Not from anything we kept: the write-back is what the next answer depends on.`,
+      `And this is the loop closing. This journey is worked out backwards from the time they have to be there — and that time now reads ${num(new Date(afterTrip.arrive_by).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }))}, taken from the hospital's own booking. Not from anything we kept: the write-back is what the next answer depends on.`,
     );
   }
 
@@ -1265,7 +1265,7 @@ async function demo({ emr, panel, health }) {
   /* ── seven: the new plan, read to each family in their own language ───── */
   //
   // Now there is something to read. Before the agreement these cards carried
-  // no message and no speak button; the plan that exists now is the one her
+  // no message and no speak button; the plan that exists now is the one their
   // own sentence produced.
   for (const who of replying) {
     await adb("shell", "input", "keyevent", "KEYCODE_BACK");
@@ -1275,17 +1275,33 @@ async function demo({ emr, panel, health }) {
     // whichever tab was last used — by now that is her messages — and the
     // speak button is only on the home card. Cost a take to find.
     await phoneTap(TODAY[who.language] ?? TODAY.hi).catch(() => {});
-    const heard = await speakOnThePhone(who.patient_id, who.language);
-    const tongue = { hi: "Hindi", bn: "Bengali", ta: "Tamil" }[who.language] ?? who.language;
+    const tongue = { hi: "Hindi", bn: "Bengali", ta: "Tamil", en: "English" }[who.language] ?? who.language;
+
+    // One family without a speak button must not cost the whole film. It only
+    // appears once there is a plan to read, and a family whose own search
+    // offered nothing has no plan yet — which is a true thing about this run,
+    // so the caption says it rather than the take dying twenty beats in.
+    let heard = null;
+    try {
+      heard = await speakOnThePhone(who.patient_id, who.language);
+    } catch (error) {
+      console.log(`  no reading for ${who.patient_id}: ${error.message}`);
+      await say(
+        "voice",
+        `${who.name} has no new plan to read out yet, so nothing is claimed about ${tongue} speech here. The plan is read aloud only once there is one.`,
+      );
+      continue;
+    }
+
     if (heard.kept) {
       await say(
         "voice",
-        `${who.name}'s new plan, read to her in ${tongue} — ${num(heard.kept.kb + " KB")} of speech from Sarvam through the deployed API, played by the app's own media player rather than the phone's text-to-speech. We check which one played, because a phone with no ${tongue} voice fails silently and the family simply hears nothing.`,
+        `${who.name}'s new plan, read out in ${tongue} — ${num(heard.kept.kb + " KB")} of speech from Sarvam through the deployed API, played by the app's own media player rather than the phone's text-to-speech. We check which one played, because a phone with no ${tongue} voice fails silently and the family simply hears nothing.`,
       );
     } else {
       await say(
         "voice",
-        `${who.name}'s phone fell back to its own text-to-speech here, so no Sarvam audio is claimed for this take. The message is still on her screen in ${tongue}.`,
+        `${who.name}'s phone fell back to its own text-to-speech here, so no Sarvam audio is claimed for this take. The message is still on screen in ${tongue}.`,
       );
     }
   }
@@ -1312,7 +1328,7 @@ async function demo({ emr, panel, health }) {
     const place = top.place ?? top;
     await say(
       "stay",
-      `Somewhere to stay, for the night her new date now needs — ${said(place.name ?? "")} at ${num(Math.round(top.metres ?? 0) + " m")}. Real OpenStreetMap records, and a dharamshala is put above a hotel because she told us what the journey costs her. No price is shown, because nobody gave us one and this system does not invent a figure.`,
+      `Somewhere to stay, for the night the new date now needs — ${said(place.name ?? "")} at ${num(Math.round(top.metres ?? 0) + " m")}. Real OpenStreetMap records, and a dharamshala is put above a hotel because they told us what the journey costs them. No price is shown, because nobody gave us one and this system does not invent a figure.`,
     );
   } else {
     await say("stay", "The nearby-stay lookup returned nothing on this take, so nothing is claimed about it here.");
@@ -1324,7 +1340,7 @@ async function demo({ emr, panel, health }) {
   if (rail) {
     await say(
       "book",
-      `And the train. We name the stations — ${said(rail.from.name + " (" + rail.from.code + ")")} to ${said(rail.to.name + " (" + rail.to.code + ")")}, with ${num(String((rail.also ?? []).length))} other Mumbai terminals that also serve this hospital — and hand her to IRCTC to book it. No train number, no time, no fare: we have no timetable licence, and a wrong train number 1,300 km from home is worse than no train number.`,
+      `And the train. We name the stations — ${said(rail.from.name + " (" + rail.from.code + ")")} to ${said(rail.to.name + " (" + rail.to.code + ")")}, with ${num(String((rail.also ?? []).length))} other Mumbai terminals that also serve this hospital — and hand them to IRCTC to book it. No train number, no time, no fare: we have no timetable licence, and a wrong train number 1,300 km from home is worse than no train number.`,
     );
     await wait(4000);
   }
@@ -1332,7 +1348,7 @@ async function demo({ emr, panel, health }) {
   if (money.stated_fare_paise) {
     await say(
       "money",
-      `The only figure in here is hers: ${num("₹" + Math.round(money.stated_fare_paise / 100))}, and the sentence she said it in is stored beside it. This system holds no fare table and quotes no price — a number we guessed and a number she gave us look identical on a screen, and only one of them is true.`,
+      `The only figure in here is theirs: ${num("₹" + Math.round(money.stated_fare_paise / 100))}, and the sentence they said it in is stored beside it. This system holds no fare table and quotes no price — a number we guessed and a number she gave us look identical on a screen, and only one of them is true.`,
     );
     await wait(3500);
   }
