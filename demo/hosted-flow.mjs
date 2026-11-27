@@ -210,6 +210,7 @@ const MESSAGES = { hi: "संदेश", bn: "বার্তা", ta: "செ�
 //: used, and the speak button lives only on this one.
 const TODAY = { hi: "आज", bn: "আজ", ta: "இன்று", or: "ଆଜି", en: "Today" };
 const PLAN_TAB = { hi: "योजना", bn: "পরিকল্পনা", ta: "திட்டம்", or: "ଯୋଜନା", en: "Plan" };
+const COST_CARD = { hi: "yeh kaise nikla", bn: "এটা কীভাবে এল", ta: "இது எப்படி வந்தது", or: "ଏହା କିପରି ଆସିଲା", en: "how this was worked out" };
 const STAY = { hi: "ठहरने की जगह", bn: "থাকার জায়গা", ta: "தங்குவதற்கு இடம்", or: "ରହିବା ସ୍ଥାନ", en: "Somewhere to stay" };
 //: 1080x2340 on the handset being filmed. scrcpy will not stretch past it.
 const PHONE_ASPECT = 1080 / 2340;
@@ -1207,6 +1208,45 @@ async function demo({ emr, panel, health }) {
     await say("plan", `Every date the planner tried is on the record. ${show.summary} — nothing was ruled out this run, so the search shows offers only.`);
   }
   await wait(10000);
+
+  /* ── six and a quarter: Saathi answers, on the family's own phone ─────── */
+  //
+  // The planner has a date. Before any of it reaches a navigator, it reaches
+  // the family — as a sentence, with what it would cost them, and a question.
+  // This is the part a demo usually skips: the system saying something back.
+  const talking = readings.find((r) => r.language !== "en") ?? readings[0];
+  const sent = await until(
+    "Saathi putting the day to the family",
+    () => api(`/patients/${talking.patient_id}/notifications`),
+    (d) => (d.thread ?? []).some((row) => row.kind === "proposal"),
+    { tries: 20, gap: 4000 },
+  ).catch(() => null);
+
+  if (sent) {
+    const proposal = [...(sent.thread ?? [])].reverse().find((row) => row.kind === "proposal");
+    await adb("shell", "input", "keyevent", "KEYCODE_BACK").catch(() => {});
+    await wait(2200);
+    await phoneTap(talking.patient_id).catch(() => {});
+    await wait(3500);
+    await say(
+      "talk",
+      `And this is what ${talking.name} sees. Not a notification that a decision was made — a sentence, a figure, and a question: ${said("“does that suit you? if not, tell us what would.”")} Nothing is booked by it, and the reply is either agreement or the next constraint.`,
+    );
+
+    // The working, folded away and then opened. A family who wants the
+    // sentence reads the sentence; one who doubts the number taps once.
+    const opened = await phoneTap(COST_CARD[talking.language] ?? COST_CARD.en).catch(() => null);
+    if (opened) {
+      await wait(4000);
+      const money = (proposal?.detail ?? {}).cost ?? {};
+      const first = (money.items ?? [])[0] ?? {};
+      await say(
+        "money",
+        `Tapped open, every figure says where it came from — ${said(first.label ?? "")} at ${num(first.rupees ?? "")}, ${first.basis ?? ""}, from ${first.source ?? "a published rate"}. ${money.all_stated ? "This one is their own figure, with the sentence they said it in." : "An estimate, and it says so: a family told “about” and charged more was approximately right, one told a price was misled."}`,
+      );
+      await wait(4000);
+    }
+  }
 
   await mustSee(panel, /What this is built from|built from/, "the knowledge graph");
   await say("audit", "And what it was built from. Every node is a record we hold, and each says where it came from — the hospital's calendar, our records, or the family's own words. Three different kinds of claim, kept apart.");
