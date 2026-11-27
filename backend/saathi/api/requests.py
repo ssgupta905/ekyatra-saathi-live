@@ -72,6 +72,11 @@ async def requests_waiting(state: ContainerDep) -> list[dict]:
                 "id": request.id,
                 "patient_id": patient_id,
                 "name": patient.name if patient else patient_id,
+                # Which language they actually replied in. Absent until now,
+                # which left every reader of this row — the Console, and a
+                # film trying to tap a card on their screen — guessing, and
+                # defaulting to English for a family who does not read it.
+                "language": patient.language.value if patient else None,
                 "intent": request.intent.value,
                 "summary": request.summary(),
                 "raw_text": request.raw_text,

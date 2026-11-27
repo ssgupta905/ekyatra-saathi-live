@@ -1223,7 +1223,14 @@ async function demo({ emr, panel, health }) {
   // The planner has a date. Before any of it reaches a navigator, it reaches
   // the family — as a sentence, with what it would cost them, and a question.
   // This is the part a demo usually skips: the system saying something back.
-  const talking = readings.find((r) => r.language !== "en") ?? readings[0];
+  // Language comes from the question, not the reading. `/requests/waiting`
+  // rows carry no language at all, so `reading.language` was undefined, the
+  // lookup fell back to English, and two takes hunted for "how this was
+  // worked out" on a Tamil screen and reported the card missing.
+  const tongueOf = (pid) => asked.find((q) => q.patient_id === pid)?.language ?? "en";
+  const talking =
+    readings.find((r) => tongueOf(r.patient_id) !== "en") ?? readings[0];
+  const talkingTongue = tongueOf(talking.patient_id);
   const sent = await until(
     "Saathi putting the day to the family",
     () => api(`/patients/${talking.patient_id}/notifications`),
@@ -1244,7 +1251,7 @@ async function demo({ emr, panel, health }) {
 
     // The working, folded away and then opened. A family who wants the
     // sentence reads the sentence; one who doubts the number taps once.
-    const opened = await phoneTap(COST_CARD[talking.language] ?? COST_CARD.en).catch(() => null);
+    const opened = await phoneTap(COST_CARD[talkingTongue] ?? COST_CARD.en).catch(() => null);
     if (opened) {
       await wait(4000);
       const money = (proposal?.detail ?? {}).cost ?? {};
