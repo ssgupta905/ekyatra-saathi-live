@@ -42,10 +42,13 @@ async function main() {
     try {
       await run("ffmpeg", [
         "-y", "-i", resolve(FROM, source),
-        // 30fps to match the composition; -an because every clip is silent
-        // except the phone, and the phone's own audio would fight the
-        // narration. The app's voice is demonstrated by the caption saying so.
-        "-r", "30", "-an",
+        // Keep the audio. scrcpy captures the handset's own output, and that
+        // includes Saathi reading a plan aloud in Hindi — which is the single
+        // feature this project is most often asked to prove. Stripping it and
+        // letting a caption assert it happened was exactly backwards: the
+        // viewer heard narration claiming a voice they were never played.
+        // Web clips have no audio track and are unaffected.
+        "-r", "30",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
         "-pix_fmt", "yuv420p",
         resolve(TO, out),
@@ -54,7 +57,11 @@ async function main() {
         "-v", "error", "-show_entries", "format=duration",
         "-of", "default=nokey=1:noprint_wrappers=1", resolve(TO, out),
       ]);
-      index[name] = out;
+      // The duration matters to the composition, not just the filename: a
+      // section has to be long enough to play its whole clip, or the film
+      // silently shows the first third of a recording and the rest of the
+      // product is never seen.
+      index[name] = { file: out, seconds: Number(Number(stdout).toFixed(2)) };
       console.log(`${Number(stdout).toFixed(1)}s`);
     } catch (error) {
       console.log(`failed — left out of the film (${String(error.message).split("\n")[0]})`);
@@ -70,7 +77,8 @@ async function main() {
     "// Written by demo/stage-clips.mjs. Which clips exist, so the composition\n" +
       "// can drop a section whose clip was never shot — picture and narration\n" +
       "// together, rather than leaving a voice over a black screen.\n" +
-      `export const CLIPS: Record<string, string> = ${JSON.stringify(index, null, 2)};\n`,
+      "export type Clip = { file: string; seconds: number };\n" +
+      `export const CLIPS: Record<string, Clip> = ${JSON.stringify(index, null, 2)};\n`,
   );
   console.log(`\n  ${Object.keys(index).length} clips staged in film/public/clips\n`);
 }

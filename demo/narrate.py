@@ -49,9 +49,14 @@ def _with_kokoro(lines: list[dict]) -> str | None:
         # voice that does not tire the ear.
         pipeline = KPipeline(lang_code="a")
         voice = os.environ.get("KOKORO_VOICE", "am_michael")
+        # Brisk, not hurried. At 0.98 the read was measured and slightly
+        # ponderous over nine minutes; 1.08 keeps every word distinct while
+        # giving the film pace. Past about 1.15 the clause breaks disappear
+        # and it starts to sound like a disclaimer being read out.
+        speed = float(os.environ.get("KOKORO_SPEED", "1.08"))
         for line in lines:
             out = VO / f"{line['id']}.wav"
-            chunks = [audio for _, _, audio in pipeline(line["text"], voice=voice, speed=0.98)]
+            chunks = [audio for _, _, audio in pipeline(line["text"], voice=voice, speed=speed)]
             if not chunks:
                 raise RuntimeError(f"kokoro produced nothing for {line['id']}")
             import numpy as np

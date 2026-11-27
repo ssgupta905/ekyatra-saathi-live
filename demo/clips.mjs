@@ -133,7 +133,7 @@ async function connectorCounts() {
  * app to appear in front of. 1600x1000 is 16:10, which letterboxes cleanly
  * into a 1920x1080 film without cropping anything off a dense console.
  */
-async function web(name, url, act, { width = 1600, height = 1000 } = {}) {
+async function web(name, url, act, { width = 1600, height = 1000, as = null } = {}) {
   const dir = resolve(OUT, `_${name}`);
   rmSync(dir, { recursive: true, force: true });
   const browser = await chromium.launch({ headless: true });
@@ -142,6 +142,21 @@ async function web(name, url, act, { width = 1600, height = 1000 } = {}) {
     recordVideo: { dir, size: { width, height } },
     deviceScaleFactor: 2,
   });
+
+  // Sign in before the first frame, not in front of the camera.
+  //
+  // Playwright begins recording when the context is created, so a clip that
+  // signs in afterwards opens with several seconds of the persona picker —
+  // and the narration then describes a navigator agreeing over a login
+  // screen. Seeding the key the Console itself reads (`persona.ts`) means the
+  // clip starts already signed in.
+  if (as) {
+    await context.addInitScript(
+      ([key, who]) => window.localStorage.setItem(key, who),
+      ["saathi.persona", as],
+    );
+  }
+
   const page = await context.newPage();
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 120000 });
@@ -172,6 +187,10 @@ const SPENDS = { hi: "खर्चा", bn: "খরচ", ta: "செலவு", 
 const COST_CARD = {
   hi: "yeh kaise nikla", bn: "এটা কীভাবে এল", ta: "இது எப்படி வந்தது",
   or: "ଏହା କିପରି ଆସିଲା", en: "how this was worked out",
+};
+const MAP_OPEN = {
+  hi: "नक्शे में देखें", bn: "মানচিত্রে দেখুন", ta: "வரைபடத்தில் பார்க்க",
+  or: "ମାନଚିତ୍ରରେ ଦେଖନ୍ତୁ", en: "Show on map",
 };
 const STAY_NEED = {
   hi: "ठहरने की जगह", bn: "থাকার জায়গা", ta: "தங்குவதற்கு இடம்",
@@ -379,10 +398,8 @@ const CLIPS = [
     says: "The families' appointments that day — unchanged by the leave",
     async shoot() {
       return web("02-appointments-untouched", `${PANEL}/#/hospital`, async (page) => {
-        await signInConsole(page, "Seema Kamble");
-        await page.goto(`${PANEL}/#/hospital`, { waitUntil: "domcontentloaded" }).catch(() => {});
         await wait(7000);
-      });
+      }, { as: "seema" });
     },
   },
 
@@ -401,13 +418,11 @@ const CLIPS = [
       state.asked = waiting.filter((q) => q.about_day === state.day && q.reason === "doctor_away");
       say(`asked: ${state.asked.map((q) => `${q.name} (${q.language})`).join(", ")}`);
       return web("03-board", `${PANEL}/#/approvals`, async (page) => {
-        await signInConsole(page, "Seema Kamble");
-        await page.goto(`${PANEL}/#/approvals`, { waitUntil: "domcontentloaded" }).catch(() => {});
         await wait(6000);
         await page.getByText(/What one change did, and to whom/).first()
           .scrollIntoViewIfNeeded().catch(() => {});
         await wait(7000);
-      });
+      }, { as: "seema" });
     },
   },
 
@@ -419,13 +434,11 @@ const CLIPS = [
       const who = state.asked?.[0];
       if (!who) throw new Error("clip 03 must run first; nobody has been asked");
       return web("04-board-opened", `${PANEL}/#/approvals`, async (page) => {
-        await signInConsole(page, "Seema Kamble");
-        await page.goto(`${PANEL}/#/approvals`, { waitUntil: "domcontentloaded" }).catch(() => {});
         await wait(6000);
         const row = page.locator(".board-row-head").filter({ hasText: who.name }).first();
         await row.click({ timeout: 20000 });
         await wait(9000);
-      });
+      }, { as: "seema" });
     },
   },
 
@@ -492,15 +505,13 @@ const CLIPS = [
       state.reading = mine;
 
       return web("07-a-person-agrees", `${PANEL}/#/approvals`, async (page) => {
-        await signInConsole(page, "Seema Kamble");
-        await page.goto(`${PANEL}/#/approvals`, { waitUntil: "domcontentloaded" }).catch(() => {});
         await wait(6000);
         const row = page.locator("li.queue-row").filter({ hasText: who.name }).first();
         await row.scrollIntoViewIfNeeded().catch(() => {});
         await wait(4000);
         await row.getByRole("button", { name: /^Agree/ }).first().click({ timeout: 20000 });
         await wait(8000);
-      });
+      }, { as: "seema" });
     },
   },
 
@@ -520,8 +531,6 @@ const CLIPS = [
       state.search = search;
 
       return web("08-planner-search", `${PANEL}/#/approvals`, async (page) => {
-        await signInConsole(page, "Seema Kamble");
-        await page.goto(`${PANEL}/#/approvals`, { waitUntil: "domcontentloaded" }).catch(() => {});
         await wait(5000);
         const row = page.locator(".board-row-head").filter({ hasText: who.name }).first();
         await row.click({ timeout: 15000 }).catch(() => {});
@@ -529,7 +538,7 @@ const CLIPS = [
         await page.getByText(/What the planner considered/).first()
           .scrollIntoViewIfNeeded().catch(() => {});
         await wait(9000);
-      });
+      }, { as: "seema" });
     },
   },
 
@@ -607,8 +616,6 @@ const CLIPS = [
       say(`approving ${state.offered.target_on}`);
 
       return web("11-navigator-approves", `${PANEL}/#/approvals`, async (page) => {
-        await signInConsole(page, "Seema Kamble");
-        await page.goto(`${PANEL}/#/approvals`, { waitUntil: "domcontentloaded" }).catch(() => {});
         await wait(5000);
         // By id: the queue labels rows with the patient id, while her *name*
         // appears higher up the same screen in the request queue.
@@ -617,7 +624,7 @@ const CLIPS = [
         await wait(4000);
         await page.getByRole("button", { name: /^Approve as / }).first().click({ timeout: 15000 });
         await wait(10000);
-      });
+      }, { as: "seema" });
     },
   },
 
@@ -657,10 +664,8 @@ const CLIPS = [
       if (!left) throw new Error("no old slot was left open on this run, so there is nothing to show");
       say("rebook:old-slot-left-open moved — the connector is reporting it, not us");
       return web("13-will-not-pretend", `${PANEL}/#/hospital`, async (page) => {
-        await signInConsole(page, "Seema Kamble");
-        await page.goto(`${PANEL}/#/hospital`, { waitUntil: "domcontentloaded" }).catch(() => {});
         await wait(9000);
-      });
+      }, { as: "seema" });
     },
   },
 
@@ -792,7 +797,243 @@ const CLIPS = [
       });
     },
   },
+
+  /* ─────────── the rest of the platform, which the film kept skipping ──── */
+
+  {
+    id: "20",
+    name: "20-the-navigators-day",
+    says: "A navigator's whole day: who needs a decision, who is waiting, who is travelling",
+    async shoot() {
+      return web("20-the-navigators-day", PANEL, async (page) => {
+        await goTo(page, "Today");
+        await wait(9000);
+        await page.mouse.wheel(0, 500);
+        await wait(5000);
+      }, { as: "seema" });
+    },
+  },
+
+  {
+    id: "21",
+    name: "21-the-network",
+    says: "The network board — every hospital, desk and partner, and what each just did",
+    async shoot() {
+      return web("21-the-network", PANEL, async (page) => {
+        await goTo(page, "Network board");
+        await wait(10000);
+        await page.mouse.wheel(0, 500);
+        await wait(5000);
+      }, { as: "seema" });
+    },
+  },
+
+  {
+    id: "22",
+    name: "22-who-is-registered",
+    says: "Who is actually in the network: hospitals, clinics, desks, partners",
+    async shoot() {
+      return web("22-who-is-registered", PANEL, async (page) => {
+        await goTo(page, "Directory");
+        await wait(10000);
+        await page.mouse.wheel(0, 600);
+        await wait(6000);
+      }, { as: "neha" });
+    },
+  },
+
+  {
+    id: "23",
+    name: "23-what-can-break",
+    says: "The resources a plan depends on — machines, staff, supply — and their state",
+    async shoot() {
+      return web("23-what-can-break", PANEL, async (page) => {
+        await goTo(page, "Registries");
+        await wait(3000);
+        // Registries opens on Hospitals; the resources a plan depends on —
+        // machines, staff roles, supply — are a tab along. The narration is
+        // about those, so the clip has to be of those.
+        await page.getByText("Resources", { exact: true }).first()
+          .click({ timeout: 15000 }).catch(() => {});
+        await wait(8000);
+        await page.mouse.wheel(0, 500);
+        await wait(5000);
+      }, { as: "neha" });
+    },
+  },
+
+  {
+    id: "24",
+    name: "24-what-it-was-built-from",
+    says: "The knowledge graph: every record behind one family's plan, and where each came from",
+    async shoot() {
+      const who = state.replied ?? state.asked?.[0];
+      if (!who) throw new Error("no family to show a graph for");
+      return web("24-what-it-was-built-from", `${PANEL}/#/approvals`, async (page) => {
+        await wait(5000);
+        // Select the family, then open the drawer that holds the graph.
+        await page.locator("li.queue-row").filter({ hasText: who.name }).first()
+          .click({ timeout: 15000 }).catch(async () => {
+            await page.locator(".master-row").filter({ hasText: who.patient_id }).first()
+              .click({ timeout: 15000 }).catch(() => {});
+          });
+        await wait(3000);
+        await page.getByRole("button", { name: /Why this family/ }).first()
+          .click({ timeout: 15000 }).catch(() => {});
+        await wait(4000);
+        await page.getByText(/built from/i).first().scrollIntoViewIfNeeded().catch(() => {});
+        await wait(9000);
+      }, { as: "seema" });
+    },
+  },
+
+  {
+    id: "25",
+    name: "25-the-ledger",
+    says: "The hash-chained record — every reading, refusal and approval, with its evidence",
+    async shoot() {
+      return web("25-the-ledger", PANEL, async (page) => {
+        await goTo(page, "Audit log");
+        await wait(10000);
+        await page.mouse.wheel(0, 700);
+        await wait(7000);
+      }, { as: "neha" });
+    },
+  },
+
+  {
+    id: "26",
+    name: "26-one-family-whole",
+    says: "One family's whole record: their plan, their journey, what they were told",
+    async shoot() {
+      const who = state.replied ?? state.asked?.[0];
+      return web("26-one-family-whole", PANEL, async (page) => {
+        await goTo(page, "Families");
+        await wait(6000);
+        if (who) {
+          await page.getByText(who.name).first().click({ timeout: 15000 }).catch(() => {});
+          await wait(5000);
+        }
+        await page.mouse.wheel(0, 600);
+        await wait(7000);
+      }, { as: "seema" });
+    },
+  },
+
+  {
+    id: "27",
+    name: "27-her-own-books",
+    says: "Her own book of what this is costing her, kept in her own app",
+    async shoot() {
+      const who = state.replied ?? state.asked?.[0];
+      if (!who) throw new Error("no family to show");
+      return phone("27-her-own-books", PHONE.serial, async (serial) => {
+        await freshApp(serial);
+        await tap(serial, who.patient_id);
+        await tap(serial, SPENDS[who.language] ?? SPENDS.en);
+        await wait(10000);
+        const call = adbFor(serial);
+        await call.quiet("shell", "input", "swipe", "540", "1700", "540", "900", "300");
+        await wait(6000);
+      });
+    },
+  },
+
+  {
+    id: "28",
+    name: "28-the-map",
+    says: "The map in her own app: the hospital, the gate to use, and what is near it",
+    async shoot() {
+      const who = state.replied ?? state.asked?.[0];
+      if (!who) throw new Error("no family to show");
+      return phone("28-the-map", PHONE.serial, async (serial) => {
+        await freshApp(serial);
+        await tap(serial, who.patient_id);
+        await tap(serial, PLAN_TAB[who.language] ?? PLAN_TAB.en);
+        // The Near-you card fetches its places before it draws, and the map
+        // control lives inside it. Looking too early finds a card that is
+        // still loading and reports the feature missing.
+        await wait(9000);
+        const opened = await tap(serial, MAP_OPEN[who.language] ?? MAP_OPEN.en, 6000);
+        if (!opened) say("warning: the map control was not found");
+        await wait(9000);
+        // Pan and pinch a little, so it reads as a map rather than a picture.
+        const call = adbFor(serial);
+        await call.quiet("shell", "input", "swipe", "700", "1200", "420", "900", "600");
+        await wait(4000);
+      });
+    },
+  },
+
+  {
+    id: "29",
+    name: "29-five-languages",
+    says: "The same app, the same family, in another of its five languages",
+    async shoot() {
+      const who = state.replied ?? state.asked?.[0];
+      if (!who) throw new Error("no family to show");
+      return phone("29-five-languages", PHONE.serial, async (serial) => {
+        await freshApp(serial);
+        await tap(serial, who.patient_id);
+        await wait(3000);
+        // The language control sits in the header, labelled with the endonym
+        // of the language currently in use.
+        const endonym = { hi: "हिन्दी", bn: "বাংলা", ta: "தமிழ்", or: "ଓଡ଼ିଆ", en: "English" };
+        await tap(serial, endonym[who.language] ?? "English", 4000);
+        await wait(7000);
+      });
+    },
+  },
+
+  {
+    id: "30",
+    name: "30-how-a-partner-joins",
+    says: "How a cab firm or a dharamshala gets into the network in the first place",
+    async shoot() {
+      return web("30-how-a-partner-joins", PANEL, async (page) => {
+        await goTo(page, "Onboarding");
+        await wait(11000);
+        await page.mouse.wheel(0, 500);
+        await wait(5000);
+      }, { as: "neha" });
+    },
+  },
+
+  {
+    id: "31",
+    name: "31-the-plan-boards",
+    says: "Every family's plan on one board, by step and by date",
+    async shoot() {
+      return web("31-the-plan-boards", PANEL, async (page) => {
+        await goTo(page, "Plan boards");
+        await wait(11000);
+        await page.mouse.wheel(0, 500);
+        await wait(5000);
+      }, { as: "seema" });
+    },
+  },
+
+  {
+    id: "32",
+    name: "32-what-it-adds-up-to",
+    says: "What the whole cohort looks like: journeys, distance, what is outstanding",
+    async shoot() {
+      return web("32-what-it-adds-up-to", PANEL, async (page) => {
+        await goTo(page, "Reports");
+        await wait(11000);
+        await page.mouse.wheel(0, 600);
+        await wait(6000);
+      }, { as: "seema" });
+    },
+  },
 ];
+
+/** Open a Console section the way a person does: by clicking the rail. */
+async function goTo(page, label) {
+  const item = page.getByRole("button", { name: label, exact: true }).first();
+  await item.click({ timeout: 20000 });
+  await wait(3500);
+}
 
 /* ───────────────────────────── console sign-in ─────────────────────────── */
 

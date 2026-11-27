@@ -236,7 +236,7 @@ it to make the test pass**; it will break the Android build.
 ```bash
 cd demo && CHROME=$(node -e "const {chromium}=require('playwright');console.log(chromium.executablePath())")
 cd film && npx remotion render Demo ../../recordings/EKYATRA-demo.mp4 \
-  --browser-executable="$CHROME" --concurrency=2 --timeout=120000
+  --browser-executable="$CHROME" --concurrency=6 --timeout=120000
 ```
 
 **`--browser-executable` is not optional on this machine.** Remotion's bundled
@@ -261,6 +261,12 @@ so the duration looks unchanged rather than wrong. Always check:
 ffprobe -v error -show_entries format=duration -of csv=p=0 recordings/EKYATRA-demo.mp4
 # compare against:  npx remotion compositions --browser-executable="$CHROME"
 ```
+
+`--concurrency=6` on a 10-core, 16 GB machine: each worker is a Chromium tab
+decoding video, so memory is the ceiling, not cores. At 2 the render took 19
+minutes; at 6 it is roughly a third of that. Going higher risks a worker being
+killed, which surfaces as — of course — a truncated file and an exit code of
+zero.
 
 Do not install another Node to chase this. `brew install node@22` upgrades
 `simdjson`, which the installed Node links against, and breaks `node` outright

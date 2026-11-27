@@ -64,11 +64,55 @@ import { CLIPS as HAVE } from "./clips";
 /** A breath after each line, so sentences do not run into one another. */
 const TAIL = 0.65;
 
+/**
+ * How much faster than life a recording may be played.
+ *
+ * Timing used to come from the narration alone, which meant a section ended
+ * when the sentence did — and a sixty-second clip got sixteen seconds. The
+ * film showed a quarter of the journey recording and none of the route, the
+ * maps hand-off or the family's own spends, so half the product was in the
+ * clips and absent from the film.
+ *
+ * A section is now long enough to play its whole clip, at natural speed.
+ * This was 1.8x for a while to hold the film near nine minutes, and brisk is
+ * not the same as followable: a navigator moving through a queue at nearly
+ * twice life is hard to read and impossible to trust. The film is longer
+ * instead, which is the right trade for a demo whose whole claim is that you
+ * can watch it work.
+ */
+const MAX_SPEED = 1.0;
+
+/**
+ * Clips whose own sound is part of the point.
+ *
+ * Saathi reading a plan aloud in Hindi is the thing this project is most
+ * often asked to prove, and it was being thrown away — the clip muted, the
+ * narration asserting a voice the viewer was never played. These clips keep
+ * their audio, and are never sped up: a 1.8x voice is a chipmunk, which
+ * would be worse than silence.
+ */
+const AUDIBLE = new Set(["14-read-aloud"]);
+
+const isAudible = (line: Line) => Boolean(line.clip && AUDIBLE.has(line.clip));
+
 export const lines: Line[] = (script.lines as Line[]).filter(
   (line) => !line.clip || HAVE[line.clip],
 );
 
-export const framesFor = (line: Line) => Math.round(((line.seconds ?? 4) + TAIL) * FPS);
+/** Seconds of clip this line has to show, if any. */
+const clipSeconds = (line: Line) => (line.clip ? HAVE[line.clip]?.seconds ?? 0 : 0);
+
+export const secondsFor = (line: Line) =>
+  Math.max(
+    (line.seconds ?? 4) + TAIL,
+    clipSeconds(line) / (isAudible(line) ? 1 : MAX_SPEED),
+  );
+
+export const framesFor = (line: Line) => Math.round(secondsFor(line) * FPS);
+
+/** Never slower than life; only as fast as it must be to fit. */
+export const speedFor = (line: Line) =>
+  isAudible(line) ? 1 : Math.max(1, clipSeconds(line) / secondsFor(line));
 
 export const totalFrames = () =>
   Math.max(FPS, lines.reduce((sum, line) => sum + framesFor(line), 0));
@@ -95,12 +139,29 @@ const Dissolve: React.FC<{ children: React.ReactNode; length: number }> = ({ chi
  * would cut something off, and what gets cut is always the thing the clip is
  * about. `contain` keeps all of it and puts the ground either side.
  */
-const Clip: React.FC<{ file: string; label: string }> = ({ file, label }) => (
+const Clip: React.FC<{
+  file: string;
+  label: string;
+  speed: number;
+  audible: boolean;
+  narrationFrames: number;
+}> = ({ file, label, speed, audible, narrationFrames }) => (
   <AbsoluteFill style={{ backgroundColor: C.ground }}>
     <OffthreadVideo
       src={staticFile(`clips/${file}`)}
       style={{ width: "100%", height: "100%", objectFit: "contain" }}
-      muted
+      playbackRate={speed}
+      muted={!audible}
+      // Under the narrator while he is speaking, then up. The app's voice is
+      // the evidence; the narration is the frame around it, and they must not
+      // talk over each other.
+      volume={audible
+        ? (f) =>
+            interpolate(f, [0, narrationFrames - 12, narrationFrames + 12], [0.18, 0.18, 1], {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp",
+            })
+        : 0}
     />
     <div
       style={{
@@ -167,7 +228,13 @@ export const Demo: React.FC = () => {
           <Sequence key={line.id} from={from} durationInFrames={length}>
             <Dissolve length={length}>
               {line.clip ? (
-                <Clip file={HAVE[line.clip]} label={whichSurface(line.clip)} />
+                <Clip
+                  file={HAVE[line.clip].file}
+                  label={whichSurface(line.clip)}
+                  speed={speedFor(line)}
+                  audible={isAudible(line)}
+                  narrationFrames={Math.round(((line.seconds ?? 4) + TAIL) * FPS)}
+                />
               ) : Scene ? (
                 <Scene />
               ) : (

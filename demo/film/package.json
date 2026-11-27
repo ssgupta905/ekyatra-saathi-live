@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "studio": "remotion studio",
-    "render": "remotion render Demo ../../recordings/EKYATRA-demo.mp4 --concurrency=2"
+    "render": "remotion render Demo ../../recordings/EKYATRA-demo.mp4 --concurrency=6 --timeout=120000"
   },
   "dependencies": {
     "@remotion/cli": "4.0.547",
