@@ -27,6 +27,15 @@ recording is the hero and the Console sits small beside it.
 
 ## Part 0 — Reset (run before every take, safe to repeat)
 
+**One command does R2–R5:**
+
+```bash
+set -a; source .env; set +a
+.venv/bin/python -I demo/finale-film/tools/reset_stack.py --since "<UTC time the last take started>"
+```
+
+Then R5b (restart the API), R7 and R8 by hand. The table below is what the script does and why.
+
 | Id | Action | Who | Check |
 |---|---|---|---|
 | R1 | Wake all four Render services (`/api/health`, Console, Partner, Family). The first hit after sleep takes ~60 s. | Claude | `health.status == ok`, `ledger_intact == true` |
@@ -139,6 +148,22 @@ Remotion-drawn animated card (SVG), not a screen recording.
 | S31 | Illustration | Network diagram returns, then the logo and *"The hospital system runs the hospital. Saathi runs the journey between."* | "The hospital system runs the hospital. Saathi runs the patient's journey between hospitals, and it plugs into any of them." |
 
 ---
+
+## Part 1b — The scenario take, exactly as it ran (27 Nov)
+
+| Step | Screen | Action | Check |
+|---|---|---|---|
+| T1 | HMS | Calendar `+` → **Provider** tab → Category **Vacation** (a native select inside an iframe; set it by script if typing doesn't take) → All day → 29 Nov → Title "Vacation" → Comments "oncology leave" → Save. | Day view shows the leave; the three appointments are unchanged. |
+| T2 | Console | Hospitals right now, then Approvals: "Asked, and no answer yet" lists Kamla (hi), Shanti (bn), Josephine (hi). | `GET /questions/waiting` has 3 `doctor_away`. |
+| T3 | Phone | Kamla → Messages → type `1 December ke baad aa sakte hain. Hum do log aayenge. Aane-jaane mein lagbhag 1400 rupaye lagte hain.` → send. | `GET /requests/waiting`: not_before 1 or 2 Dec, companions 1, ₹1,400. |
+| T4 | Console | Approvals → **Agree, and re-plan**. The planner proposes the day to the family with a cost (₹1,460–1,640). | "Awaiting a decision: EKY-KAMLA, 2 options". |
+| T5 | Console | **Reload the page first** (hash navigation keeps an old bundle). Select EKY-KAMLA → "Why this family's plan is what it is" → scroll → close. | Checkbox reads "(the clinician was away) … Likely cost to the fund: ₹1460–1640". |
+| T6 | Console + phone | Tick the welfare fund → **Approve** the first option. | Phone: new plan, apology with "no extra cost to you", then the rest-house offer (₹1,200, 1 night). |
+| T7 | HMS | Month view → Kamla on Wed 2 Dec (OpenEMR shows 08:00 IST as 2:30am; its display timezone is UTC). | One "Rescheduled by Saathi" row. |
+| T8 | Phone | Kharcha → **Ask for a better rate** → ₹950 a night with breakfast, 4 offers shown → **Book this room** → Messages. | "Booked", hospital pays; the plan ends "Parel Guest House is expecting you". |
+| T9 | Phone | Plan → long leg "Train / bus" (Google Maps from Gaya) → back → train card → **IRCTC Rail Connect**. | IRCTC opens; it then warns about USB, so cut before that. |
+
+**Privacy:** never film the last-leg Maps buttons. They route from "Your location", and Google Maps then shows the phone's real street and its "Home" label. The long-leg buttons route from the family's district.
 
 ## Part 2 — Production steps after recording
 

@@ -1,0 +1,257 @@
+{
+ "voice": "af_heart",
+ "speed": 0.95,
+ "scenes": [
+  {
+   "id": "S00",
+   "chapter": "Saathi",
+   "visual": "logo",
+   "text": "This is EKYATRA Saathi. A companion for the journey between the hospital and home."
+  },
+  {
+   "id": "S01",
+   "chapter": "The problem",
+   "visual": "illo-map",
+   "text": "Most cancer care in India sits in a handful of cities. Most cancer patients don't. A family from Gaya travels a thousand kilometres, and nearly two days, to reach a hospital in Mumbai. And they make that journey again and again, for scans, for reports, for every cycle of treatment."
+  },
+  {
+   "id": "S02",
+   "chapter": "The problem",
+   "visual": "illo-gap",
+   "text": "The hospital runs on its own system. When a doctor takes leave, a scanner goes down, or a report runs late, the hospital knows. The family, already on the train, does not. Nobody's job is the space between the hospital and the home."
+  },
+  {
+   "id": "S03",
+   "chapter": "What it costs",
+   "visual": "illo-cost",
+   "text": "For a cancer patient, a wasted journey is not an inconvenience. It is money the family borrowed. It is wages lost, and nights in a city they don't know. And it is a dose that slips. Long treatment is exactly where families drop out, and distance and money are why."
+  },
+  {
+   "id": "S04",
+   "chapter": "One network",
+   "visual": "illo-network",
+   "text": "Saathi joins everyone a cancer journey runs through into one network. Hospitals and clinics. Labs and pharmacies. Rail, bus and cabs. Places to stay. Suppliers who set up oxygen or a hospital bed at home. And the scheme desks that pay. Then it puts the family at the centre."
+  },
+  {
+   "id": "S06",
+   "chapter": "Registering the network",
+   "visual": "clip",
+   "clip": "S06-registries",
+   "text": "It starts with registration. Each hospital is registered with its treatment centres, its doctors, and the machines a patient depends on: the MRI, the echo, the dialysis station."
+  },
+  {
+   "id": "S07",
+   "chapter": "Registering the network",
+   "visual": "clip",
+   "clip": "S07-directory",
+   "text": "Then everyone else. Forty organisations across eleven kinds: stays and rest houses, rail and bus partners, cabs, pharmacies, equipment suppliers, ambulances, and insurers. Each says what it offers, how it answers, and who to fall back on if it can't."
+  },
+  {
+   "id": "S07b",
+   "chapter": "Registering the network",
+   "visual": "clip",
+   "clip": "S07b-partners",
+   "text": "Adding a partner takes one form: what it offers, which districts and hospitals it serves, how it answers, and who to turn to if it can't. A lab, a cab firm or a rest house can answer by itself, or through a person on the partner app. And every role, from navigator to partner, sees only what its work needs."
+  },
+  {
+   "id": "S08",
+   "chapter": "Registering the network",
+   "visual": "clip",
+   "clip": "S08-config",
+   "text": "Each hospital sets its own rules: how far a visit may move, which steps need a doctor's approval, and which languages and channels are switched on. The agents work inside those rules, never around them."
+  },
+  {
+   "id": "S10",
+   "chapter": "Registering the network",
+   "visual": "illo-standards",
+   "text": "Every partner plugs in the same way, over open standards. FHIR for hospitals. A Beckn style open network for travel. And partners only ever see the trip and the dates. Never the diagnosis, and never the family's budget."
+  },
+  {
+   "id": "S11",
+   "chapter": "Bringing a family in",
+   "visual": "clip",
+   "clip": "S11-onboarding",
+   "text": "Taking a family on asks only what only the family knows: who they are, who travels with them, and what they agree to share. Consent is asked once, recorded, and can be withdrawn. Everything clinical comes from the hospital itself."
+  },
+  {
+   "id": "S12",
+   "chapter": "Bringing a family in",
+   "visual": "phone",
+   "clip": "S12-phone-tour",
+   "text": "The family gets one simple app, in their own language. Hindi, Bengali, Tamil, Odia or English. It reads messages aloud, and they can simply speak back."
+  },
+  {
+   "id": "S13",
+   "chapter": "A real hospital system",
+   "visual": "clip",
+   "clip": "S13-openemr",
+   "text": "This is OpenEMR, a real, open source hospital system, completely unmodified. Nothing of ours is installed in it. Saathi reads it through the standard FHIR interface, and writes approved bookings back the same way."
+  },
+  {
+   "id": "S14",
+   "chapter": "A real hospital system",
+   "visual": "clip",
+   "clip": "S14-hospital-now",
+   "text": "The Control Centre reads that hospital live. Every appointment, every leave, every machine out of service, and which families each change touches."
+  },
+  {
+   "id": "S15",
+   "chapter": "Agents, governed by people",
+   "visual": "illo-agents",
+   "text": "Behind this is a team of agents. One watches the hospital. One reads what families say. One plans. One decides whether a family is ready to travel. One finds a room and bargains for it. And one checks every message before it is sent. The routine work is theirs. Two decisions always belong to a person: agreeing with what a family meant, and approving any change to a booking."
+  },
+  {
+   "id": "S16",
+   "chapter": "Agents, governed by people",
+   "visual": "clip",
+   "clip": "S16-today",
+   "text": "So the desk sees only what needs a person. Today's work, sorted by who is hit hardest."
+  },
+  {
+   "id": "S16b",
+   "chapter": "Agents, governed by people",
+   "visual": "clip",
+   "clip": "S16b-network",
+   "text": "The network board puts every journey against every party: the lab, the report, the scheme desk, the pharmacy, the slot, the doctor, the ride, the stay. One family is stuck. Their cab firm said it can't go ahead, so Saathi has already found another way, and the plan waits for a person to approve it. Every partner's answer is there, and the desk can ask another organisation from the directory in one step."
+  },
+  {
+   "id": "S17",
+   "chapter": "Maps and money",
+   "visual": "phone",
+   "clip": "S17-journey",
+   "text": "The maps are real. The long leg is the train: the right two stations, and straight into IRCTC. The last leg is routed live, from the station to the hospital door, with the time to leave."
+  },
+  {
+   "id": "S17b",
+   "chapter": "Maps and money",
+   "visual": "phone",
+   "clip": "S17b-maps",
+   "text": "And it hands the family to the apps they already use. One tap opens Google Maps, with the whole journey from Gaya, train by train, to the hospital door."
+  },
+  {
+   "id": "S17c",
+   "chapter": "Maps and money",
+   "visual": "phone",
+   "clip": "S17c-irctc",
+   "text": "Another opens IRCTC itself, to book the train, with the two stations Saathi has already worked out."
+  },
+  {
+   "id": "S18",
+   "chapter": "Maps and money",
+   "visual": "phone",
+   "clip": "S18-near-you",
+   "text": "Near the hospital, it shows what a family actually needs: the cheapest bed first, a dharamshala before a hotel, then pharmacies, labs and equipment, each with the way there."
+  },
+  {
+   "id": "S19",
+   "chapter": "Maps and money",
+   "visual": "phone",
+   "clip": "S19-kharcha",
+   "text": "Every rupee is an estimate with its source: railway fare slabs, state bus rates, meter tariffs. What the family tells us always wins. Their books are theirs alone. Not even the hospital can read them."
+  },
+  {
+   "id": "S19b",
+   "chapter": "Maps and money",
+   "visual": "clip",
+   "clip": "S19b-reports-cohort",
+   "text": "For the hospital, every report is tracked against the window it should land in. And the cohort view shows who needs a person today, and how much routine work the agents have already taken off the desk."
+  },
+  {
+   "id": "S20",
+   "chapter": "A doctor goes on leave",
+   "visual": "clip",
+   "clip": "S20-leave",
+   "text": "Now, a real day. A doctor marks Sunday as leave, an ordinary save in the hospital's own calendar. Look at the appointments. Nothing has moved, nothing is cancelled. Anything that only watches appointments sees nothing at all."
+  },
+  {
+   "id": "S21",
+   "chapter": "A doctor goes on leave",
+   "visual": "clip",
+   "clip": "S21-asked",
+   "text": "Saathi sees it within seconds. It works out which families the leave hits, and asks each one, in their own language, which days they can travel, who is coming, and what the journey costs them."
+  },
+  {
+   "id": "S22",
+   "chapter": "A doctor goes on leave",
+   "visual": "phone",
+   "clip": "S22-question",
+   "text": "Kamla's family reads it in Hindi, and answers in their own words: after the first of December, two of us, and about fourteen hundred rupees for the journey."
+  },
+  {
+   "id": "S23",
+   "chapter": "A doctor goes on leave",
+   "visual": "clip",
+   "clip": "S23-reading",
+   "text": "An agent reads that answer into constraints. But before the planner may act, a navigator checks the reading against the family's own sentence, and agrees."
+  },
+  {
+   "id": "S24",
+   "chapter": "A doctor goes on leave",
+   "visual": "clip",
+   "clip": "S24-plan",
+   "text": "The planner searches only the dates that fit what the family said, and it shows its working. Every step, which agent took it, which one needed a person, and every record the plan was built from: the family's words, our records, and the hospital's own calendar."
+  },
+  {
+   "id": "S25",
+   "chapter": "A doctor goes on leave",
+   "visual": "clip",
+   "clip": "S25-board",
+   "text": "One change, every family it landed on. The board shows what the doctor's leave did, and to whom, and where each family's answer stands."
+  },
+  {
+   "id": "S26",
+   "chapter": "Who pays for the change",
+   "visual": "clip",
+   "clip": "S26-approve",
+   "text": "The hospital caused this change, so the desk can cover the extra cost from the patient welfare fund. Saathi shows why: the clinician was away. And roughly what it will cost the fund, from published rates. One tick, one approval."
+  },
+  {
+   "id": "S26b",
+   "chapter": "Who pays for the change",
+   "visual": "clip",
+   "clip": "S26b-openemr",
+   "text": "And the new booking is written straight back into the hospital's own calendar. Here is Kamla, in OpenEMR, on the second of December."
+  },
+  {
+   "id": "S27",
+   "chapter": "Who pays for the change",
+   "visual": "phone",
+   "clip": "S27-confirmed",
+   "text": "The family hears it in Hindi, with an apology, and a promise that there is no extra cost to them."
+  },
+  {
+   "id": "S28",
+   "chapter": "A room, and a better rate",
+   "visual": "phone",
+   "clip": "S28-stay",
+   "text": "The new date means a night in Mumbai, so an agent has already asked a rest house near the hospital for a room. It asks the family once: shall I ask them for a better rate? Only on yes does it bargain. Two rounds at most, never above the first price, and sharing only the dates, the party size, and the words hospital visit. The rest house agrees a patient rate, breakfast included, and nothing is booked until the family taps."
+  },
+  {
+   "id": "S29",
+   "chapter": "One change, many answers",
+   "visual": "clip",
+   "clip": "S28-families-boards",
+   "text": "The same change means different things to different families. Meera's dose cannot move ten days, so it moves three the other way. Josephine's visit is held until her report is back. Arun lives close, so it costs him an afternoon. And Priya's three separate trips become one."
+  },
+  {
+   "id": "S30",
+   "chapter": "Every step on the record",
+   "visual": "clip",
+   "clip": "S30-audit",
+   "text": "Every step is on the record, hash chained, including the refusals and every offer in the negotiation. And every fact says where it came from: the hospital, our records, or the family's own words."
+  },
+  {
+   "id": "S31",
+   "chapter": "Every step on the record",
+   "visual": "clip",
+   "clip": "S31-research",
+   "text": "With consent, the journey becomes evidence. Why people stop coming, contributed without a name, and without an ID."
+  },
+  {
+   "id": "S32",
+   "chapter": "Saathi",
+   "visual": "illo-close",
+   "text": "The hospital system runs the hospital. Saathi runs the patient's journey between hospitals, and it plugs into any of them. So that no family travels a thousand kilometres, for nothing."
+  }
+ ]
+}

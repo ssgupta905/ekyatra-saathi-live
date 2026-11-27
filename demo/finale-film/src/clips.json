@@ -1,0 +1,176 @@
+{
+ "S06-registries": {
+  "file": "S06-registries.mp4",
+  "kind": "screen",
+  "from": 1,
+  "to": 17.5
+ },
+ "S07-directory": {
+  "file": "S07-directory.mp4",
+  "kind": "screen",
+  "from": 1,
+  "to": 36
+ },
+ "S11-onboarding": {
+  "file": "S11-onboarding.mp4",
+  "kind": "screen",
+  "from": 4,
+  "to": 47
+ },
+ "S12-phone-tour": {
+  "file": "S12-phone-tour.mp4",
+  "kind": "phone",
+  "from": 1,
+  "to": 36
+ },
+ "S13-openemr": {
+  "file": "S13-openemr.mp4",
+  "kind": "screen",
+  "from": 0.5,
+  "to": 19
+ },
+ "S14-hospital-now": {
+  "file": "S14-hospital-now.mp4",
+  "kind": "screen",
+  "from": 4,
+  "to": 20
+ },
+ "S16-today": {
+  "file": "S16-today.mp4",
+  "kind": "screen",
+  "from": 4,
+  "to": 12
+ },
+ "S17-journey": {
+  "file": "S12-phone-tour.mp4",
+  "kind": "phone",
+  "from": 38,
+  "to": 98
+ },
+ "S18-near-you": {
+  "file": "S12-phone-tour.mp4",
+  "kind": "phone",
+  "from": 98,
+  "to": 120
+ },
+ "S28-families-boards": {
+  "file": "S28-families-boards.mp4",
+  "kind": "screen",
+  "from": 4,
+  "to": 33
+ },
+ "S20-leave": {
+  "file": "S20-leave.mp4",
+  "kind": "screen",
+  "from": 26,
+  "to": 60
+ },
+ "S21-asked": {
+  "file": "S21-asked.mp4",
+  "kind": "screen",
+  "from": 14,
+  "to": 51
+ },
+ "S22-question": {
+  "file": "S22-question.mp4",
+  "kind": "phone",
+  "from": 53,
+  "to": 73
+ },
+ "S23-reading": {
+  "file": "S23-reading.mp4",
+  "kind": "screen",
+  "from": 2,
+  "to": 49
+ },
+ "S08-config": {
+  "file": "S08-config.mp4",
+  "kind": "screen",
+  "from": 5,
+  "to": 21.5
+ },
+ "S19b-reports-cohort": {
+  "file": "S19-reports-cohort.mp4",
+  "kind": "screen",
+  "from": 3,
+  "to": 24
+ },
+ "S24-plan": {
+  "file": "S24-plan.mp4",
+  "kind": "screen",
+  "from": 66,
+  "to": 88
+ },
+ "S25-board": {
+  "file": "S24-plan.mp4",
+  "kind": "screen",
+  "from": 36,
+  "to": 52
+ },
+ "S26-approve": {
+  "file": "S26-approve.mp4",
+  "kind": "screen",
+  "from": 1,
+  "to": 28
+ },
+ "S26b-openemr": {
+  "file": "S26-approve.mp4",
+  "kind": "screen",
+  "from": 60,
+  "to": 78
+ },
+ "S27-confirmed": {
+  "file": "S27-confirmed.mp4",
+  "kind": "phone",
+  "from": 22,
+  "to": 62
+ },
+ "S28-stay": {
+  "file": "S27-confirmed.mp4",
+  "kind": "phone",
+  "from": 98,
+  "to": 151
+ },
+ "S30-audit": {
+  "file": "S30-audit.mp4",
+  "kind": "screen",
+  "from": 3,
+  "to": 16
+ },
+ "S31-research": {
+  "file": "S31-research.mp4",
+  "kind": "screen",
+  "from": 3,
+  "to": 16
+ },
+ "S19-kharcha": {
+  "file": "S27-confirmed.mp4",
+  "kind": "phone",
+  "from": 72,
+  "to": 98
+ },
+ "S17b-maps": {
+  "file": "S17b-handoffs.mp4",
+  "kind": "phone",
+  "from": 66.5,
+  "to": 79
+ },
+ "S17c-irctc": {
+  "file": "S17b-handoffs.mp4",
+  "kind": "phone",
+  "from": 97,
+  "to": 110.6
+ },
+ "S07b-partners": {
+  "file": "S07b-partners.mp4",
+  "kind": "screen",
+  "from": 2,
+  "to": 38.4
+ },
+ "S16b-network": {
+  "file": "S16b-network.mp4",
+  "kind": "screen",
+  "from": 2,
+  "to": 50.5
+ }
+}

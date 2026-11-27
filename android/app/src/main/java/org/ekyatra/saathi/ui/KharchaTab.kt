@@ -346,6 +346,9 @@ private object StayWords {
         "nights" to mapOf(
             Lang.EN to "nights", Lang.HI to "रातें", Lang.BN to "রাত", Lang.TA to "இரவுகள்", Lang.OR to "ରାତି",
         ),
+        "night" to mapOf(
+            Lang.EN to "night", Lang.HI to "रात", Lang.BN to "রাত", Lang.TA to "இரவு", Lang.OR to "ରାତି",
+        ),
         "ask" to mapOf(
             Lang.EN to "Ask for a better rate", Lang.HI to "कम दर के लिए पूछें",
             Lang.BN to "কম দামের জন্য জিজ্ঞেস করুন", Lang.TA to "குறைந்த கட்டணம் கேளுங்கள்",
@@ -420,7 +423,7 @@ private fun StayCard(stay: StayOffer, lang: Lang, onAsk: () -> Unit, onBook: () 
             listOfNotNull(stay.partner?.removeSuffix(" (sandbox)"), rupees(stay.amountPaise)).joinToString(" · "),
             fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Tokens.ink,
         )
-        stay.nights?.let { Text("$it ${w("nights")}", color = Tokens.ink2, fontSize = 14.sp) }
+        stay.nights?.let { Text("$it ${w(if (it == 1) "night" else "nights")}", color = Tokens.ink2, fontSize = 14.sp) }
 
         val deal = stay.negotiation
         val agreed = deal?.agreedNightlyPaise
