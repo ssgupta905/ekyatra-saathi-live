@@ -27,8 +27,19 @@ a plan change: it routes to the social-work desk, the same place
 `RequestIntent.NEEDS_HELP` already goes, because the answer to a family with no
 fare is a person and a scheme, not a cheaper cab.
 
-Nothing here holds money. There is no amount, no quote and no total, because
-this project does not report a fare it was not given.
+Nothing *here* holds money. There is no amount, no quote and no total in this
+module, because a `BudgetAnswer` is a family choosing between real
+organisations and none of those choices has a price attached.
+
+Since `money/`, the wider claim this docstring used to make — that the project
+never reports a figure it was not given — is narrower than it was, and saying
+so here matters because this is where a reader looks. `money/rates.py` holds
+published rates and `money/journey.py` adds them up, under conditions written
+out in `money/__init__.py`: a named publication behind every figure, a range
+rather than false precision, never a number attributed to a booking company,
+and a family's own stated figure beating ours wherever it exists. What has not
+changed is the rule underneath both: nothing is presented as a price, and
+nothing is invented to fill a sentence.
 """
 
 from __future__ import annotations

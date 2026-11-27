@@ -81,6 +81,7 @@ def test_what_the_family_said_is_not_rendered_as_our_estimate():
     """Their number is evidence. Ours is arithmetic. The screen must differ."""
     theirs = Estimate(
         label="Train, sleeper",
+        key="stated_travel",
         low_paise=90000,
         high_paise=90000,
         basis="what the family told us",
@@ -197,3 +198,24 @@ def test_a_mix_of_their_fare_and_our_estimate_is_not_credited_to_them(table):
         stated_paise=90_000, stated_in="Trainer tickets 900 taka hobe",
     )
     assert purely_theirs.all_stated is True
+
+
+def test_every_cost_line_can_be_said_in_the_family_s_language(table):
+    """An English label in the middle of a Devanagari card tells a family this
+    app was not built for them.
+
+    The app translates from `key`; `label` is only the fallback for a kind
+    nobody has a word for yet. A line with no key would be one the app can
+    never say in Hindi, so every one must carry one.
+    """
+    from saathi.money import cost_of_journey
+
+    costed = cost_of_journey(
+        table, km=1340, people=2, round_trip_hours=44,
+        stay_kind=PlaceKind.DHARAMSHALA,
+        stated_paise=90_000, stated_in="900 taka",
+    )
+    assert costed.items
+    for item in costed.items:
+        assert item.key, f"{item.label} has no key, so the app cannot translate it"
+        assert item.to_json()["key"] == item.key

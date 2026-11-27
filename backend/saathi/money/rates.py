@@ -53,6 +53,10 @@ class Estimate:
     """A cost we worked out, and everything needed to argue with it."""
 
     label: str
+    #: A stable identifier for what this is — "rail_sleeper", "dharamshala",
+    #: "stated". The app translates from this; `label` is the English fallback
+    #: and is the wrong thing to show a family who does not read English.
+    key: str
     low_paise: int
     high_paise: int
     basis: str
@@ -74,6 +78,7 @@ class Estimate:
     def to_json(self) -> dict:
         return {
             "label": self.label,
+            "key": self.key,
             "low_paise": self.low_paise,
             "high_paise": self.high_paise,
             "rupees": self.rupees(),
@@ -162,6 +167,7 @@ class RateTable:
         heads = 1 if rate.unit.endswith("vehicle") else max(1, people)
         return Estimate(
             label=_TRAVEL_LABEL.get(mode, mode),
+            key=mode,
             low_paise=per_person_low * heads,
             high_paise=per_person_high * heads,
             basis=(
@@ -188,6 +194,7 @@ class RateTable:
         low, high = rate.over(nights)
         return Estimate(
             label=_STAY_LABEL.get(key, key.replace("_", " ")),
+            key=key,
             low_paise=low,
             high_paise=high,
             basis=f"{nights} night{'s' if nights > 1 else ''}, typical for this kind of place",

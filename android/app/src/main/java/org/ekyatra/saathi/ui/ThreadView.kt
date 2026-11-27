@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.ekyatra.saathi.data.CostBreakdown
+import org.ekyatra.saathi.data.CostItem
 import org.ekyatra.saathi.data.ThreadEntry
 import org.ekyatra.saathi.i18n.Lang
 import org.ekyatra.saathi.i18n.Strings
@@ -196,7 +197,7 @@ private fun CostCard(cost: CostBreakdown, onDark: Boolean, s: Strings) {
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Text(item.label, fontSize = 13.sp, color = ink)
+                        Text(costLabel(item, s), fontSize = 13.sp, color = ink)
                         Text(item.rupees, fontSize = 13.sp, color = ink)
                     }
                     // Whose number, and how it was reached. A figure with no
@@ -224,4 +225,26 @@ private fun CostCard(cost: CostBreakdown, onDark: Boolean, s: Strings) {
             }
         }
     }
+}
+
+
+/**
+ * What a cost line is for, in the family's own language.
+ *
+ * The backend sends an English label and a stable key. Showing the label to a
+ * family reading Hindi put "Travel, both ways" in the middle of a Devanagari
+ * card — which is exactly the kind of seam that tells somebody this app was
+ * not built for them. The key is what gets translated; the label is the
+ * fallback for a kind we have no word for yet, which beats showing nothing.
+ */
+private fun costLabel(item: CostItem, s: Strings): String = when (item.key) {
+    "stated_travel" -> s.costTravel
+    "rail_local" -> s.costTrainLocal
+    "rail_sleeper", "rail_3ac" -> s.costTrainSleeper
+    "bus_state", "bus_deluxe" -> s.costBus
+    "auto", "taxi" -> s.costAuto
+    "dharamshala" -> s.costBedDharamshala
+    "guest_house" -> s.costBedGuestHouse
+    "hotel" -> s.costBedHotel
+    else -> item.label
 }

@@ -305,15 +305,24 @@ async function phoneTap(label, settle = 3200) {
   // the take for it cost one. Stop as soon as the list stops moving, so a label
   // that genuinely is not there still throws rather than scrolling for ever.
   if (!found) {
-    let last = "";
-    for (let swipe = 0; swipe < 12 && !found; swipe += 1) {
-      const before = await phoneText();
-      if (before === last) break;
-      last = before;
-      await adb("shell", "input", "swipe", "540", "1800", "540", "900", "260");
-      await wait(900);
-      found = await locate();
-    }
+    // Both ways. A conversation opens at its newest message, so anything the
+    // film wants to point at — a proposal with its working folded under it —
+    // is usually *above* the fold, not below. Searching downward only, which
+    // is what this did first, missed a card that was four swipes up and
+    // reported it absent.
+    const hunt = async (fromY, toY) => {
+      let last = "";
+      for (let swipe = 0; swipe < 10 && !found; swipe += 1) {
+        const before = await phoneText();
+        if (before === last) break;
+        last = before;
+        await adb("shell", "input", "swipe", "540", String(fromY), "540", String(toY), "260");
+        await wait(900);
+        found = await locate();
+      }
+    };
+    await hunt(1800, 900);
+    if (!found) await hunt(800, 1900);
   }
   if (!found) throw new Error(`nothing on the phone reads "${label}", and scrolling did not reveal it`);
   const [x1, y1, x2, y2] = found.slice(2).map(Number);
@@ -1145,7 +1154,7 @@ async function demo({ emr, panel, health }) {
     console.log(`    ${row.patient_id}: not_before=${c.not_before} companions=${tr.companions} cost=${tr.stated_cost_inr}`);
   }
   const quoted = readings.find((r) => (r.travel ?? {}).stated_cost_inr);
-  await say("read", `Read into constraints: ${readings.map((r) => `${r.name} not before ${num((r.constraint ?? {}).not_before ?? "—")}`).join("; ")}. ${quoted ? `And a cost of ${num("₹" + quoted.travel.stated_cost_inr)} — there because ${quoted.name} said it. There is no fare table in this system; the sentence they said it in is stored beside the number.` : ""}`);
+  await say("read", `Read into constraints: ${readings.map((r) => `${r.name} not before ${num((r.constraint ?? {}).not_before ?? "—")}`).join("; ")}. ${quoted ? `And a cost of ${num("₹" + quoted.travel.stated_cost_inr)} — there because ${quoted.name} said it. A figure from the family is evidence, not an estimate, so it is kept with the sentence they said it in and beats anything we would work out.` : ""}`);
 
   await say("guard", "Nothing has re-planned yet. A navigator reads the family's actual sentence and agrees with the reading before the planner may act — mishearing “after the 20th” as “on the 20th” costs this family two days on a train.");
 
@@ -1426,7 +1435,7 @@ async function demo({ emr, panel, health }) {
   if (money.stated_fare_paise) {
     await say(
       "money",
-      `The only figure in here is theirs: ${num("₹" + Math.round(money.stated_fare_paise / 100))}, and the sentence they said it in is stored beside it. This system holds no fare table and quotes no price — a number we guessed and a number they gave us look identical on a screen, and only one of them is true.`,
+      `The only figure in here is theirs: ${num("₹" + Math.round(money.stated_fare_paise / 100))}, and the sentence they said it in is stored beside it. Where we do estimate, every figure carries the publication it came from and is labelled an estimate — because a number we worked out and a number they gave us look identical on a screen, and only one of them is something they can be held to.`,
     );
     await wait(3500);
   }

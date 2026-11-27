@@ -90,6 +90,7 @@ def cost_of_journey(
         items.append(
             Estimate(
                 label="Travel, both ways",
+                key="stated_travel",
                 low_paise=stated_paise,
                 high_paise=stated_paise,
                 basis="what the family told us it costs them",

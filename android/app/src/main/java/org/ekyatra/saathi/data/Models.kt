@@ -194,7 +194,12 @@ data class CostBreakdown(
 
 @Serializable
 data class CostItem(
+    /** English, and the wrong thing to show a family who does not read it. */
     val label: String,
+    /** What this is — "rail_sleeper", "dharamshala", "stated_travel". The app
+     *  says it in the family's own language from this; `label` is a fallback
+     *  for a kind the app has no word for yet, which is better than blank. */
+    val key: String = "",
     val rupees: String,
     /** How it was worked out: "2680 km × 2 at 0.42/km/person". */
     val basis: String = "",
