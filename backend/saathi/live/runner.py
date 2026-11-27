@@ -2693,6 +2693,10 @@ class LiveRunner:
             body=text,
             language=patient.language.value,
             channel=Channel.WHATSAPP.value,
+            detail={
+                "on_day": on_day.isoformat(),
+                "cost": cost.to_json() if cost is not None else None,
+            },
         )
         self._bump("proposals_sent")
         self.bus.publish(
@@ -2865,8 +2869,16 @@ class LiveRunner:
         reason: str | None = None,
         rendered_by: str | None = None,
         duration_ms: float | None = None,
+        detail: dict | None = None,
     ) -> None:
-        """Keep what was sent, so the family's own screen can show it back."""
+        """Keep what was sent, so the family's own screen can show it back.
+
+        `detail` is the working behind a message — the itemised cost of a
+        proposal, say. It rides with the message rather than being fetched
+        separately so the app can show a sentence and, folded underneath it,
+        exactly where its numbers came from. A family who wants the sentence
+        reads the sentence; one who wants the arithmetic taps once.
+        """
         if kind == "plan":
             last = next((r for r in reversed(self.outbound) if r["patient_id"] == patient_id), None)
             if (
@@ -2888,6 +2900,7 @@ class LiveRunner:
             "duration_ms": duration_ms,
             "sim_date": self.world.today.isoformat(),
             "sent_at": datetime.now(UTC).isoformat(),
+            "detail": detail,
         }
         self.outbound.append(row)
         if self.world.store is not None:

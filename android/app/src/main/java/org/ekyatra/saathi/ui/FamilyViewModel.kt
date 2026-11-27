@@ -35,7 +35,13 @@ data class FamilyUiState(
     val error: String? = null,
     val switching: Boolean = false,
     val live: LiveState = LiveState(),
-    val tab: Tab = Tab.TODAY,
+    // The conversation, not a dashboard.
+    //
+    // A family opening this app has something to say or something to ask, and
+    // the first screen used to be a summary of what we had decided for them.
+    // Everything that summary held is still here — the plan, the journey, the
+    // books — but a tap away, and folded into the thread where it is relevant.
+    val tab: Tab = Tab.MESSAGES,
     /** The family's books. Null until read, and where nothing is kept. */
     val kharcha: Kharcha? = null,
     /** A line in the family's own words when an action on their books failed. */

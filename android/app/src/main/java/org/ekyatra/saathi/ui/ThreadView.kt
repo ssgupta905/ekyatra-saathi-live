@@ -1,24 +1,33 @@
 package org.ekyatra.saathi.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.ekyatra.saathi.data.CostBreakdown
 import org.ekyatra.saathi.data.ThreadEntry
 import org.ekyatra.saathi.i18n.Lang
 import org.ekyatra.saathi.i18n.Strings
@@ -114,6 +123,12 @@ private fun Bubble(entry: ThreadEntry, lang: Lang, s: Strings, maxWidth: android
                 Text(localTime(entry.sentAt, lang), fontSize = 11.sp, color = foot)
                 if (sentIn != null) Text(Lang.of(sentIn).endonym, fontSize = 11.sp, color = foot)
             }
+            // The working, folded. One line a family can ignore, and the
+            // whole arithmetic one tap away — including whose number each
+            // figure is, which is the question that matters most about money.
+            entry.detail?.cost?.takeIf { it.items.isNotEmpty() }?.let { cost ->
+                CostCard(cost, mine && !entry.held, s)
+            }
             if (entry.answerable == false) {
                 Row(
                     Modifier.padding(top = 6.dp),
@@ -124,6 +139,88 @@ private fun Bubble(entry: ThreadEntry, lang: Lang, s: Strings, maxWidth: android
                     SaathiIcon(Glyph.Shield, note, 12.dp)
                     Text(s.aPersonWillReply, fontSize = 12.sp, color = note)
                 }
+            }
+        }
+    }
+}
+
+
+/**
+ * What a proposal's figure is made of, collapsed to one line.
+ *
+ * Shut by default on purpose. A family deciding whether they can afford to
+ * travel needs one number; a family who doubts that number needs all of them,
+ * and the gap between those two readers is a tap, not a screen.
+ *
+ * Every row says whether it is ours or theirs. An estimate we worked out and a
+ * figure they gave us look identical once they are both rupees on a screen,
+ * and only one of them is something they can be held to.
+ */
+@Composable
+private fun CostCard(cost: CostBreakdown, onDark: Boolean, s: Strings) {
+    var open by remember { mutableStateOf(false) }
+    val ink = if (onDark) Color.White.copy(alpha = 0.92f) else Tokens.ink
+    val quiet = if (onDark) Color.White.copy(alpha = 0.7f) else Tokens.ink3
+    val line = if (onDark) Color.White.copy(alpha = 0.25f) else Tokens.lineSoft
+
+    Column(
+        Modifier
+            .padding(top = 8.dp)
+            .fillMaxWidth()
+            .clickable { open = !open }
+            .testTag("cost-card"),
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SaathiIcon(Glyph.Doc, quiet, 13.dp)
+            Text(
+                if (cost.allStated) s.costYoursLabel else s.costHowWorkedOut,
+                fontSize = 12.sp,
+                color = quiet,
+            )
+            Text(if (open) "▲" else "▼", fontSize = 11.sp, color = quiet)
+        }
+
+        if (!open) return@Column
+
+        Column(
+            Modifier.padding(top = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            for (item in cost.items) {
+                Column {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(item.label, fontSize = 13.sp, color = ink)
+                        Text(item.rupees, fontSize = 13.sp, color = ink)
+                    }
+                    // Whose number, and how it was reached. A figure with no
+                    // provenance is a figure nobody can argue with, and this
+                    // one must be arguable — that is the whole conversation.
+                    Text(
+                        if (item.stated) s.costYouToldUs else item.basis,
+                        fontSize = 11.sp,
+                        color = quiet,
+                    )
+                    if (item.stated && item.said.isNotBlank()) {
+                        Text("\u201C${item.said}\u201D", fontSize = 11.sp, color = quiet)
+                    } else if (item.source.isNotBlank()) {
+                        Text(item.source, fontSize = 10.sp, color = quiet)
+                    }
+                }
+            }
+            Box(Modifier.fillMaxWidth().height(1.dp).background(line))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(s.costAltogether, fontSize = 13.sp, color = ink)
+                Text(cost.rupees, fontSize = 13.sp, color = ink)
+            }
+            if (!cost.allStated) {
+                Text(s.costEstimateNote, fontSize = 11.sp, color = quiet)
             }
         }
     }

@@ -162,6 +162,49 @@ data class ThreadEntry(
     val gloss: String? = null,
     /** False when a person, not Saathi, has to answer. */
     val answerable: Boolean? = null,
+    /** The working behind this message, folded away until somebody taps it. */
+    val detail: MessageDetail? = null,
+)
+
+/**
+ * What a message was built from, carried with it.
+ *
+ * A proposal says "about ₹960–1140" in one sentence, because that is what a
+ * family reading it on a bus needs. Everything underneath — which train, how
+ * many people, whose figure, which published rate it came from — is here, and
+ * stays folded until somebody wants it.
+ *
+ * Fetched with the message rather than separately: a card that has to call
+ * the API when it opens is a card that is empty on a bad connection, which is
+ * the connection this app is for.
+ */
+@Serializable
+data class MessageDetail(
+    @SerialName("on_day") val onDay: String? = null,
+    val cost: CostBreakdown? = null,
+)
+
+@Serializable
+data class CostBreakdown(
+    val items: List<CostItem> = emptyList(),
+    val rupees: String = "",
+    @SerialName("has_stated") val hasStated: Boolean = false,
+    @SerialName("all_stated") val allStated: Boolean = false,
+)
+
+@Serializable
+data class CostItem(
+    val label: String,
+    val rupees: String,
+    /** How it was worked out: "2680 km × 2 at 0.42/km/person". */
+    val basis: String = "",
+    /** The publication behind it, so "where did that come from?" has an answer. */
+    val source: String = "",
+    /** True when the family told us this themselves; it is not our estimate. */
+    val stated: Boolean = false,
+    /** Their own sentence, when they did. */
+    val said: String = "",
+    @SerialName("is_estimate") val isEstimate: Boolean = true,
 )
 
 @Serializable
