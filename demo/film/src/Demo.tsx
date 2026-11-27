@@ -50,6 +50,11 @@ const SCENES: Record<string, React.FC> = {
   "solution-network": S.Network,
   "solution-agents": S.Agents,
   "solution-money": S.MoneyRules,
+  readiness: S.Readiness,
+  guard: S.Guard,
+  roles: S.Roles,
+  limits: S.Limits,
+  ledger: S.Ledger,
   closing: S.Closing,
 };
 

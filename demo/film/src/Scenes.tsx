@@ -380,3 +380,189 @@ export const Closing: React.FC = () => (
     </Rise>
   </Shell>
 );
+
+/* ───────────────────── the five that explain the rest ──────────────────── */
+
+/** An interval with a guarantee, not a point prediction somebody can be wrong by. */
+export const Readiness: React.FC = () => {
+  const frame = useCurrentFrame();
+  const grow = interpolate(frame, [14, 46], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  return (
+    <Shell>
+      <Kicker>Before it offers a date</Kicker>
+      <Head>Will the report actually be back?</Head>
+      <div style={{ marginTop: 64 }}>
+        <svg width={1420} height={200}>
+          <line x1={60} y1={120} x2={1360} y2={120} stroke={C.line} strokeWidth={2} />
+          {[0, 2, 4, 6, 8, 10].map((d, i) => (
+            <text key={d} x={60 + i * 260} y={166} fontSize={23} fontFamily={FONT} fill={C.inkSoft}>
+              day {d}
+            </text>
+          ))}
+          {/* The interval, not a point. Width is the honesty. */}
+          <rect
+            x={320}
+            y={88}
+            width={620 * grow}
+            height={64}
+            rx={10}
+            fill={C.blueSoft}
+            stroke={C.blue}
+            strokeWidth={2}
+          />
+          <text x={340} y={76} fontSize={25} fontFamily={FONT} fill={C.blue} fontWeight={600} opacity={grow}>
+            back between day 3 and day 7, nine times in ten
+          </text>
+        </svg>
+      </div>
+      <Rise delay={46} style={{ fontSize: 29, color: C.inkSoft, maxWidth: 1340, marginTop: 24 }}>
+        Being wrong by two days costs a 500 km round trip. So the planner will not plan behind a
+        result it cannot promise.
+      </Rise>
+    </Shell>
+  );
+};
+
+/** What is checked before anything reaches a family. */
+export const Guard: React.FC = () => (
+  <Shell dark>
+    <Kicker dark>Before anything is sent</Kicker>
+    <Head>A message that cannot be checked is not sent.</Head>
+    <div style={{ marginTop: 50, display: "flex", flexDirection: "column", gap: 14, maxWidth: 1420 }}>
+      {[
+        "No clinical language",
+        "No reassurance it has no business giving",
+        "No date it was not handed",
+        "A date it can read, in any of five scripts",
+      ].map((rule, i) => (
+        <Rise
+          key={rule}
+          delay={10 + i * 7}
+          style={{
+            fontSize: 31,
+            padding: "20px 28px",
+            background: "rgba(255,255,255,.06)",
+            border: "1px solid rgba(255,255,255,.18)",
+            borderRadius: 14,
+          }}
+        >
+          {rule}
+        </Rise>
+      ))}
+    </div>
+    <Rise delay={44} style={{ fontSize: 28, color: "rgba(247,248,251,.7)", marginTop: 40 }}>
+      And if it cannot read the date it is about to send — it gives the message to a person.
+    </Rise>
+  </Shell>
+);
+
+/** Who may decide what, enforced rather than displayed. */
+export const Roles: React.FC = () => (
+  <Shell>
+    <Kicker>Who may decide what</Kicker>
+    <Head>Enforced on the server, not shown in the interface.</Head>
+    <div style={{ display: "flex", gap: 20, marginTop: 56 }}>
+      {[
+        { who: "A desk", can: "Report an outage. Confirm a record.", tone: C.line },
+        { who: "A navigator", can: "Approve a re-plan.", tone: C.blue },
+        { who: "A doctor", can: "Approve one that touches treatment or a dose date.", tone: C.go },
+      ].map((r, i) => (
+        <Rise
+          key={r.who}
+          delay={12 + i * 8}
+          style={{
+            flex: 1,
+            padding: "30px 28px",
+            background: "#fff",
+            border: `2px solid ${r.tone}`,
+            borderRadius: 18,
+          }}
+        >
+          <div style={{ fontSize: 34, fontWeight: 650, marginBottom: 14 }}>{r.who}</div>
+          <div style={{ fontSize: 25, color: C.inkSoft, lineHeight: 1.45 }}>{r.can}</div>
+        </Rise>
+      ))}
+    </div>
+    <Rise delay={40} style={{ fontSize: 28, color: C.inkSoft, marginTop: 46 }}>
+      Typing the word “doctor” into a form changes nothing.
+    </Rise>
+  </Shell>
+);
+
+/** The limits, written down rather than hidden. */
+export const Limits: React.FC = () => (
+  <Shell dark>
+    <Kicker dark>What it will not do</Kicker>
+    <Head>Four things, said out loud.</Head>
+    <div style={{ marginTop: 48, display: "flex", flexDirection: "column", gap: 13, maxWidth: 1480 }}>
+      {[
+        ["No train timetable", "it names the stations and hands you to IRCTC"],
+        ["No arrival clock, hosted", "it says a family arrived and claims no delay"],
+        ["A deleted appointment", "it sees one cancelled, but not one deleted"],
+        ["Two families, one slot", "it has no answer for that yet"],
+      ].map(([what, instead], i) => (
+        <Rise
+          key={what}
+          delay={10 + i * 7}
+          style={{
+            display: "flex",
+            gap: 24,
+            alignItems: "baseline",
+            padding: "18px 26px",
+            background: "rgba(255,255,255,.05)",
+            borderLeft: `4px solid ${C.warn}`,
+            borderRadius: "0 12px 12px 0",
+          }}
+        >
+          <div style={{ fontSize: 28, fontWeight: 650, width: 400 }}>{what}</div>
+          <div style={{ fontSize: 26, color: "rgba(247,248,251,.72)" }}>{instead}</div>
+        </Rise>
+      ))}
+    </div>
+  </Shell>
+);
+
+/** The ledger: nothing deleted, refusals included. */
+export const Ledger: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const blocks = ["read", "refused", "asked", "agreed", "approved", "wrote"];
+  return (
+    <Shell>
+      <Kicker>And all of it is written down</Kicker>
+      <Head>A hash-chained record, refusals included.</Head>
+      <div style={{ marginTop: 62, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        {blocks.map((b, i) => {
+          const s = spring({ frame: frame - 12 - i * 6, fps, config: { damping: 200 }, durationInFrames: 16 });
+          return (
+            <React.Fragment key={b}>
+              <div
+                style={{
+                  padding: "20px 26px",
+                  borderRadius: 12,
+                  fontSize: 26,
+                  fontFamily: "ui-monospace, monospace",
+                  background: b === "refused" ? C.warnSoft : "#fff",
+                  border: `1px solid ${b === "refused" ? C.warn : C.line}`,
+                  color: b === "refused" ? C.warn : C.ink,
+                  opacity: s,
+                }}
+              >
+                {b}
+              </div>
+              {i < blocks.length - 1 && (
+                <div style={{ color: C.inkSoft, fontSize: 24, opacity: s }}>⛓</div>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+      <Rise delay={54} style={{ fontSize: 29, color: C.inkSoft, marginTop: 56, maxWidth: 1360 }}>
+        A record that only holds the times a system was right is not a record anybody should trust.
+      </Rise>
+    </Shell>
+  );
+};

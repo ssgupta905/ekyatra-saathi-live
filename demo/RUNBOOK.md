@@ -231,6 +231,55 @@ it to make the test pass**; it will break the Android build.
 
 ---
 
+## Step 8b · Rendering the produced film
+
+```bash
+cd demo && CHROME=$(node -e "const {chromium}=require('playwright');console.log(chromium.executablePath())")
+cd film && npx remotion render Demo ../../recordings/EKYATRA-demo.mp4 \
+  --browser-executable="$CHROME" --concurrency=2 --timeout=120000
+```
+
+**`--browser-executable` is not optional on this machine.** Remotion's bundled
+`chrome-headless-shell` never mounts the root component, and the only symptom
+is:
+
+```
+A delayRender() "Waiting for root component to load" was called
+but not cleared after 28000ms
+```
+
+which points at your composition and is wrong. It is not React 18 vs 19, not
+the Node version, and not a JSON import — all of which look plausible and cost
+an hour between them. The proof is that the same bundle loads with **zero**
+console errors in Playwright's Chromium: serve `remotion bundle --out-dir` over
+a static server and open it with Playwright to see for yourself.
+
+Worse, a failed render **exits 0 and leaves the previous output file in place**,
+so the duration looks unchanged rather than wrong. Always check:
+
+```bash
+ffprobe -v error -show_entries format=duration -of csv=p=0 recordings/EKYATRA-demo.mp4
+# compare against:  npx remotion compositions --browser-executable="$CHROME"
+```
+
+Do not install another Node to chase this. `brew install node@22` upgrades
+`simdjson`, which the installed Node links against, and breaks `node` outright
+until `brew reinstall node`.
+
+Rebuilding the film after a change:
+
+| changed | run |
+|---|---|
+| one clip | `node demo/clips.mjs --only NN`, then `node demo/stage-clips.mjs` |
+| the wording | edit `demo/film/src/script.json`, then `.venv/bin/python demo/narrate.py` |
+| a drawn scene | nothing; just re-render |
+| the voice | `NARRATOR=sarvam .venv/bin/python demo/narrate.py` |
+
+Narration drives the length: each section lasts its spoken line plus a breath,
+so rewording re-times the film automatically.
+
+---
+
 ## Step 9 · Before sending the film anywhere
 
 1. Scrub for secrets — step 3's frame check, looking specifically for `.env`.

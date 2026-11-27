@@ -1,7 +1,7 @@
 {
   "title": "EKYATRA Saathi",
   "engine": "kokoro · am_michael",
-  "total_seconds": 425.98,
+  "total_seconds": 540.77,
   "lines": [
     {
       "id": "01",
@@ -94,6 +94,12 @@
       "seconds": 17.7
     },
     {
+      "id": "15b",
+      "scene": "readiness",
+      "text": "One rule in that search is worth pulling out. Before it offers a date, it asks whether the report that date depends on will actually be back — not as a guess, but as an interval with a coverage guarantee. Being wrong by two days costs this family a five-hundred-kilometre round trip, so the planner refuses to plan behind a result it cannot promise.",
+      "seconds": 24.225
+    },
+    {
       "id": "16",
       "clip": "09-saathi-proposes",
       "text": "What she gets is not a notification that a decision was made. It is a sentence, a figure, and a question. We can move your visit to this date. It would cost about this much. Does that suit you — and if not, tell us what would.",
@@ -104,6 +110,12 @@
       "clip": "10-whose-number",
       "text": "The working is folded underneath, and opens on a tap. Every line says whose number it is: the fourteen hundred is hers, kept with the sentence she said it in. The bed is ours, from a published rate, and labelled an estimate.",
       "seconds": 15.4
+    },
+    {
+      "id": "17b",
+      "scene": "guard",
+      "text": "Everything Saathi sends passes a guard first. No clinical language, no reassurance it has no business giving, and no date it was not handed. It reads dates in all five scripts — and if it cannot read the date in a message it is about to send, it refuses to send it and gives the message to a person instead.",
+      "seconds": 21.775
     },
     {
       "id": "18",
@@ -118,6 +130,12 @@
       "seconds": 18.0
     },
     {
+      "id": "19b",
+      "scene": "roles",
+      "text": "Who may decide what is not a matter of which buttons are shown. A desk can report an outage and confirm a record. A navigator can approve a re-plan. Only a doctor can approve one that touches treatment or a dose date. The server refuses the rest, so typing the word doctor into a form changes nothing.",
+      "seconds": 21.2
+    },
+    {
       "id": "20",
       "clip": "12-written-back",
       "text": "And the booking goes into the hospital's own calendar, through the same standard interface we read it with. The write happens before anybody is told, so a hospital that refuses the slot means nobody was promised it.",
@@ -128,6 +146,12 @@
       "clip": "13-will-not-pretend",
       "text": "Here is something we will not fake. OpenEMR's interface can create an appointment but not update one, so we cannot cancel the old slot. The system books the new date, leaves the old one standing, and records that a person must release it.",
       "seconds": 16.6
+    },
+    {
+      "id": "21b",
+      "scene": "limits",
+      "text": "There are four more things this system will not do. It holds no train timetable, so it names stations and hands you to I-R-C-T-C. It cannot read the arrival clock on the hosted stack, so it says a family arrived and claims no delay. It sees an appointment cancelled but not one deleted. And where two families want the same slot, it has no answer yet. Each of those is written down rather than hidden.",
+      "seconds": 27.15
     },
     {
       "id": "22",
@@ -164,6 +188,12 @@
       "clip": "19-what-it-is-worth",
       "text": "India's registries hold staging and survival. What nobody has is why people stop coming — distance, cost, wasted journeys, waiting. This system holds exactly that, and releases it only with consent that is asked per family and can be withdrawn.",
       "seconds": 18.15
+    },
+    {
+      "id": "27b",
+      "scene": "ledger",
+      "text": "And all of it is written to a hash-chained ledger — every reading, every refusal, every approval, with the evidence each was based on. Nothing is deleted and refusals are never filtered out, because a record that only holds the times a system was right is not a record anybody should trust.",
+      "seconds": 20.45
     },
     {
       "id": "28",
