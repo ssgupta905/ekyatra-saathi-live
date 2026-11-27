@@ -972,7 +972,11 @@ async function demo({ emr, panel, health }) {
     `the connector noticing the leave on ${day} and asking somebody about it`,
     () => api("/questions/waiting"),
     (qs) => qs.some(isNew),
-    { tries: 25, gap: 4000 },
+    // Patience, not a weaker test: `isNew` still demands a question about the
+    // day this take entered. A leave left over from an earlier take gets its
+    // own families asked first, and those calls are live — one take expired
+    // with this day's questions still in flight behind somebody else's.
+    { tries: 60, gap: 4000 },
   );
   const asked = waiting.filter(isNew);
   const languages = [...new Set(asked.map((q) => q.language))];
