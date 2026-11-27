@@ -205,3 +205,18 @@ async def test_approving_with_nothing_waiting_touches_no_fund(api):
             patient_id="S-00001", option_index=0, approved_by_role=Role.NAVIGATOR,
             approved_by="Arani", cover_from_welfare_fund=True,
         )  # fmt: skip
+
+
+def test_the_cause_is_the_question_the_family_answered_not_a_newer_one(api):
+    runner = api.container.runner
+    today = runner.world.today.isoformat()
+    runner.conversation.open_question(
+        patient_id="S-00001", reason=AskReason.DOCTOR_AWAY, topics=(AskTopic.TIMING,),
+        asked_text="The doctor is away.", language=Language.HINDI, about_day=today,
+    )
+    assert runner.conversation.record_answer("S-00001", {"not_before": today}, "after the 1st")
+    runner.conversation.open_question(
+        patient_id="S-00001", reason=AskReason.REPORT_PENDING, topics=(AskTopic.TIMING,),
+        asked_text="A report is not back.", language=Language.HINDI, about_day=today,
+    )
+    assert runner.hospital_cause("S-00001", "request:req-S-00001-0") == "the clinician was away"

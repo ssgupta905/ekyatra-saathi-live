@@ -1354,13 +1354,20 @@ class LiveRunner:
             AskReason.SLOT_CHANGED: "the hospital moved the slot",
             AskReason.CLINIC_BEHIND: "the clinic was running behind",
         }
-        asked = [
-            q for q in (*self.conversation.history, *self.conversation.waiting())
-            if q.patient_id == patient_id and q.reason in hospital_reasons
-        ]
-        if asked:
-            return hospital_reasons[asked[-1].reason]
-        return None
+        # The question the family *answered* is the one this re-plan came
+        # from. A newer one still open — a report asked about after they
+        # replied — is a different matter and must not be named as the cause.
+        def mine(questions):
+            return [
+                q for q in questions
+                if q.patient_id == patient_id and q.reason in hospital_reasons
+            ]
+
+        answered = mine(q for q in self.conversation.history if q.answered_at is not None)
+        if answered:
+            return hospital_reasons[answered[-1].reason]
+        waiting = mine(self.conversation.waiting())
+        return hospital_reasons[waiting[-1].reason] if waiting else None
 
     def _grant_welfare_cover(
         self, patient_id: str, option: PlanOption, cause: str, approved_by: str
