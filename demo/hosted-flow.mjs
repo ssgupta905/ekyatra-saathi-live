@@ -884,6 +884,32 @@ async function pickTheLeaveDay(health) {
  *  its id, because ids differ between installations.
  */
 async function enterLeaveOnCamera(emr, day) {
+  // Refuse a day that already carries a leave.
+  //
+  // The connector treats a second leave for the same provider on the same day
+  // as nothing new, so no family is asked and the take dies four minutes later
+  // at "the connector noticing the leave ... did not happen". Proven by two
+  // takes in a row: the one run straight after the calendar was cleared asked
+  // both families; the next one, with its predecessor's own leave still there,
+  // asked nobody. Failing here costs seconds and names the fix.
+  const compactDay = day.replace(/-/g, "");
+  await emr.goto(
+    `${EMR}/interface/main/calendar/index.php?module=PostCalendar&func=view&tplview=&viewtype=day&Date=${compactDay}`,
+    { waitUntil: "domcontentloaded", timeout: 90000 },
+  ).catch(() => {});
+  await wait(3000);
+  const already = await emr.evaluate(() => document.body.innerText).catch(() => "");
+  if (/vacation/i.test(already)) {
+    throw new Error(
+      `OpenEMR already holds a leave on ${day}, so a new one is not news to the connector ` +
+        `and no family would be asked. Clear the film's leaves first:\n\n` +
+        `  gcloud compute ssh saathi-hms --zone asia-south1-c --quiet --command \\\n` +
+        `    "sudo docker exec -i openemr-mysql-1 mariadb -uroot -proot openemr -N -B -e \\\n` +
+        `     \\\"DELETE FROM openemr_postcalendar_events WHERE pc_eventDate='${day}' ` +
+        `AND (pc_pid IS NULL OR pc_pid=0);\\\""`,
+    );
+  }
+
   await emr.goto(
     `${EMR}/interface/main/calendar/add_edit_event.php?startdate=${day}&prov=true`,
     { waitUntil: "domcontentloaded", timeout: 90000 },
