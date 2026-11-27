@@ -128,7 +128,7 @@ export function Directory() {
       <SegmentedControl options={TABS} value={tab} onChange={setTab} aria-label="Directory view" />
       {error && <p className="auth-error" role="alert">{error}</p>}
 
-      {tab === "applications" && <VendorApplications canDecide={canEdit} />}
+      {tab === "applications" && <VendorApplications canDecide={canEdit} onDecided={load} />}
 
       {tab === "network" && (
         <>

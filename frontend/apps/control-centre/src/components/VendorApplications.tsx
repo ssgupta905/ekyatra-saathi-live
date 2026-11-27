@@ -30,7 +30,16 @@ import { Building } from "../ui/icons";
  * never saw the first decision, and be declined again — or not. The reason
  * stays with the record so the second reviewer inherits the first one's work.
  */
-export function VendorApplications({ canDecide }: { canDecide: boolean }) {
+export function VendorApplications({
+  canDecide,
+  onDecided,
+}: {
+  canDecide: boolean;
+  /** Told when a decision lands, so the network list beside this one stops
+   *  showing the row as it was before. Without it an administrator approves,
+   *  switches tab, and sees "applied" — which reads as a failure. */
+  onDecided?: () => void;
+}) {
   const [rows, setRows] = useState<VendorApplicationRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deciding, setDeciding] = useState<string | null>(null);
@@ -66,6 +75,7 @@ export function VendorApplications({ canDecide }: { canDecide: boolean }) {
       setDeciding(null);
       setTerms({ commission_pct: 0, username: "", password: "" });
       load();
+      onDecided?.();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -78,6 +88,7 @@ export function VendorApplications({ canDecide }: { canDecide: boolean }) {
       setDeciding(null);
       setReason("");
       load();
+      onDecided?.();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     }
