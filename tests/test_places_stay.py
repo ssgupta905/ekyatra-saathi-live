@@ -97,3 +97,42 @@ def test_every_kind_the_google_service_may_be_asked_for_has_a_query() -> None:
 
     unmapped = [k for k in PlaceKind if k not in _QUERY]
     assert unmapped == [], f"no Google query for: {[k.value for k in unmapped]}"
+
+
+def test_a_dharamshala_is_promoted_when_money_is_tight() -> None:
+    """The same promotion Jan Aushadhi gets, for the same reason.
+
+    Without this the cheap-first rule knew about medicine and not about a bed,
+    so a family who had said what they can manage was still shown the nearest
+    hotel first.
+    """
+    from datetime import UTC, datetime
+
+    from saathi.domain.places import Place
+    from saathi.orchestrator.nearby_needs import rank
+
+    def place(pid: str, kind: PlaceKind, lat: float) -> Place:
+        return Place(id=pid, name=pid, kind=kind, latitude=lat, longitude=72.84, address="")
+
+    # The hotel is nearer. The dharamshala should still come first.
+    places = [place("hotel", PlaceKind.HOTEL, 19.0045), place("dh", PlaceKind.DHARAMSHALA, 19.02)]
+    tight = rank(places, near=(19.0043, 72.8428), at=datetime.now(UTC), money_is_tight=True)
+    assert [r.place.id for r in tight][0] == "dh"
+
+    # And when nothing was said about money, distance decides as before.
+    relaxed = rank(places, near=(19.0043, 72.8428), at=datetime.now(UTC), money_is_tight=False)
+    assert [r.place.id for r in relaxed][0] == "hotel"
+
+
+def test_a_dharamshala_says_why_it_is_listed() -> None:
+    from datetime import UTC, datetime
+
+    from saathi.domain.places import Place
+    from saathi.orchestrator.nearby_needs import rank
+
+    found = rank(
+        [Place(id="dh", name="Trust Bhavan", kind=PlaceKind.DHARAMSHALA,
+               latitude=19.01, longitude=72.84, address="")],
+        near=(19.0043, 72.8428), at=datetime.now(UTC),
+    )
+    assert "free_or_nearly_free" in found[0].reasons

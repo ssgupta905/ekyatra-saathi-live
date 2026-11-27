@@ -57,6 +57,8 @@ def rank(
             reasons.append("hours_unknown")
         if place.kind is PlaceKind.JAN_AUSHADHI:
             reasons.append("government_price_generics")
+        if place.kind is PlaceKind.DHARAMSHALA:
+            reasons.append("free_or_nearly_free")
         ranked.append(
             Ranked(
                 place=place,
@@ -66,9 +68,14 @@ def rank(
             )
         )
 
+    #: The kinds that cost a family least, promoted when they have said money
+    #: is tight. A dharamshala is to a hotel what a Jan Aushadhi store is to a
+    #: pharmacy — the same argument, about a bed instead of a box of pills.
+    cheapest = {PlaceKind.JAN_AUSHADHI, PlaceKind.DHARAMSHALA}
+
     def order(r: Ranked):
         shut = 0 if r.open_then is True else 1 if r.open_then is None else 2
-        cheap = 0 if (money_is_tight and r.place.kind is PlaceKind.JAN_AUSHADHI) else 1
+        cheap = 0 if (money_is_tight and r.place.kind in cheapest) else 1
         return (shut, cheap, r.metres)
 
     return sorted(ranked, key=order)[:limit]
