@@ -142,7 +142,10 @@ export function MolecularLayer({
   if (!register.consented) {
     return (
       <Notice tone="warn">
-        {register.why ?? "No consent for a molecular register."} Ask for it under
+        {/* The server's sentence, punctuated here: it is written to be read
+            aloud as a reason, not to be glued to the sentence after it. */}
+        {(register.why ?? "No consent for a molecular register").replace(/\.?$/, ".")} Ask
+        for it under
         “What the family has agreed to share” — it is its own purpose, so
         agreeing here does not touch anything else they have agreed to, and
         withdrawing it later does not affect their care.
