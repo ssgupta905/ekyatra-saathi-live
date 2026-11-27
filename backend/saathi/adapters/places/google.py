@@ -48,6 +48,12 @@ _QUERY: dict[PlaceKind, tuple[str, str | None]] = {
     ),
     PlaceKind.CLINIC: ("clinic", "doctor"),
     PlaceKind.PHYSIO: ("physiotherapy clinic", "physiotherapist"),
+    # Somewhere to sleep. No `type` on any of them: the service's
+    # accommodation types vary by region and an unknown one is a 400 for the
+    # whole request, while the words below work everywhere.
+    PlaceKind.DHARAMSHALA: ("dharamshala yatri niwas charitable trust guest house", None),
+    PlaceKind.GUEST_HOUSE: ("guest house lodge", None),
+    PlaceKind.HOTEL: ("hotel", None),
 }
 
 _LANGUAGE = {"hi": "hi", "bn": "bn", "or": "or", "ta": "ta", "en": "en"}
@@ -120,7 +126,16 @@ class GooglePlaces:
         radius_m: int = 3000,
         language: str = "en",
     ) -> list[Place]:
-        text, included = _QUERY[kind]
+        mapped = _QUERY.get(kind)
+        if mapped is None:
+            # A kind nobody has written a query for is a kind this service
+            # cannot look up. Answering "none of those near here" loses one
+            # row; indexing straight into the table loses the whole screen
+            # with a 500, which is what adding three kinds for "somewhere to
+            # sleep" did.
+            logger.warning("no query for place kind %s; it cannot be looked up", kind)
+            return []
+        text, included = mapped
         body: dict = {
             "textQuery": text,
             "languageCode": _LANGUAGE.get(language, "en"),

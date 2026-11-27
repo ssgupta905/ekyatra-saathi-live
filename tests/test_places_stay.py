@@ -83,3 +83,17 @@ def test_every_stay_kind_belongs_to_the_stay_need() -> None:
     asked_for = {k for kinds in KINDS_FOR_NEED.values() for k in kinds}
     for kind in (PlaceKind.DHARAMSHALA, PlaceKind.GUEST_HOUSE, PlaceKind.HOTEL):
         assert kind in asked_for, kind
+
+
+def test_every_kind_the_google_service_may_be_asked_for_has_a_query() -> None:
+    """Adding a PlaceKind must not be able to 500 the screen.
+
+    `nearby` used to index straight into the query table, so three new kinds
+    for "somewhere to sleep" turned `/nearby?need=stay` into an Internal
+    Server Error. The lookup is defensive now; this is the other half, so the
+    defence is never the thing that silently answers "none near here".
+    """
+    from saathi.adapters.places.google import _QUERY
+
+    unmapped = [k for k in PlaceKind if k not in _QUERY]
+    assert unmapped == [], f"no Google query for: {[k.value for k in unmapped]}"
