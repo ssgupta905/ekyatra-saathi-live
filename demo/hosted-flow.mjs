@@ -983,6 +983,13 @@ async function demo({ emr, panel, health }) {
   // the phone between takes — begins on her screen rather than the picker, and
   // the film fails with "the family list is not on the phone" having never
   // looked at one. The take must not depend on how the last one ended.
+  // Home first, which closes a notification shade. A downward swipe anywhere
+  // near the top pulls it, it covers the whole screen, and `am start` then
+  // brings the app up *behind* it — so the film reads Android's own settings
+  // text and reports that the family list is not on the phone. It was; the
+  // shade was in front of it. Cost two takes.
+  await adb("shell", "input", "keyevent", "KEYCODE_HOME").catch(() => {});
+  await wait(1500);
   await adb("shell", "am", "force-stop", "org.ekyatra.saathi").catch(() => {});
   await wait(2000);
   await adb("shell", "am", "start", "-n", "org.ekyatra.saathi/.MainActivity");
