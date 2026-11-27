@@ -1,0 +1,77 @@
+{
+  "note": "Published rates, read on the date each row carries. Every figure is an estimate and is rendered as one. No row is attributed to a booking company: IRCTC, MakeMyTrip, OYO, Uber and Ola are where a family books, not where these numbers come from. Re-read the sources before a demo if these dates are stale.",
+  "travel": {
+    "rail_local": {
+      "paise": 45,
+      "unit": "km/person",
+      "spread": 0.4,
+      "as_of": "2026-11-27",
+      "source": "Suburban/passenger rail second-class fare, Mumbai division slab table (about Rs 10 for 25 km)"
+    },
+    "rail_sleeper": {
+      "paise": 42,
+      "unit": "km/person",
+      "spread": 0.3,
+      "as_of": "2026-11-27",
+      "source": "Indian Railways sleeper-class distance slabs, approximated to a per-km rate over 500-1500 km"
+    },
+    "rail_3ac": {
+      "paise": 112,
+      "unit": "km/person",
+      "spread": 0.3,
+      "as_of": "2026-11-27",
+      "source": "Indian Railways AC 3-tier distance slabs, approximated to a per-km rate over 500-1500 km"
+    },
+    "bus_state": {
+      "paise": 110,
+      "unit": "km/person",
+      "spread": 0.25,
+      "as_of": "2026-11-27",
+      "source": "State road transport ordinary-service per-km fare, typical across Maharashtra/Bihar/Jharkhand"
+    },
+    "bus_deluxe": {
+      "paise": 190,
+      "unit": "km/person",
+      "spread": 0.3,
+      "as_of": "2026-11-27",
+      "source": "State road transport semi-deluxe per-km fare, typical"
+    },
+    "auto": {
+      "paise": 1700,
+      "unit": "km/vehicle",
+      "spread": 0.35,
+      "as_of": "2026-11-27",
+      "source": "Metered auto-rickshaw rate, Mumbai gazetted tariff, including the minimum-fare effect on short hops"
+    },
+    "taxi": {
+      "paise": 2700,
+      "unit": "km/vehicle",
+      "spread": 0.4,
+      "as_of": "2026-11-27",
+      "source": "Metered black-and-yellow taxi rate, Mumbai gazetted tariff"
+    }
+  },
+  "stay": {
+    "dharamshala": {
+      "paise": 15000,
+      "unit": "night",
+      "spread": 0.6,
+      "as_of": "2026-11-27",
+      "source": "Typical charitable-trust dharamshala contribution near a tertiary hospital; many ask only a donation"
+    },
+    "guest_house": {
+      "paise": 60000,
+      "unit": "night",
+      "spread": 0.5,
+      "as_of": "2026-11-27",
+      "source": "Typical hospital or trust guest-house room near a tertiary hospital"
+    },
+    "hotel": {
+      "paise": 180000,
+      "unit": "night",
+      "spread": 0.55,
+      "as_of": "2026-11-27",
+      "source": "Typical budget hotel room in a metro hospital district. A band for the kind of place, not any named hotel's price"
+    }
+  }
+}

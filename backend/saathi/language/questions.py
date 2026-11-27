@@ -56,6 +56,17 @@ class AskReason(StrEnum):
     CLINIC_BEHIND = "clinic_behind"
     #: The hospital moved or cancelled the slot.
     SLOT_CHANGED = "slot_changed"
+    #: Saathi has worked out a day that fits what the family told us, and is
+    #: putting it to them before anybody acts on it.
+    #:
+    #: The odd one out, deliberately. Every reason above is a fact a hospital
+    #: published; this one is ours. It is allowed because it still names
+    #: nothing clinical and invents nothing: the date comes from the hospital's
+    #: own rules, and the figure beside it from `money/rates.py`, which carries
+    #: the publication it was read from. A family who is only ever asked
+    #: questions and never offered an answer does the planning themselves,
+    #: which is the work this system exists to take off them.
+    PLAN_PROPOSED = "plan_proposed"
 
 
 class AskTopic(StrEnum):
@@ -74,6 +85,10 @@ class AskTopic(StrEnum):
     COST = "cost"
     #: Whether travel they have already booked can be changed.
     BOOKING = "booking"
+    #: Whether what we proposed suits them. The answer that turns a question
+    #: into a conversation: "no, after the 15th" is both a refusal and the next
+    #: constraint, and is read as one.
+    AGREEMENT = "agreement"
 
 
 #: Which `TravelFacts` / `RequestConstraint` fields each topic is trying to
@@ -85,6 +100,9 @@ TOPIC_FILLS: dict[AskTopic, tuple[str, ...]] = {
     AskTopic.COMPANIONS: ("companions",),
     AskTopic.COST: ("stated_cost_inr",),
     AskTopic.BOOKING: ("refundable",),
+    # A reply to a proposal answers it either by agreeing or by saying what
+    # would suit instead — which is a new timing constraint. Both count.
+    AskTopic.AGREEMENT: ("agreed", "not_before", "not_after", "excluded_dates"),
 }
 
 #: The reason, with `{day}` filled from the record. Deliberately states what
@@ -112,6 +130,13 @@ _LEAD: dict[AskReason, dict[Language, str]] = {
         Language.ODIA: "{day} ତାରିଖରେ କ୍ଲିନିକରେ ଦେରି ହେଉଛି।",
         Language.TAMIL: "{day} அன்று கிளினிக்கில் தாமதம் உள்ளது.",
     },
+    AskReason.PLAN_PROPOSED: {
+        Language.ENGLISH: "We can move your visit to {day}.",
+        Language.HINDI: "Hum aapki visit {day} ko kar sakte hain.",
+        Language.BENGALI: "আমরা আপনার দেখাটা {day} তারিখে করতে পারি।",
+        Language.ODIA: "ଆମେ ଆପଣଙ୍କ ଭେଟ {day} ତାରିଖରେ କରିପାରିବୁ।",
+        Language.TAMIL: "உங்கள் சந்திப்பை {day} அன்று வைக்க முடியும்.",
+    },
     AskReason.SLOT_CHANGED: {
         Language.ENGLISH: "The hospital has changed the time of your visit on {day}.",
         Language.HINDI: "Aspataal ne {day} ki aapki visit ka samay badal diya hai.",
@@ -121,10 +146,14 @@ _LEAD: dict[AskReason, dict[Language, str]] = {
     },
 }
 
-#: One sentence per topic. Note what is absent from all of them: any figure.
-#: `COST` asks and offers nothing, because there is no fare source behind this
-#: system and a suggested amount would be an invention — see
-#: `domain/requests.py:TravelFacts`.
+#: One sentence per topic. None of them carries a figure, and `COST` still
+#: asks rather than offers: a question is not the place for a number.
+#:
+#: A *proposal* may carry one — see `_COST` below and `money/rates.py` — but
+#: only as an openly-labelled estimate with a published basis, and only beside
+#: a date. The distinction is the point: we do not tell a family what their
+#: journey costs, we tell them what this particular plan would likely cost
+#: them, and invite them to say it is wrong.
 _TOPIC: dict[AskTopic, dict[Language, str]] = {
     AskTopic.TIMING: {
         Language.ENGLISH: "Which days can you travel, and which days can you not?",
@@ -147,6 +176,13 @@ _TOPIC: dict[AskTopic, dict[Language, str]] = {
         Language.ODIA: "ଯାଇବା-ଆସିବାରେ ଆପଣଙ୍କର କେତେ ଖର୍ଚ୍ଚ ହେବ?",
         Language.TAMIL: "போய் வர உங்களுக்கு எவ்வளவு செலவாகும்?",
     },
+    AskTopic.AGREEMENT: {
+        Language.ENGLISH: "Does that suit you? If not, tell us what would.",
+        Language.HINDI: "Kya yeh aapke liye theek hai? Agar nahi, to bata dijiye kya theek rahega.",
+        Language.BENGALI: "এটা কি আপনার জন্য ঠিক আছে? না হলে বলুন কী ঠিক হবে।",
+        Language.ODIA: "ଏହା ଆପଣଙ୍କ ପାଇଁ ଠିକ୍ ଅଛି କି? ନହେଲେ କହନ୍ତୁ କ'ଣ ଠିକ୍ ହେବ।",
+        Language.TAMIL: "இது உங்களுக்கு சரியாக இருக்கிறதா? இல்லையென்றால் எது சரியாக இருக்கும் என்று சொல்லுங்கள்.",
+    },
     AskTopic.BOOKING: {
         Language.ENGLISH: "Have you already booked travel, and can it be changed?",
         Language.HINDI: "Kya aapne ticket le liya hai, aur kya wo badla ja sakta hai?",
@@ -154,6 +190,47 @@ _TOPIC: dict[AskTopic, dict[Language, str]] = {
         Language.ODIA: "ଆପଣ ଟିକେଟ୍ କାଟି ସାରିଛନ୍ତି କି, ଆଉ ତାହା ବଦଳାଯାଇ ପାରିବ କି?",
         Language.TAMIL: "நீங்கள் டிக்கெட் எடுத்துவிட்டீர்களா, அதை மாற்ற முடியுமா?",
     },
+}
+
+#: The money sentence of a proposal. `{cost}` is already rendered ("₹900" or
+#: "₹1,100–2,000") by the caller, which keeps currency formatting in one place.
+#:
+#: "About" is in every one of these, in every language, and is not decoration:
+#: it is the difference between an estimate and a quote. A family who is told
+#: a price and finds another has been misled; one who is told "about" and
+#: finds another has been approximately right, which is all we can be.
+_COST: dict[Language, str] = {
+    Language.ENGLISH: "Going and coming back would cost about {cost}.",
+    Language.HINDI: "Aane-jaane mein lagbhag {cost} lag sakte hain.",
+    Language.BENGALI: "যাওয়া-আসায় আনুমানিক {cost} লাগতে পারে।",
+    Language.ODIA: "ଯାଇବା-ଆସିବାରେ ପ୍ରାୟ {cost} ଲାଗିପାରେ।",
+    Language.TAMIL: "போய் வர ஏறக்குறைய {cost} ஆகலாம்.",
+}
+
+#: Said when the family has already told us their own figure. Theirs, not ours,
+#: and the sentence says whose it is — a family reading their own number back
+#: should recognise it as the one they gave, not mistake it for a quote.
+_COST_THEIRS: dict[Language, str] = {
+    Language.ENGLISH: "You told us it costs you about {cost}.",
+    Language.HINDI: "Aapne bataya tha ki aapka lagbhag {cost} kharch hota hai.",
+    Language.BENGALI: "আপনি বলেছিলেন আপনার আনুমানিক {cost} খরচ হয়।",
+    Language.ODIA: "ଆପଣ କହିଥିଲେ ଆପଣଙ୍କର ପ୍ରାୟ {cost} ଖର୍ଚ୍ଚ ହୁଏ।",
+    Language.TAMIL: "உங்களுக்கு ஏறக்குறைய {cost} ஆகும் என்று சொன்னீர்கள்.",
+}
+
+#: Closes a proposal. Different from `_CLOSE` on purpose: "we will work out
+#: the new day" is the wrong thing to say when a day has just been put to
+#: them. What they need to know is that nothing is fixed by our proposing it
+#: and nothing happens until they answer — so a family who is slow to reply
+#: has not lost anything, and one who says no has not caused a problem.
+_CLOSE_PROPOSAL: dict[Language, str] = {
+    Language.ENGLISH: "Nothing is booked until you agree. Please do not travel yet.",
+    Language.HINDI: "Jab tak aap haan nahi kehte, kuch pakka nahi hota. Abhi yatra na karein.",
+    Language.BENGALI: "আপনি রাজি না হলে কিছুই পাকা হবে না। এখনই যাত্রা করবেন না।",
+    Language.ODIA: "ଆପଣ ରାଜି ନହେଲେ କିଛି ପକ୍କା ହେବ ନାହିଁ। ଏବେ ଯାତ୍ରା କରନ୍ତୁ ନାହିଁ।",
+    Language.TAMIL: (
+        "நீங்கள் சம்மதிக்கும் வரை எதுவும் உறுதி செய்யப்படாது. இப்போது பயணம் செய்ய வேண்டாம்."
+    ),
 }
 
 #: Said after the questions, so a family is not left wondering whether their
@@ -244,6 +321,40 @@ def compose_question(
     parts = [_language(_LEAD[reason], language).format(day=day)]
     parts.extend(_language(_TOPIC[topic], language) for topic in ordered)
     parts.append(_language(_CLOSE, language))
+    return " ".join(parts)
+
+
+def compose_proposal(
+    *,
+    language: Language,
+    on_day: date,
+    cost: str = "",
+    cost_is_theirs: bool = False,
+    close: bool = True,
+) -> str:
+    """Put a worked-out day to a family, with what it would cost them.
+
+    The other half of `compose_question`. A system that only ever asks is one
+    the family still has to plan around; this is the sentence that offers them
+    something and then — crucially — asks whether it suits, so the next reply
+    is either agreement or the constraint that makes a better plan.
+
+    `cost` is rendered by the caller and may be empty: a family already in the
+    city, or a journey we hold no published rate for, gets a date and no
+    figure, which is better than a figure we had to invent to fill the
+    sentence. `cost_is_theirs` picks the wording that credits them with it.
+
+    Like `compose_question`, the only date in here is `on_day`, so the caller
+    can hand the same value to the guard as `dates_given`.
+    """
+    day = written_day(on_day, language)
+    parts = [_language(_LEAD[AskReason.PLAN_PROPOSED], language).format(day=day)]
+    if cost:
+        table = _COST_THEIRS if cost_is_theirs else _COST
+        parts.append(_language(table, language).format(cost=cost))
+    parts.append(_language(_TOPIC[AskTopic.AGREEMENT], language))
+    if close:
+        parts.append(_language(_CLOSE_PROPOSAL, language))
     return " ".join(parts)
 
 

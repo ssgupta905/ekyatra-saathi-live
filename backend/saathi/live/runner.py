@@ -61,7 +61,13 @@ from ..language.advice import already_travelling, leave_later
 from ..language.guard import InboundCategory
 from ..language.holding import render_holding_message
 from ..language.process_answers import render_process_answer
-from ..language.questions import AskReason, AskTopic, compose_question
+from ..language.questions import (
+    AskReason,
+    AskTopic,
+    compose_proposal,
+    compose_question,
+)
+from ..money import JourneyCost
 from ..planner import options as options_module
 from ..planner.graph import VisitPlanner
 from ..planner.process_facts import resolve_process_fact
@@ -2546,6 +2552,90 @@ class LiveRunner:
             patient_id=patient_id,
             summary=f"Asked {patient_id} about {', '.join(t.value for t in topics)}",
             question=question.model_dump(mode="json"),
+        )
+        return question
+
+    async def propose_to_family(
+        self,
+        patient_id: str,
+        *,
+        on_day: date,
+        cost: JourneyCost | None = None,
+        disruption_id: str | None = None,
+    ) -> OpenQuestion | None:
+        """Put a worked-out day to a family, with what it would likely cost.
+
+        The turn that makes this a conversation rather than an interrogation.
+        `ask_family` asks and waits; this offers something and asks whether it
+        suits — so the reply is either agreement or the constraint that makes a
+        better plan, and either way the loop continues.
+
+        Nothing here commits anything. A family agreeing does not book a slot:
+        a navigator still approves, and `approve_option` still writes to the
+        hospital before anybody is told. What agreement changes is that the
+        navigator is approving something the family has already said yes to,
+        rather than deciding on their behalf and telling them afterwards.
+
+        Returns None when it cannot be said safely, for the same reasons
+        `ask_family` does — an unknown family, or text the guard refuses.
+        """
+        patient = self.world.patient(patient_id)
+        if patient is None:
+            return None
+
+        # Their own figure beats our arithmetic, always. A family who told us
+        # what the journey costs them should see that number, not a better-
+        # researched one that contradicts them.
+        rendered, theirs = "", False
+        if cost is not None and cost.items:
+            rendered, theirs = cost.rupees(), cost.any_stated
+
+        text = compose_proposal(
+            language=patient.language,
+            on_day=on_day,
+            cost=rendered,
+            cost_is_theirs=theirs,
+        )
+        verdict = guard.check_question(text, dates_given=(on_day,))
+        if not verdict.allowed:
+            logger.error(
+                "refusing to propose to %s: %s %s",
+                patient_id, verdict.reason, verdict.triggers,
+            )
+            self.bus.publish(
+                EventKind.GUARD_BLOCKED,
+                self.world.today.isoformat(),
+                patient_id=patient_id,
+                summary=f"Guard held a proposal to {patient_id}: {verdict.reason}",
+                triggers=list(verdict.triggers),
+            )
+            return None
+
+        question = self.conversation.open_question(
+            patient_id=patient_id,
+            reason=AskReason.PLAN_PROPOSED,
+            topics=(AskTopic.AGREEMENT,),
+            asked_text=text,
+            language=patient.language,
+            about_day=on_day.isoformat(),
+            disruption_id=disruption_id,
+        )
+        self._record_outbound(
+            patient_id,
+            kind="proposal",
+            body=text,
+            language=patient.language.value,
+            channel=Channel.WHATSAPP.value,
+        )
+        self._bump("proposals_sent")
+        self.bus.publish(
+            EventKind.QUESTION_ASKED,
+            self.world.today.isoformat(),
+            patient_id=patient_id,
+            summary=f"Put {on_day:%d %b} to {patient_id}"
+            + (f", about {rendered}" if rendered else ""),
+            question=question.model_dump(mode="json"),
+            cost=cost.to_json() if cost is not None else None,
         )
         return question
 
