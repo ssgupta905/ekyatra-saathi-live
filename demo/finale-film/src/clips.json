@@ -62,7 +62,7 @@
  "S20-leave": {
   "file": "S20-leave.mp4",
   "kind": "screen",
-  "from": 26,
+  "from": 29,
   "to": 60
  },
  "S21-asked": {
@@ -152,8 +152,8 @@
  "S17b-maps": {
   "file": "S17b-handoffs.mp4",
   "kind": "phone",
-  "from": 66.5,
-  "to": 79
+  "from": 72,
+  "to": 79.5
  },
  "S17c-irctc": {
   "file": "S17b-handoffs.mp4",
