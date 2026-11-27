@@ -179,6 +179,8 @@ def test_no_module_outside_the_books_reads_a_family_s_spends():
         # The two desks that write a provider's figure into the books.
         "live/network.py",
         "live/payments.py",
+        # The stay partner's quote and the patient rate negotiated on the family's say-so.
+        "live/stays.py",
         "api/kharcha.py",
         # Reads only how much of the family's own monthly limit is free, to weigh routes for them.
         "api/trip.py",

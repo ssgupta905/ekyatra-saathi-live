@@ -19,7 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from ..domain.enums import DisruptionKind, Role, SourceSystem
+from ..domain.enums import DisruptionKind, Role
 from ..live.events import QUEUE_LIMIT as _QUEUE_LIMIT
 from ..ports.hospital import HospitalUnavailable
 from .access import (
@@ -399,17 +399,20 @@ async def pending_options(state: ContainerDep) -> list[dict]:
         # its cost. A hospital-side change is the hospital's to carry, so the
         # desk is offered the welfare fund; a change the family asked for is
         # not. `raised_by` is the only honest source for that.
-        disruption = state.world.disruptions.get(option_set.disruption_id)
-        hospital_caused = (
-            disruption is not None and disruption.raised_by is SourceSystem.HOSPITAL_FEED
-        )
+        cause = runner.hospital_cause(option_set.patient_id, option_set.disruption_id)
+        estimate = runner.cost_of_visit(option_set.patient_id, people=2) if cause else None
         rows.append(
             {
                 "patient_id": option_set.patient_id,
                 "disruption_id": option_set.disruption_id,
                 "option_count": len(option_set.options),
                 "requires_doctor": requires_doctor,
-                "hospital_caused": hospital_caused,
+                "hospital_caused": cause is not None,
+                #: Why the hospital is the cause, in words a desk reads back.
+                "hospital_cause": cause,
+                #: What covering it would likely cost the fund: the same
+                #: published-rate estimate the family would be shown.
+                "welfare_estimate": estimate.rupees() if estimate is not None else None,
                 "created_at": option_set.created_at.isoformat(),
             }
         )
@@ -431,6 +434,8 @@ class ApproveRequest(BaseModel):
     option_index: int
     approved_by_role: Role
     approved_by: str
+    #: The desk's tick: the hospital pays for its own change.
+    cover_from_welfare_fund: bool = False
 
 
 @router.post("/disruptions/{disruption_id}/approve", dependencies=[Approver])
@@ -448,6 +453,7 @@ async def approve_disruption_option(
             # body claims; the treatment gate must not be passable by typing "doctor".
             approved_by_role=principal.role if principal else body.approved_by_role,
             approved_by=principal.name if principal else body.approved_by,
+            cover_from_welfare_fund=body.cover_from_welfare_fund,
         )
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from exc

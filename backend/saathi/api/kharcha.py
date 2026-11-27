@@ -17,6 +17,7 @@ from ..domain.spends import MOST_ONE_SPEND_PAISE, SpendCategory, SpendStatus
 from ..live.kharcha import NotReadable
 from ..live.network import NotBookable
 from ..live.payments import NotPayable
+from ..live.stays import StayError, book_stay, negotiate_stay, offers_for, quote_stay
 from ..ports.network import NetworkUnavailable
 from ..ports.payments import PaymentUnavailable
 from .access import FamilyOnly
@@ -55,6 +56,8 @@ async def kharcha(state: ContainerDep, patient_id: str) -> dict:
         "to_confirm": [_entry(e) for e in entries if e.status is SpendStatus.PROPOSED],
         #: A seller's firm price for a ride, waiting for the family's Book.
         "bookable": state.runner.network.bookable(patient_id) if state.runner.network else [],
+        #: Rooms a stay partner quoted, with any patient rate negotiated for them.
+        "stays": offers_for(state.runner, patient_id),
         #: Vendors' quotes the family can pay through the vendor's own link.
         "payable": [
             _entry(e)
@@ -174,3 +177,52 @@ async def book(state: ContainerDep, patient_id: str, item_id: str, body: BookIn)
         raise HTTPException(503, "could not reach the cab network; nothing was booked") from exc
     await state.runner.plan_patient(patient_id, allow_render=True)
     return {"item": item.model_dump(mode="json")}
+
+
+# ---------------------------------------------------------------- stays
+
+
+def _stay_error(exc: StayError) -> HTTPException:
+    return HTTPException(409, str(exc))
+
+
+@router.get("/patients/{patient_id}/stays", dependencies=[FamilyOnly])
+async def stays(state: ContainerDep, patient_id: str) -> dict:
+    """Rooms waiting on the family: the quote, the patient rate, and the working."""
+    _desk(state, patient_id)
+    return {"stays": offers_for(state.runner, patient_id)}
+
+
+@router.post("/patients/{patient_id}/stays", dependencies=[FamilyOnly])
+async def find_stay(state: ContainerDep, patient_id: str) -> dict:
+    """Ask the stay partner for a room for the next visit."""
+    _desk(state, patient_id)
+    entry = await quote_stay(state.runner, patient_id)
+    if entry is None:
+        raise HTTPException(
+            409, "this visit does not need a night away, or nobody nearby has a room"
+        )
+    return {"stays": offers_for(state.runner, patient_id)}
+
+
+@router.post("/patients/{patient_id}/stays/{entry_id}/negotiate", dependencies=[FamilyOnly])
+async def negotiate(state: ContainerDep, patient_id: str, entry_id: str) -> dict:
+    """The family said "yes, ask them". Two rounds at most; nothing is booked."""
+    _desk(state, patient_id)
+    try:
+        deal, entry = await negotiate_stay(state.runner, patient_id, entry_id)
+    except StayError as exc:
+        raise _stay_error(exc) from exc
+    return {"negotiation": deal.to_json(), "entry": _entry(entry),
+            "stays": offers_for(state.runner, patient_id)}
+
+
+@router.post("/patients/{patient_id}/stays/{entry_id}/book", dependencies=[FamilyOnly])
+async def book_room(state: ContainerDep, patient_id: str, entry_id: str) -> dict:
+    """The family's tap. Nobody else's tap books a room."""
+    _desk(state, patient_id)
+    try:
+        item = await book_stay(state.runner, patient_id, entry_id)
+    except StayError as exc:
+        raise _stay_error(exc) from exc
+    return {"item": item.model_dump(mode="json"), "stays": offers_for(state.runner, patient_id)}

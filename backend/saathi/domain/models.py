@@ -282,6 +282,10 @@ class ApprovalDecision(Base):
     approved_by: str
     approved_at: datetime
     evidence: tuple[EvidenceRef, ...] = ()
+    #: Set when the desk covered a hospital-caused change from the patient
+    #: welfare fund: the cause, who ticked it, and the estimate the fund should
+    #: expect. None means the family's own costs were left as they were.
+    welfare_cover: dict | None = None
 
 
 class HoldingMessage(Base):

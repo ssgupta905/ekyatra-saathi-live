@@ -54,6 +54,8 @@ export function OptionsApprovalCard({
    * question, so this is off unless the caller says otherwise.
    */
   hospitalCaused = false,
+  hospitalCause = null,
+  welfareEstimate = null,
 }: {
   disruptionId: string;
   patientId: string;
@@ -61,6 +63,10 @@ export function OptionsApprovalCard({
   approverName: string;
   onApproved: () => void;
   hospitalCaused?: boolean;
+  /** Why the hospital is the cause, in the desk's words. */
+  hospitalCause?: string | null;
+  /** The published-rate estimate of what covering it would cost. */
+  welfareEstimate?: string | null;
 }) {
   const [optionSet, setOptionSet] = useState<OptionSet | null>(null);
   const [busy, setBusy] = useState(false);
@@ -91,6 +97,7 @@ export function OptionsApprovalCard({
         option_index: index,
         approved_by_role: approverRole,
         approved_by: approverName,
+        cover_from_welfare_fund: hospitalCaused && coverCost,
       });
       onApproved();
     } catch (e) {
@@ -139,7 +146,10 @@ export function OptionsApprovalCard({
           <span>
             Cover the extra cost from the patient welfare fund
             <small>
-              The hospital caused this change, so the family should not pay for it.
+              {hospitalCause
+                ? `The hospital caused this change (${hospitalCause}), so the family should not pay for it.`
+                : "The hospital caused this change, so the family should not pay for it."}
+              {welfareEstimate && ` Likely cost to the fund: ${welfareEstimate}, from published rates.`}
             </small>
           </span>
         </label>

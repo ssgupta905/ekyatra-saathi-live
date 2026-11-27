@@ -345,6 +345,12 @@ class LiveRunner:
     #: did you consider?" after the decision, which the plan alone cannot.
     searches: dict[str, Search] = field(default_factory=dict)
     approvals: list[ApprovalDecision] = field(default_factory=list)
+    #: The welfare-fund cover a desk granted, per family: what the hospital
+    #: agreed to pay for its own change. See `approve_option`.
+    welfare_cover: dict[str, dict] = field(default_factory=dict)
+    #: Working behind each stay quote — nights, party, the negotiation — keyed
+    #: by spend entry id. See `live/stays.py`.
+    stay_deals: dict[str, dict] = field(default_factory=dict)
     ivr_confirmations: dict[str, IVRConfirmation] = field(default_factory=dict)
     #: "press advance" progress per scripted story — see `advance_story`.
     story_progress: dict[str, int] = field(default_factory=dict)
@@ -533,6 +539,8 @@ class LiveRunner:
             self.requests.clear()
             self.searches.clear()
             self.options.clear()
+            self.welfare_cover.clear()
+            self.stay_deals.clear()
             for sync in self.hospital_syncs.values():
                 sync.forget()
         self._bump("working_state_cleared")
@@ -1219,8 +1227,14 @@ class LiveRunner:
         option_index: int,
         approved_by_role: Role,
         approved_by: str,
+        cover_from_welfare_fund: bool = False,
     ) -> ApprovalDecision:
         """The brief's single approval action: fans out to desks and family.
+
+        `cover_from_welfare_fund` is the desk's tick: the hospital pays for the
+        extra its own change costs the family. Allowed only when the hospital
+        caused the change — see `hospital_cause` — and refused otherwise, so a
+        family's own request can never be quietly charged to a fund.
 
         Raises `PermissionError` when a navigator tries to approve a plan
         that touches treatment or dose timing — a structural check, not a UI
@@ -1234,6 +1248,12 @@ class LiveRunner:
         if self.touches_treatment(option) and approved_by_role is not Role.DOCTOR:
             raise PermissionError(
                 "only a doctor may approve an option that touches treatment or dose timing"
+            )
+        cause = self.hospital_cause(patient_id, option_set.disruption_id)
+        if cover_from_welfare_fund and cause is None:
+            raise PermissionError(
+                "the welfare fund covers only a change the hospital caused; "
+                "this one came from the family"
             )
         disruption = self.world.disruptions.get(option_set.disruption_id)
 
@@ -1265,6 +1285,10 @@ class LiveRunner:
             approved_by=approved_by,
             approved_at=datetime.now(UTC),
             evidence=option.evidence,
+            welfare_cover=(
+                self._grant_welfare_cover(patient_id, option, cause or "", approved_by)
+                if cover_from_welfare_fund else None
+            ),
         )
         self.approvals.append(approval)
         if self.world.store is not None:
@@ -1296,7 +1320,113 @@ class LiveRunner:
 
         await self.plan_patient(patient_id, allow_render=True)
         await self._fan_out_approval_messages(patient_id, option)
+        if approval.welfare_cover is not None:
+            self._tell_family_no_extra_cost(patient_id)
+        # A visit that needs a night away gets a room asked for straight away:
+        # routine work an agent does, and the family decides what happens next.
+        try:
+            from .stays import quote_stay
+
+            await quote_stay(self, patient_id)
+        except Exception:  # noqa: BLE001 - a room must never undo an approval
+            logger.exception("could not ask for a stay for %s", patient_id)
         return approval
+
+    def hospital_cause(self, patient_id: str, disruption_id: str) -> str | None:
+        """Why the hospital, not the family, caused this re-plan — or None.
+
+        Two honest sources. A disruption the hospital's own feed raised (a
+        machine down, a slot moved). Or a family re-planned because Saathi
+        asked them about something the hospital published — a clinician away,
+        a report not back, a slot changed. A family who asked to move on their
+        own account caused their own change, and gets None.
+        """
+        disruption = self.world.disruptions.get(disruption_id)
+        if disruption is not None:
+            if disruption.raised_by is SourceSystem.HOSPITAL_FEED:
+                resource = self.world.resources.get(disruption.resource_id)
+                what = resource.display_name if resource else disruption.resource_id
+                return f"{what} was out of service"
+            return None
+        hospital_reasons = {
+            AskReason.DOCTOR_AWAY: "the clinician was away",
+            AskReason.REPORT_PENDING: "a report was not back",
+            AskReason.SLOT_CHANGED: "the hospital moved the slot",
+            AskReason.CLINIC_BEHIND: "the clinic was running behind",
+        }
+        asked = [
+            q for q in (*self.conversation.history, *self.conversation.waiting())
+            if q.patient_id == patient_id and q.reason in hospital_reasons
+        ]
+        if asked:
+            return hospital_reasons[asked[-1].reason]
+        return None
+
+    def _grant_welfare_cover(
+        self, patient_id: str, option: PlanOption, cause: str, approved_by: str
+    ) -> dict:
+        """Put the hospital's promise on the record, with what it is likely to cost.
+
+        The figure is the same estimate the family would have been shown —
+        published rates, as a range, or their own stated fare — for the visit
+        the change makes them take. It is an estimate the fund is told to
+        expect, not money moved: the room, if one is booked, is recorded as the
+        hospital's to pay, and that is the only spend this creates.
+        """
+        party = 2
+        for request in reversed(self.requests.get(patient_id, ())):
+            companions = getattr(request.travel, "companions", None)
+            if companions:
+                party = int(companions) + 1
+                break
+        cost = self.cost_of_visit(patient_id, people=party)
+        cover = {
+            "covered": True,
+            "cause": cause,
+            "approved_by": approved_by,
+            "estimate": cost.to_json() if cost is not None else None,
+            "estimate_text": cost.rupees() if cost is not None else "",
+            "on": option.target_on.isoformat() if option.target_on else None,
+        }
+        self.welfare_cover[patient_id] = cover
+        self.ledger.record_once(
+            patient_id=patient_id,
+            source=SourceSystem.NAVIGATOR,
+            source_record_id=f"welfare:{patient_id}:{cover['on']}",
+            claim=(
+                f"hospital welfare fund covers the extra cost of this change ({cause})"
+                + (f", estimated {cover['estimate_text']}" if cover["estimate_text"] else "")
+            ),
+            metadata={"approved_by": approved_by, "estimate": cover["estimate"]},
+        )
+        self.bus.publish(
+            EventKind.APPROVAL_RECORDED,
+            self.world.today.isoformat(),
+            patient_id=patient_id,
+            summary=(
+                f"Welfare fund covers {patient_id}'s extra cost — {cause}"
+                + (f" (about {cover['estimate_text']})" if cover["estimate_text"] else "")
+            ),
+            welfare=cover,
+        )
+        self._bump("welfare_covers")
+        return cover
+
+    def _tell_family_no_extra_cost(self, patient_id: str) -> None:
+        from ..language.stays import no_extra_cost
+
+        patient = self.world.patient(patient_id)
+        if patient is None:
+            return
+        text = no_extra_cost(patient.language)
+        verdict = guard.check_question(text, dates_given=())
+        if not verdict.allowed:
+            logger.error("guard held the no-extra-cost line for %s: %s", patient_id, verdict.reason)
+            return
+        self._record_outbound(
+            patient_id, kind="welfare", body=text, language=patient.language.value,
+            channel=Channel.WHATSAPP.value, detail=self.welfare_cover.get(patient_id),
+        )
 
     async def _file_approval_task(self, patient_id: str, option_set, disruption) -> None:
         """Put the request on the hospital's own record, as a FHIR Task.

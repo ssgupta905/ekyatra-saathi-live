@@ -75,6 +75,9 @@ class CoveredBy(StrEnum):
     SELF = "self"
     SCHEME = "scheme"
     INSURANCE = "insurance"
+    #: The hospital's patient welfare fund, because the hospital caused the
+    #: change that made this cost. Recorded only when a desk ticked it.
+    HOSPITAL = "hospital"
     UNKNOWN = "unknown"
 
 

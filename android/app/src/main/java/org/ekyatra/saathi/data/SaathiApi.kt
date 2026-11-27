@@ -143,6 +143,21 @@ class SaathiApi(
         )
     }
 
+    /** Ask the stay partner for a room for the next visit. */
+    suspend fun findStay(patientId: String) {
+        send("POST", "/patients/$patientId/stays", json {})
+    }
+
+    /** The family's "yes, ask them": two rounds at most, nothing booked. */
+    suspend fun negotiateStay(patientId: String, entryId: String) {
+        send("POST", "/patients/$patientId/stays/$entryId/negotiate", json {})
+    }
+
+    /** The family's tap. Nobody else's tap books a room. */
+    suspend fun bookStay(patientId: String, entryId: String) {
+        send("POST", "/patients/$patientId/stays/$entryId/book", json {})
+    }
+
     /** The vendor's own pay link. The money goes to the vendor, never to Saathi. */
     suspend fun payLink(patientId: String, entryId: String): String? =
         SaathiJson.decodeFromString<PayLink>(

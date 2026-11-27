@@ -298,6 +298,42 @@ data class Kharcha(
     @SerialName("to_confirm") val toConfirm: List<SpendEntry> = emptyList(),
     val bookable: List<Bookable> = emptyList(),
     val payable: List<SpendEntry> = emptyList(),
+    val stays: List<StayOffer> = emptyList(),
+)
+
+/** One offer in a negotiation: who said what price, and why. */
+@Serializable
+data class StayRound(
+    val round: Int = 0,
+    val by: String = "",
+    @SerialName("nightly_paise") val nightlyPaise: Long = 0,
+    val note: String = "",
+)
+
+@Serializable
+data class StayNegotiation(
+    @SerialName("list_nightly_paise") val listNightlyPaise: Long = 0,
+    @SerialName("agreed_nightly_paise") val agreedNightlyPaise: Long? = null,
+    @SerialName("saved_paise") val savedPaise: Long = 0,
+    val includes: List<String> = emptyList(),
+    val rounds: Int = 0,
+    val offers: List<StayRound> = emptyList(),
+)
+
+/** A room a stay partner quoted, with any patient rate negotiated on the family's yes. */
+@Serializable
+data class StayOffer(
+    @SerialName("entry_id") val entryId: String,
+    val partner: String? = null,
+    @SerialName("amount_paise") val amountPaise: Long = 0,
+    val nights: Int? = null,
+    @SerialName("check_in") val checkIn: String? = null,
+    val negotiated: Boolean = false,
+    @SerialName("can_negotiate") val canNegotiate: Boolean = false,
+    @SerialName("hospital_pays") val hospitalPays: Boolean = false,
+    val booked: Boolean = false,
+    val negotiation: StayNegotiation? = null,
+    val sandbox: Boolean = true,
 )
 
 @Serializable

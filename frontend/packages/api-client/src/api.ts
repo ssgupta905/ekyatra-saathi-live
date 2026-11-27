@@ -302,6 +302,10 @@ export interface PendingOption {
    * should not pay for the hospital's own rescheduling.
    */
   hospital_caused: boolean;
+  /** Why the hospital is the cause, e.g. "the clinician was away". */
+  hospital_cause?: string | null;
+  /** What covering it would likely cost the fund, as a published-rate range. */
+  welfare_estimate?: string | null;
   created_at: string;
 }
 
@@ -345,7 +349,14 @@ export const disruptions = {
     request<OptionSet>(`/disruptions/${disruptionId}/options/${patientId}`),
   approve: (
     disruptionId: string,
-    body: { patient_id: string; option_index: number; approved_by_role: Role; approved_by: string },
+    body: {
+      patient_id: string;
+      option_index: number;
+      approved_by_role: Role;
+      approved_by: string;
+      /** The desk's tick: the hospital pays for its own change. */
+      cover_from_welfare_fund?: boolean;
+    },
   ) =>
     request<unknown>(`/disruptions/${disruptionId}/approve`, {
       method: "POST",
