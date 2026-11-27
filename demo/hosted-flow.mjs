@@ -295,9 +295,19 @@ async function phoneTap(label, settle = 3200) {
   return found[1];
 }
 
+/** Assert a piece of text is on the phone's screen.
+ *
+ *  Both sides are normalised first. The fragment comes from the API and the
+ *  screen text from uiautomator, and the two compose Indic conjuncts and vowel
+ *  signs differently — so a Bengali word that is plainly on screen can fail a
+ *  byte comparison. Diagnosed the slow way: a dump containing
+ *  "যাওয়া-আসায় আপনার কত খরচ হবে?" did not match that same word.
+ */
 async function mustReadOnThePhone(fragment, what) {
-  const text = await phoneText();
-  if (!text.includes(fragment)) throw new Error(`${what} is not on the phone`);
+  const text = (await phoneText()).normalize("NFC");
+  if (!text.includes(fragment.normalize("NFC"))) {
+    throw new Error(`${what} is not on the phone`);
+  }
 }
 
 /* ───────────────────────────── captions and audio ─────────────────────── */
@@ -987,11 +997,28 @@ async function demo({ emr, panel, health }) {
   await say("console", "Each question, as it was sent. Templated per language, never generated — a model that writes the question can invent a premise, and a family cannot tell which half of a fluent sentence came from a record.");
 
   /* ── four: the Hindi voice, on the phone, from the deployed API ────────── */
-  const hindi = asked.find((q) => q.language === "hi") ?? asked[0];
-  await phoneTap(hindi.patient_id);
-  await phoneTap(MESSAGES[hindi.language] ?? MESSAGES.hi);
-  await mustReadOnThePhone("नवंबर", "the question, on the phone");
-  await say("phone", `${hindi.name}'s phone. The question has arrived in her own script — not transliterated, and not in English.`);
+  // Prefer a family whose language is not English, because the point of this
+  // beat is that the question arrived in her own script. Which families a leave
+  // hits is not ours to choose, so when every one of them reads English the
+  // caption says that instead of claiming a script nobody is looking at.
+  const onCamera = asked.find((q) => q.language !== "en") ?? asked[0];
+  await phoneTap(onCamera.patient_id);
+  await phoneTap(MESSAGES[onCamera.language] ?? MESSAGES.hi);
+
+  // Checked against the text the API says it sent, not against a month name in
+  // one script. This beat hunted for Devanagari on a Bengali screen and failed
+  // a take eight beats in: the family a leave hits decides the language, and
+  // the film does not get to assume it.
+  const words = (onCamera.asked_text ?? "").split(/\s+/).filter((w) => w.length >= 5);
+  const fragment = words.sort((a, b) => b.length - a.length)[0];
+  if (!fragment) throw new Error(`the question sent to ${onCamera.name} has no word long enough to look for`);
+  await mustReadOnThePhone(fragment, `the question sent to ${onCamera.name}, on the phone`);
+
+  const ownScript = onCamera.language !== "en";
+  await say(
+    "phone",
+    `${onCamera.name}'s phone. The question has arrived ${ownScript ? "in her own script — not transliterated, and not in English" : "in the language her record carries"}.`,
+  );
 
   // Nothing is read aloud yet, and that is not an omission. The speak button
   // reads the family's current plan, and until a navigator has agreed to her
