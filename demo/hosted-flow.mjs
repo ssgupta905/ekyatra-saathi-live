@@ -1237,7 +1237,7 @@ async function demo({ emr, panel, health }) {
   );
 
   // Show it in OpenEMR's own calendar rather than assert it from our side.
-  await emr.goto(`${EMR}/interface/main/calendar/index.php?module=PostCalendar&func=view&tplview=&viewtype=day&Date=${first.target_on}`, { waitUntil: "domcontentloaded" }).catch(() => {});
+  await emr.goto(`${EMR}/interface/main/calendar/index.php?module=PostCalendar&func=view&tplview=&viewtype=day&Date=${first.target_on.replace(/-/g, "")}`, { waitUntil: "domcontentloaded" }).catch(() => {});
   await wait(7000);
   await say("hospital", `The hospital's own calendar, on that day. Nothing of ours is installed here — this is the appointment OpenEMR now holds, written through the same standard API we read it with.`);
 
@@ -1348,7 +1348,7 @@ async function demo({ emr, panel, health }) {
   if (money.stated_fare_paise) {
     await say(
       "money",
-      `The only figure in here is theirs: ${num("₹" + Math.round(money.stated_fare_paise / 100))}, and the sentence they said it in is stored beside it. This system holds no fare table and quotes no price — a number we guessed and a number she gave us look identical on a screen, and only one of them is true.`,
+      `The only figure in here is theirs: ${num("₹" + Math.round(money.stated_fare_paise / 100))}, and the sentence they said it in is stored beside it. This system holds no fare table and quotes no price — a number we guessed and a number they gave us look identical on a screen, and only one of them is true.`,
     );
     await wait(3500);
   }
