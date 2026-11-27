@@ -1254,11 +1254,29 @@ async function demo({ emr, panel, health }) {
     const opened = await phoneTap(COST_CARD[talkingTongue] ?? COST_CARD.en).catch(() => null);
     if (opened) {
       await wait(4000);
+      // Describe the lines that are actually there. The first version named
+      // item one and then judged the whole total, so a card showing a stated
+      // fare *and* an estimated bed read as "from the family … an estimate",
+      // which contradicts itself on screen.
       const money = (proposal?.detail ?? {}).cost ?? {};
-      const first = (money.items ?? [])[0] ?? {};
+      const lines = money.items ?? [];
+      const mine = lines.filter((i) => i.stated);
+      const ours = lines.filter((i) => !i.stated);
+      const part = (i) => `${said(i.label ?? "")} ${num(i.rupees ?? "")}`;
+      // Sources carry their own punctuation and run long; take the first
+      // clause, which is the part that names the publication.
+      const cite = (i) => (i.source ?? "a published rate").split(/[;,]/)[0].trim();
+      const halves = [
+        mine.length
+          ? `${mine.map(part).join(" and ")}, theirs, kept with the sentence they said it in`
+          : "",
+        ours.length
+          ? `${ours.map(part).join(" and ")}, ours, from ${said(cite(ours[0]))}, and labelled an estimate`
+          : "",
+      ].filter(Boolean);
       await say(
         "money",
-        `Tapped open, every figure says where it came from — ${said(first.label ?? "")} at ${num(first.rupees ?? "")}, ${first.basis ?? ""}, from ${first.source ?? "a published rate"}. ${money.all_stated ? "This one is their own figure, with the sentence they said it in." : "An estimate, and it says so: a family told “about” and charged more was approximately right, one told a price was misled."}`,
+        `Tapped open, every line says whose number it is: ${halves.join(" — and ")}. A figure we worked out and a figure they gave us look identical once they are both rupees on a screen, and only one of them is something a family can be held to.`,
       );
       await wait(4000);
     }
