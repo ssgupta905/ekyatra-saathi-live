@@ -1203,8 +1203,18 @@ async function demo({ emr, panel, health }) {
   const first = (offered.options ?? [])[0] ?? {};
 
   await say("human", `Now the one action in this system that writes anything. ${chosenName}'s options are ranked, and a navigator picks one — nothing here approves itself.`);
-  await mustClick(panel, chosenName, `${chosenName} in the approvals queue`);
-  await wait(3000);
+  // By patient id, scoped to the queue's own rows. The approvals queue labels
+  // each row with the id — "EKY-SHANTI" — while her name appears higher up the
+  // same screen in the request queue, so clicking the name selected her there
+  // and the options card never opened. The approval button was unreachable for
+  // a reason that had nothing to do with the button.
+  const queueRow = panel.locator(".master-row").filter({ hasText: chosen.patient_id }).first();
+  try {
+    await queueRow.click({ timeout: 20000 });
+  } catch {
+    throw new Error(`could not select ${chosen.patient_id} in the approvals queue`);
+  }
+  await wait(3500);
   await mustClick(panel, /^Approve as /, "the approval button");
   await wait(9000);
 
