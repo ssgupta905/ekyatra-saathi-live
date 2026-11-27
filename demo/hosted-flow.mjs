@@ -1192,6 +1192,13 @@ async function demo({ emr, panel, health }) {
   // *before* it records anything or rings anybody: if OpenEMR refuses, the
   // option stays pending and no family is told a time the hospital never
   // agreed to.
+  // Shut the "Why" drawer first. It is still open from the reasoning beat, it
+  // overlays the page, and the approvals queue underneath it cannot be clicked
+  // — so the row was not missing, it was behind something. Escape closes it,
+  // which is what a navigator would press.
+  await panel.keyboard.press("Escape").catch(() => {});
+  await wait(2500);
+
   const beforeWrite = await connectorCounts();
   const queued = (await api("/disruptions/pending").catch(() => [])).filter(
     (row) => readings.some((r) => r.patient_id === row.patient_id),
