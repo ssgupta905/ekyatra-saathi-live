@@ -25,6 +25,7 @@ from saathi.domain.requests import (
 )
 from saathi.graph.dependencies import InMemoryDependencyGraph
 from saathi.planner.options import candidates_for_request
+from saathi.planner.search import Search, Verdict
 from saathi.readiness.conformal import ConformalReadinessPredictor
 from saathi.synthetic.generate import generate_cohort
 from saathi.synthetic.scripted import seed_anita_devi
@@ -257,3 +258,42 @@ class TestTheSearchRecordsWhatItDropped:
         assert {c.on for c in search.offered} == {o.target_on for o in offered}, (
             "the search and the options must describe the same offer"
         )
+
+
+def test_a_day_the_clinician_is_away_is_never_offered_back(anita):
+    """The re-plan exists because nobody is there to see them.
+
+    A leave the hospital published never becomes a `Disruption` — the
+    connector reads it, asks the family and stops — so the planner's resource
+    calendar cannot refuse those days on its own. Before `days_away` existed,
+    a family who said "not before the 1st" was offered the 1st, which was the
+    very day their clinician was away.
+    """
+    patient, steps, cycle, dose, predictor = anita
+    request = _request(dose, not_before=dose.scheduled_for + timedelta(days=1))
+    policy = default_policy("HBCH-MZP")
+
+    def run(days_away):
+        search = Search(patient_id=patient.id, step_kind=StepKind.MAINTENANCE_DOSE.value)
+        found = candidates_for_request(
+            patient, steps, request, StepKind.MAINTENANCE_DOSE,
+            InMemoryDependencyGraph(), predictor, TODAY, policy,
+            cycle=cycle, round_trip_hours=2.4,
+            days_away=days_away, search=search,
+        )
+        return found, search
+
+    offered, _ = run(frozenset())
+    assert offered, "nothing was offered even with no leave; the fixture is wrong"
+    shut = {o.target_on for o in offered}
+
+    # Close every day it just offered, and it must offer none of them back.
+    blocked, search = run(frozenset(shut))
+    assert not ({o.target_on for o in blocked} & shut), (
+        "the planner offered a day the clinician is away"
+    )
+
+    # And it says so, rather than dropping the day silently.
+    refused = [c for c in search.considered if c.on in shut and not c.verdict.offered]
+    assert refused, "the day was dropped without being recorded"
+    assert all(c.verdict is Verdict.RESOURCE_DOWN for c in refused)

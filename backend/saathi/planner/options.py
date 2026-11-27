@@ -323,6 +323,7 @@ def candidates_for_request(
     policy,
     *,
     disruptions: Sequence[Disruption] = (),
+    days_away: frozenset[date] = frozenset(),
     cycle: MaintenanceCycle | None = None,
     round_trip_hours: float | None = None,
     means: Means = Means.NOT_STATED,
@@ -387,6 +388,14 @@ def candidates_for_request(
         seen.add(proposed)
         if proposed in excluded:
             note(proposed, Verdict.FAMILY_CANNOT, "they ruled this day out themselves")
+            continue
+        if proposed in days_away:
+            # The hospital published a leave covering this day. Offering it
+            # back is the one answer that is obviously wrong to anybody in the
+            # room: the whole re-plan exists *because* nobody is there to see
+            # them. Recorded rather than skipped, so the search shows the day
+            # was tried and says what stopped it.
+            note(proposed, Verdict.RESOURCE_DOWN, "the clinician is away that day")
             continue
         if proposed <= today:
             # A family cannot travel overnight on a message sent this

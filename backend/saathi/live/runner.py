@@ -2395,6 +2395,17 @@ class LiveRunner:
                 self.world.today,
                 policy,
                 disruptions=tuple(self.world.open_disruptions()),
+                # A leave the hospital published never becomes a `Disruption`
+                # — the connector asks the family about it and stops there —
+                # so `open_disruptions()` does not contain it and the calendar
+                # cannot refuse those days. Without this the planner offered a
+                # family the very day their clinician was away, which is the
+                # one answer the whole re-plan exists to avoid.
+                days_away=frozenset(
+                    day
+                    for sync in self.hospital_syncs.values()
+                    for day in getattr(sync, "away_days", ())
+                ),
                 cycle=cycle,
                 round_trip_hours=round_trip,
                 means=self.means_for(patient_id),

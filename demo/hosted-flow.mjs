@@ -134,6 +134,32 @@ let CROP = null;
  *  Neither can be covered by an ordinary window, so they are cropped out of
  *  the recording instead — which leaves the user's own settings alone.
  */
+/** Which avfoundation device is the screen, asked rather than assumed.
+ *
+ *  This was the literal "2" for months and it was right until an iPhone came
+ *  within Continuity Camera range, which inserts two devices and pushes
+ *  "Capture screen 0" along. The take then recorded fifteen minutes of the
+ *  Desk View camera — a dim, plausible, entirely wrong picture that the
+ *  brightness check could not distinguish from a dark screen.
+ */
+async function screenDeviceIndex() {
+  const listed = await new Promise((done) => {
+    let text = "";
+    const probe = spawn("ffmpeg", ["-f", "avfoundation", "-list_devices", "true", "-i", ""]);
+    probe.stderr.on("data", (chunk) => { text += chunk; });
+    probe.on("close", () => done(text));
+  });
+  const video = listed.split("AVFoundation audio devices")[0];
+  const found = video.match(/\[(\d+)\]\s+Capture screen 0/);
+  if (!found) {
+    throw new Error(
+      "avfoundation lists no \"Capture screen 0\"; screen recording permission may be off:\n" +
+        video.split("\n").filter((l) => /\[\d+\]/.test(l)).join("\n"),
+    );
+  }
+  return Number(found[1]);
+}
+
 async function measureTheScreen() {
   const browser = await chromium.launch({
     headless: false,
@@ -178,13 +204,13 @@ const NARRATOR = "EKY-SHANTI";
 //: allow — so the planner's search has a real rejection in it, not only offers.
 const HINDI_FAMILY = "EKY-FATIMA";
 //: From the app's own `Translations.kt`, not retyped.
-const SPEAK = { hi: "बोलिए", bn: "বলুন", ta: "பேசுங்கள்" };
-const MESSAGES = { hi: "संदेश", bn: "বার্তা", ta: "செய்திகள்" };
+const SPEAK = { hi: "बोलिए", bn: "বলুন", ta: "பேசுங்கள்", or: "କୁହନ୍ତୁ", en: "Speak" };
+const MESSAGES = { hi: "संदेश", bn: "বার্তা", ta: "செய்திகள்", or: "ସନ୍ଦେଶ", en: "Messages" };
 //: The home tab. Coming back to a family reopens whichever tab was last
 //: used, and the speak button lives only on this one.
-const TODAY = { hi: "आज", bn: "আজ", ta: "இன்று", en: "Today" };
-const PLAN_TAB = { hi: "योजना", bn: "পরিকল্পনা", ta: "திட்டம்", en: "Plan" };
-const STAY = { hi: "ठहरने की जगह", bn: "থাকার জায়গা", ta: "தங்குவதற்கு இடம்", en: "Somewhere to stay" };
+const TODAY = { hi: "आज", bn: "আজ", ta: "இன்று", or: "ଆଜି", en: "Today" };
+const PLAN_TAB = { hi: "योजना", bn: "পরিকল্পনা", ta: "திட்டம்", or: "ଯୋଜନା", en: "Plan" };
+const STAY = { hi: "ठहरने की जगह", bn: "থাকার জায়গা", ta: "தங்குவதற்கு இடம்", or: "ରହିବା ସ୍ଥାନ", en: "Somewhere to stay" };
 //: 1080x2340 on the handset being filmed. scrcpy will not stretch past it.
 const PHONE_ASPECT = 1080 / 2340;
 
@@ -743,7 +769,7 @@ async function main() {
   const captureLog = resolve(OUT, "hosted-flow-ffmpeg.log");
   const capture = spawn("ffmpeg", [
     "-y", "-f", "avfoundation", "-capture_cursor", "1", "-framerate", "30",
-    "-i", "2",
+    "-i", String(await screenDeviceIndex()),
     // Crop first, scale second: the menu bar and the Dock belong to the
     // machine, not to the demo, and a film of a product should not be
     // showing somebody's editor and terminal along one edge.
@@ -1326,9 +1352,21 @@ async function demo({ emr, panel, health }) {
   const top = (near?.places ?? near?.ranked ?? [])[0];
   if (top) {
     const place = top.place ?? top;
+    // Say what is actually on the screen. This caption used to assert that a
+    // dharamshala outranks a hotel whatever was listed, and a take put a hotel
+    // first — opening-hours certainty sorts ahead of cost — so the film claimed
+    // a rule the viewer could see it breaking.
+    const kinds = (near?.places ?? []).map((r) => (r.place ?? r).kind);
+    const cheapFirst = kinds[0] === "dharamshala" || kinds[0] === "guest_house";
+    const hasCheap = kinds.includes("dharamshala") || kinds.includes("guest_house");
+    const note = cheapFirst
+      ? "a dharamshala comes before the hotels here, because a bed in one costs a family a fraction of a hotel room"
+      : hasCheap
+        ? "the list is ordered by what is certainly open first, then by cost, then by distance — so a hotel with known hours can sit above a dharamshala whose hours nobody has recorded"
+        : "this search returned hotels only, so no cheaper bed is claimed for it";
     await say(
       "stay",
-      `Somewhere to stay, for the night the new date now needs — ${said(place.name ?? "")} at ${num(Math.round(top.metres ?? 0) + " m")}. Real OpenStreetMap records, and a dharamshala is put above a hotel because they told us what the journey costs them. No price is shown, because nobody gave us one and this system does not invent a figure.`,
+      `Somewhere to stay, for the night the new date now needs — ${said(place.name ?? "")} at ${num(Math.round(top.metres ?? 0) + " m")}. Real OpenStreetMap records, and ${note}. No price is shown, because nobody gave us one and this system does not invent a figure.`,
     );
   } else {
     await say("stay", "The nearby-stay lookup returned nothing on this take, so nothing is claimed about it here.");

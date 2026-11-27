@@ -226,6 +226,9 @@ class HospitalSync:
     _seen_leave: set[str] = field(default_factory=set)
     #: The same doctor marked away for the same days, entered more than once, is one leave.
     _seen_leave_spans: set[tuple[str, str, str]] = field(default_factory=set)
+    #: Every day a leave the hospital published covers. The planner must not
+    #: offer these back: the re-plan exists because nobody is there to see them.
+    away_days: set[date] = field(default_factory=set)
     #: Orders, compared by snapshot rather than watermark. `ServiceRequest`'s
     #: `_lastUpdated` maps to `date_ordered`, which never moves when a status
     #: does — a cursor over orders would run forever and see nothing. Same
@@ -264,6 +267,7 @@ class HospitalSync:
         self._told_behind.clear()
         self._ours.clear()
         self.recent.clear()
+        self.away_days.clear()
         self.snapshot = AppointmentSnapshot()
         self.orders = OrderSnapshot()
         self._orders_primed = False
@@ -378,6 +382,14 @@ class HospitalSync:
                 continue
             self._seen_leave_spans.add(span)
             self._bump("leave")
+            first, last = leave.starts_at.date(), leave.ends_at.date()
+            # `end_is_known` is False when OpenEMR did not project the end
+            # date, and a multi-day leave then reads as one day. Taking the
+            # first day only is the honest floor: better to refuse one day we
+            # are sure about than a week we guessed.
+            while first <= last:
+                self.away_days.add(first)
+                first += timedelta(days=1)
             await self._act_on_leave(leave)
 
     async def _act_on_leave(self, leave: ProviderAway) -> None:
