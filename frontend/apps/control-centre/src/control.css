@@ -490,3 +490,47 @@ a.cc-card { flex-direction: column; align-items: flex-start; gap: 2px; }
 }
 .queue-head .linklike:hover { text-decoration-color: var(--ink-3); }
 .reasoning .step-again { font-style: normal; color: var(--ink-4); font-size: 11.5px; }
+
+/* ── The disruption board ───────────────────────────────────────────────── */
+/* One event, every family it landed on. Grouped by what happened rather than
+   by who it happened to, because a clinician's leave disrupts a day and a
+   navigator needs the shape of that before any single family's detail. */
+
+.board-group {
+  display: flex; flex-direction: column; gap: 8px;
+  padding-bottom: 14px;
+}
+.board-group + .board-group {
+  border-top: 1px solid var(--line); padding-top: 14px;
+}
+
+.board-group-head {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-size: 15px;
+}
+
+.board-row {
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface); overflow: hidden;
+}
+
+/* The whole header is the control, not a chevron somebody has to aim at. */
+.board-row-head {
+  width: 100%; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 12px 14px; background: none; border: 0; cursor: pointer;
+  font: inherit; color: inherit; text-align: left;
+}
+.board-row-head:hover { background: var(--sunken); }
+.board-row-head .spacer { flex: 1; }
+
+.board-row-body {
+  padding: 0 14px 14px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+/* Their own words, before any of our working — quoted, so it reads as theirs. */
+.board-row-body .said {
+  margin: 0; padding: 9px 12px; border-left: 3px solid var(--line);
+  background: var(--sunken); border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  font-size: 15px; line-height: 1.55; color: var(--ink);
+}

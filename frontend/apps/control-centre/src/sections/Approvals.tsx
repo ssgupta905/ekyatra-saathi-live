@@ -5,6 +5,7 @@ import { Drawer } from "../ui/kit";
 import { Graph } from "../ui/icons";
 import { useWorld } from "../world";
 import { BudgetQueue } from "../components/BudgetQueue";
+import { DisruptionBoard } from "../components/DisruptionBoard";
 import { KnowledgeGraph } from "../components/KnowledgeGraph";
 import { PlannerSearch } from "../components/PlannerSearch";
 import { ReasoningLog } from "../components/ReasoningLog";
@@ -36,6 +37,10 @@ export function Approvals() {
       {/* Highest first: a reading nobody has agreed to is blocking a re-plan
           that cannot be computed until it is agreed. Below it, a family who
           answered and was never confirmed has been asked for nothing. */}
+      {/* What happened, and to whom — before anything about one family.
+          A clinician marking themselves away disrupts a day, not a patient,
+          and a navigator opening this screen needs the shape of that first. */}
+      <DisruptionBoard revision={world.cohortRevision} />
       <RequestQueue revision={world.cohortRevision} onSelect={setFamily} />
       <BudgetQueue revision={world.cohortRevision} />
       {family && (

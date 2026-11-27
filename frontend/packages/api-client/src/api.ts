@@ -1006,7 +1006,15 @@ export interface QuestionWaiting {
   id: string;
   patient_id: string;
   name: string;
-  reason: "doctor_away" | "report_pending" | "clinic_behind" | "slot_changed";
+  /** Why Saathi asked. The first four are facts a hospital published;
+   *  `plan_proposed` is Saathi's own turn — a worked-out day put to the
+   *  family, waiting on them rather than on the hospital. */
+  reason:
+    | "doctor_away"
+    | "report_pending"
+    | "clinic_behind"
+    | "slot_changed"
+    | "plan_proposed";
   topics: ("timing" | "companions" | "cost" | "booking")[];
   /** Exactly what was sent, in the family's own language. */
   asked_text: string;
