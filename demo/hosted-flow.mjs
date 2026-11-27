@@ -1088,7 +1088,7 @@ async function demo({ emr, panel, health }) {
     await wait(5000);
     await say(
       "board",
-      `Opened, it shows the family's own sentence and then the agent's working — every step published by the code that did it, carrying the time that work actually took. Refusals are in here and are never filtered out: a reader who never sees one has no reason to believe they happen.`,
+      `Opened, it shows the agent's working so far — every step published by the code that did it, carrying the time that work actually took. Nobody has replied yet, so there is no sentence of theirs to show; when one arrives it sits at the top of this. Refusals are in here too and are never filtered out: a reader who never sees one has no reason to believe they happen.`,
     );
     await wait(4000);
   }
