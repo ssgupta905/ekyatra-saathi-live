@@ -30,6 +30,17 @@ class PlaceKind(StrEnum):
     EQUIPMENT = "equipment"
     CLINIC = "clinic"
     PHYSIO = "physio"
+    #: Somewhere to sleep. A family travelling two days each way needs this as
+    #: concretely as they need a pharmacy, and nothing in here answered it.
+    #:
+    #: Three kinds and not one, for the same reason Jan Aushadhi is its own
+    #: kind rather than a pharmacy: a dharamshala is free or nearly so and is
+    #: the right first answer for a family counting bus fares, and burying it
+    #: among hotels would hide the only one many of them can use. Cancer
+    #: centres in India are ringed by them precisely because of who travels.
+    DHARAMSHALA = "dharamshala"
+    GUEST_HOUSE = "guest_house"
+    HOTEL = "hotel"
 
 
 #: What a journey need asks for, in the order a family would want them.
@@ -38,6 +49,8 @@ KINDS_FOR_NEED: dict[str, tuple[PlaceKind, ...]] = {
     "tests": (PlaceKind.LAB,),
     "equipment": (PlaceKind.EQUIPMENT,),
     "clinic": (PlaceKind.CLINIC, PlaceKind.PHYSIO),
+    #: Cheapest first, deliberately — the same order `medicine` uses.
+    "stay": (PlaceKind.DHARAMSHALA, PlaceKind.GUEST_HOUSE, PlaceKind.HOTEL),
 }
 
 

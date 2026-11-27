@@ -26,7 +26,7 @@ router = APIRouter(tags=["nearby"])
 async def nearby(
     state: ContainerDep,
     patient_id: str,
-    need: Literal["medicine", "tests", "equipment", "clinic"],
+    need: Literal["medicine", "tests", "equipment", "clinic", "stay"],
     near: Literal["hospital", "home", "place"] = "hospital",
     place: str = Query(default="", max_length=200),
     at: datetime | None = None,

@@ -33,9 +33,16 @@ import org.ekyatra.saathi.data.SaathiApi
 import org.ekyatra.saathi.i18n.Strings
 import org.ekyatra.saathi.ui.theme.Tokens
 
-private val NEEDS = listOf("medicine", "tests", "equipment", "clinic")
+//: "stay" is first because of who asks. A family forty hours from home needs
+//: a bed before they need a pathology lab, and the backend offers a
+//: dharamshala ahead of a hotel for the same reason it offers Jan Aushadhi
+//: ahead of a pharmacy.
+private val NEEDS = listOf("stay", "medicine", "tests", "equipment", "clinic")
 
 private fun needWord(need: String, s: Strings) = when (need) {
+    // The spends tab's own word for it, so the chip a family taps to find a
+    // room and the category they file the receipt under read the same.
+    "stay" -> s.budgetStay
     "medicine" -> s.nearMedicine
     "tests" -> s.nearTests
     "equipment" -> s.nearEquipment

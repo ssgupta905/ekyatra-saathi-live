@@ -65,6 +65,18 @@ logger = logging.getLogger(__name__)
 _JAN_AUSHADHI = re.compile(r"jan\s*aushadh?i", re.I)
 
 
+#: What a charitable guest house beside an Indian hospital is actually called.
+#: Trust/sadan/bhavan are the commonest; `yatri niwas` is the railways' word
+#: and shows up near stations. Matched on the name because OSM has no tag for
+#: any of it.
+_DHARAMSHALA = re.compile(
+    r"dharam\s?shala|dharmashala|dharamsala|yatri\s?niwas|yatri\s?nivas"
+    r"|musafir\s?khana|sarai|seva\s?sadan|trust\s+(?:bhavan|bhawan|guest)"
+    r"|charitable\s+(?:trust|guest)",
+    re.I,
+)
+
+
 def kind_of(tags: dict) -> PlaceKind | None:
     """What kind of place this is, or None if it is not one we show.
 
@@ -95,6 +107,19 @@ def kind_of(tags: dict) -> PlaceKind | None:
         return PlaceKind.EQUIPMENT
     if amenity in {"clinic", "doctors"}:
         return PlaceKind.CLINIC
+
+    # Somewhere to sleep. Checked after the medical kinds so a pharmacy inside
+    # a hotel is still a pharmacy.
+    tourism = (tags.get("tourism") or "").lower()
+    if _DHARAMSHALA.search(name) or _DHARAMSHALA.search(brand):
+        # OSM has no tag for this. They are mapped as guest houses, hostels,
+        # sometimes `amenity=shelter`, and are recognisable only by what they
+        # are called — so the name is the evidence, as it is for Jan Aushadhi.
+        return PlaceKind.DHARAMSHALA
+    if tourism in {"guest_house", "hostel"}:
+        return PlaceKind.GUEST_HOUSE
+    if tourism == "hotel":
+        return PlaceKind.HOTEL
     return None
 
 
