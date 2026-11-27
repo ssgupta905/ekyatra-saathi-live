@@ -2651,7 +2651,11 @@ class LiveRunner:
         # researched one that contradicts them.
         rendered, theirs = "", False
         if cost is not None and cost.items:
-            rendered, theirs = cost.rupees(), cost.any_stated
+            # "You told us" only when every part of the figure is in fact
+            # theirs. A fare they gave us plus a bed we estimated is our
+            # total, and crediting it to them puts a number in their mouth
+            # they never said — which a family notices, and should.
+            rendered, theirs = cost.rupees(), cost.all_stated
 
         text = compose_proposal(
             language=patient.language,

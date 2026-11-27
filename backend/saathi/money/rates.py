@@ -109,6 +109,17 @@ class JourneyCost:
     def any_stated(self) -> bool:
         return any(i.stated for i in self.items)
 
+    @property
+    def all_stated(self) -> bool:
+        """Whether every part of this total came from the family.
+
+        The distinction that stops us putting words in their mouth. A family
+        who said "₹900 for the train" has not said anything about a bed, so a
+        total of their fare plus our room estimate is *ours*, and a sentence
+        beginning "you told us" would be attributing our arithmetic to them.
+        """
+        return bool(self.items) and all(i.stated for i in self.items)
+
     def rupees(self) -> str:
         low, high = self.low_paise // 100, self.high_paise // 100
         return f"₹{low}" if low == high else f"₹{low}–{high}"
@@ -121,6 +132,8 @@ class JourneyCost:
             "rupees": self.rupees(),
             # One stated figure in the list means the total is not purely ours.
             "has_stated": self.any_stated,
+            # Every part came from them, so it may be quoted back as theirs.
+            "all_stated": self.all_stated,
         }
 
 

@@ -174,3 +174,26 @@ def test_the_family_s_own_figure_replaces_ours_and_keeps_their_words(table):
     assert travel.low_paise == travel.high_paise == 90_000
     assert "900 taka" in travel.said
     assert costed.to_json()["has_stated"] is True
+
+
+def test_a_mix_of_their_fare_and_our_estimate_is_not_credited_to_them(table):
+    """A family who said "₹900 for the train" said nothing about a bed.
+
+    Quoting a total of their fare plus our room estimate back as "you told us"
+    attributes our arithmetic to them. They notice, and they are right to.
+    """
+    from saathi.money import cost_of_journey
+
+    mixed = cost_of_journey(
+        table, km=1340, people=2, round_trip_hours=44,
+        stay_kind=PlaceKind.DHARAMSHALA,
+        stated_paise=90_000, stated_in="Trainer tickets 900 taka hobe",
+    )
+    assert mixed.any_stated is True, "their fare is in there"
+    assert mixed.all_stated is False, "but the bed is ours, so the total is ours"
+
+    purely_theirs = cost_of_journey(
+        table, km=1340, people=2, round_trip_hours=4,
+        stated_paise=90_000, stated_in="Trainer tickets 900 taka hobe",
+    )
+    assert purely_theirs.all_stated is True
