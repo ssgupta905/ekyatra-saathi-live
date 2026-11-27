@@ -24,6 +24,12 @@ def _deal(tier="modest", nights=2, cap=None):
     )  # fmt: skip
 
 
+def test_a_lodge_gives_a_patient_rate_from_the_first_night():
+    deal = _deal("modest", 1)
+    assert deal.agreed_nightly_paise is not None
+    assert deal.agreed_nightly_paise < deal.list_nightly_paise
+
+
 def test_a_two_night_patient_stay_comes_back_cheaper_with_breakfast():
     deal = _deal()
     assert deal.agreed_nightly_paise == 950_00
@@ -53,8 +59,8 @@ def test_only_dates_party_and_purpose_are_shared():
     assert _deal().shared["purpose"] == "hospital visit"
 
 
-def test_a_one_night_stay_is_refused_the_patient_rate_and_nothing_is_claimed():
-    deal = _deal("modest", 1)
+def test_a_one_night_hotel_stay_is_refused_the_patient_rate_and_nothing_is_claimed():
+    deal = _deal("standard", 1)
     assert deal.agreed_nightly_paise == deal.list_nightly_paise
     assert deal.saved_paise == 0
     assert deal.includes == ()

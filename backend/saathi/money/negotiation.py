@@ -67,7 +67,7 @@ SANDBOX_TERMS: dict[str, PartnerTerms] = {
     "modest": PartnerTerms(
         list_nightly_paise=1_200_00,
         best_discount=0.2,
-        patient_rate_min_nights=2,
+        patient_rate_min_nights=1,
         includes=("breakfast",),
     ),
     "standard": PartnerTerms(

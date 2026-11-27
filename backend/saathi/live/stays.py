@@ -272,7 +272,7 @@ async def negotiate_stay(
     if patient is None:
         raise StayError("unknown patient")
     desk, entry, org, meta = _deal_for(runner, patient_id, entry_id)
-    if (entry.source_ref or "").startswith("stay-deal:"):
+    if (entry.source_ref or "").startswith("stay-deal:") or meta.get("negotiation"):
         raise StayError("this rate was already negotiated; it can be booked")
 
     terms = terms_for(org)
@@ -404,6 +404,10 @@ async def book_stay(runner: LiveRunner, patient_id: str, entry_id: str) -> Readi
     )
     async with runner._lock:
         runner.world.set_readiness_item(item)
+    # The offer becomes a booking: from here it is money the family has
+    # committed to, and their books count it as booked.
+    ref = (entry.source_ref or "").split(":", 1)[-1]
+    entry = desk.store.save(entry.model_copy(update={"source_ref": f"stay-booked:{ref}"}))
     _tool(
         runner,
         patient_id,
@@ -446,13 +450,15 @@ def offers_for(runner: LiveRunner, patient_id: str) -> list[dict]:
         if entry.category is not SpendCategory.STAY or entry.status is not SpendStatus.QUOTED:
             continue
         ref = entry.source_ref or ""
-        if not ref.startswith(("stay-quote:", "stay-deal:")):
+        if not ref.startswith(("stay-quote:", "stay-deal:", "stay-booked:")):
             continue
-        meta = runner.stay_deals.get(entry.id) or {}
-        booked = any(
-            i.kind is ReadinessKind.STAY and i.status is ReadinessStatus.READY
-            for i in runner.world.readiness_for(patient_id)
-        )
+        meta = runner.stay_deals.get(entry.id)
+        if meta is None:
+            try:  # a restart forgot the working; rebuild it from the quote
+                meta = _deal_for(runner, patient_id, entry.id)[3]
+            except StayError:
+                meta = {}
+        booked = ref.startswith("stay-booked:")
         rows.append(
             {
                 "entry_id": entry.id,
@@ -460,8 +466,8 @@ def offers_for(runner: LiveRunner, patient_id: str) -> list[dict]:
                 "amount_paise": entry.amount_paise,
                 "nights": meta.get("nights"),
                 "check_in": meta.get("check_in"),
-                "negotiated": ref.startswith("stay-deal:"),
-                "can_negotiate": ref.startswith("stay-quote:"),
+                "negotiated": ref.startswith("stay-deal:") or bool(meta.get("negotiation")),
+                "can_negotiate": ref.startswith("stay-quote:") and not meta.get("negotiation"),
                 "hospital_pays": entry.covered_by is CoveredBy.HOSPITAL,
                 "booked": booked,
                 "negotiation": meta.get("negotiation"),

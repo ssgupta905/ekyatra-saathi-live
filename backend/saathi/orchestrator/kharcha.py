@@ -244,11 +244,17 @@ def _in(entry: SpendEntry, first: date, last: date) -> bool:
     return first <= entry.on <= last
 
 
+#: A room offered to the family but not yet booked by them. It is a price
+#: they may take or leave, so it is not money they have committed to.
+_OFFER_REFS = ("stay-quote:", "stay-deal:")
+
+
 def _is_booking(entry: SpendEntry) -> bool:
     return (
         entry.status is SpendStatus.QUOTED
         and entry.source is not SpendSource.PROVIDER_ESTIMATE
         and entry.out_of_pocket
+        and not (entry.source_ref or "").startswith(_OFFER_REFS)
     )
 
 
