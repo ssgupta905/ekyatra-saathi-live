@@ -13,6 +13,7 @@ const PURPOSE: Record<ConsentPurpose, string> = {
   care_coordination: "Coordinating visits",
   record_movement: "Moving records to a new centre",
   research: "Research (optional)",
+  molecular_records: "A register of molecular tests done",
 };
 
 /**

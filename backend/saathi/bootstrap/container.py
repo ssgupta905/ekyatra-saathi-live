@@ -19,6 +19,7 @@ from pathlib import Path
 
 from ..adapters.clock import SystemClock
 from ..adapters.ledger import SqlEvidenceLedger
+from ..adapters.molecular.memory import InMemoryMolecularRegister
 from ..adapters.records import SqlRecordStore
 from ..config import Settings, get_settings
 from ..consent.registry import ConsentRegistry
@@ -36,6 +37,7 @@ from ..ports.hospital import HospitalSystem
 from ..ports.identity import IdentityProvider
 from ..ports.language import LanguageLayer
 from ..ports.ledger import EvidenceLedger
+from ..ports.molecular import MolecularRegister
 from ..ports.onboarding import OnboardingStore
 from ..ports.registry import RegistryStore
 from ..readiness.conformal import ConformalReadinessPredictor, TurnaroundSample
@@ -73,6 +75,9 @@ class Container:
     routes: object | None = None
     #: What is around a point. None when no map service is set up.
     places: object | None = None
+    #: Which molecular tests a patient has had, and where the reports are.
+    #: Read by doctors only, never by the planner — see `api/molecular.py`.
+    molecular: MolecularRegister | None = None
 
     @property
     def cohort(self) -> SyntheticCohort:
@@ -783,4 +788,5 @@ def build_container(settings: Settings | None = None, today: date | None = None)
         hospitals=hospitals,
         routes=build_routes(settings, geocode=_geocoder(runner)),
         places=build_places(settings),
+        molecular=InMemoryMolecularRegister(),
     )
