@@ -304,6 +304,37 @@ async function phone(name, serial, act) {
 
 const state = {};
 
+/**
+ * Rebuild what earlier clips learned, by asking the system.
+ *
+ * `--only 10` has to work without having run 01–09 first, or a bad clip costs
+ * the whole sequence again — which is the thing this file exists to stop. So
+ * nothing is remembered between clips that cannot be re-read from the live
+ * deployment: who was asked, who replied, what was offered.
+ */
+async function recall() {
+  if (!state.asked) {
+    const waiting = await api("/questions/waiting").catch(() => []);
+    const hit = waiting.filter((q) => q.about_day === state.day && q.reason === "doctor_away");
+    if (hit.length) {
+      state.asked = hit;
+      say(`recalled: ${hit.map((q) => `${q.name} (${q.language})`).join(", ")}`);
+    }
+  }
+  if (!state.following && state.asked) {
+    state.following = state.asked.find((q) => q.language !== "en") ?? state.asked[0];
+  }
+  if (!state.replied && state.following) {
+    // Whoever already has a reading is the one the later clips follow; before
+    // any reply exists, it is simply whoever the film was going to follow.
+    const readings = await api("/requests/waiting").catch(() => []);
+    const already = readings.find((r) => (state.asked ?? []).some((q) => q.patient_id === r.patient_id));
+    state.replied = already
+      ? (state.asked ?? []).find((q) => q.patient_id === already.patient_id)
+      : state.following;
+  }
+}
+
 const CLIPS = [
   {
     id: "01",
@@ -806,6 +837,7 @@ async function main() {
   for (const clip of chosen) {
     process.stdout.write(`  ${clip.id} ${clip.says}\n`);
     try {
+      await recall();
       const file = await clip.shoot();
       made.push({ ...clip, file });
       say(`✓ ${file.replace(resolve(HERE, ".."), ".")}`);
