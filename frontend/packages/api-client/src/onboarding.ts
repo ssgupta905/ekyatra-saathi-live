@@ -30,6 +30,17 @@ export interface Organisation {
   alternate_id: string | null;
   linked_ids: string[];
   active: boolean;
+  /** Set when this vendor applied for itself. An application is an inactive organisation. */
+  applied_on?: string | null;
+  approved_on?: string | null;
+  /** What the applicant said about itself. Never shown to a family. */
+  applicant_note?: string;
+  /** Why it was turned down. Kept, so nobody reviews the same vendor twice. */
+  declined_reason?: string;
+  /** Capped in the domain, and taken off our side — never added to a family's price. */
+  commission_pct?: number;
+  /** The vendor's own price list, in the vendor's own words. Never adjusted here. */
+  rate_card?: { service: string; unit: string; amount_inr: number; note: string }[];
 }
 
 export interface RoleSummary {
