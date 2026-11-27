@@ -39,8 +39,25 @@ type Line = {
   clip?: string;
   scene?: string;
   seconds?: number;
-  /** "next" marks a roadmap section: intention, not working software. */
-  part?: "next";
+  /**
+   * Which reel this line belongs to. Absent for the film proper.
+   *
+   * "next" is a roadmap section: intention, not working software. "built" is
+   * the addendum recorded after two of those roadmap features were built —
+   * working software again, and badged so nobody has to remember which.
+   */
+  part?: "next" | "built";
+  /**
+   * Seconds of navigation to cut off the front of the clip.
+   *
+   * A recorded Console clip opens with somebody clicking through the rail to
+   * reach the thing the section is about. That is dead screen under a voice
+   * already describing what comes after it — the narration leads the picture,
+   * and the viewer is told about a refusal while watching a sidebar. The
+   * lead-in is deterministic (the recorder's own waits), so it is measured
+   * and cut rather than guessed at by eye.
+   */
+  trim?: number;
 };
 
 const SCENES: Record<string, React.FC> = {
@@ -55,6 +72,9 @@ const SCENES: Record<string, React.FC> = {
   "next-divider": S.NextDivider,
   "next-molecular": S.MolecularNext,
   "next-partners": S.PartnerNext,
+  "built-divider": S.BuiltDivider,
+  "built-limits": S.BuiltLimits,
+  "built-close": S.BuiltClose,
   readiness: S.Readiness,
   guard: S.Guard,
   roles: S.Roles,
@@ -112,11 +132,14 @@ const usable = (script.lines as Line[]).filter((line) => !line.clip || HAVE[line
  * about a minute. Splitting them means appending a slide does not cost an hour,
  * and the finished film is concatenated rather than re-encoded.
  */
-export const lines: Line[] = usable.filter((line) => line.part !== "next");
+export const lines: Line[] = usable.filter((line) => !line.part);
 export const nextLines: Line[] = usable.filter((line) => line.part === "next");
+//: The addendum: the two roadmap features, now recorded running.
+export const builtLines: Line[] = usable.filter((line) => line.part === "built");
 
-/** Seconds of clip this line has to show, if any. */
-const clipSeconds = (line: Line) => (line.clip ? HAVE[line.clip]?.seconds ?? 0 : 0);
+/** Seconds of clip this line has to show, after any dead lead-in is cut. */
+const clipSeconds = (line: Line) =>
+  line.clip ? Math.max(0, (HAVE[line.clip]?.seconds ?? 0) - (line.trim ?? 0)) : 0;
 
 /**
  * A roadmap scene is read, not watched.
@@ -131,9 +154,10 @@ const READING_TAIL = 10;
 
 export const secondsFor = (line: Line) =>
   Math.max(
-    (line.seconds ?? 4) + (line.part === "next" && line.scene !== "next-divider"
-      ? READING_TAIL
-      : TAIL),
+    (line.seconds ?? 4) +
+      // A drawn roadmap scene is read, not watched, so it is held open past
+      // the sentence that introduces it. A divider has nothing to read.
+      (line.scene && line.part && !line.scene.endsWith("-divider") ? READING_TAIL : TAIL),
     clipSeconds(line) / (isAudible(line) ? 1 : MAX_SPEED),
   );
 
@@ -148,6 +172,9 @@ export const totalFrames = () =>
 
 export const nextFrames = () =>
   Math.max(FPS, nextLines.reduce((sum, line) => sum + framesFor(line), 0));
+
+export const builtFrames = () =>
+  Math.max(FPS, builtLines.reduce((sum, line) => sum + framesFor(line), 0));
 
 /* ────────────────────────────── the furniture ──────────────────────────── */
 
@@ -177,12 +204,14 @@ const Clip: React.FC<{
   speed: number;
   audible: boolean;
   narrationFrames: number;
-}> = ({ file, label, speed, audible, narrationFrames }) => (
+  trimFrames: number;
+}> = ({ file, label, speed, audible, narrationFrames, trimFrames }) => (
   <AbsoluteFill style={{ backgroundColor: C.ground }}>
     <OffthreadVideo
       src={staticFile(`clips/${file}`)}
       style={{ width: "100%", height: "100%", objectFit: "contain" }}
       playbackRate={speed}
+      trimBefore={trimFrames || undefined}
       muted={!audible}
       // Under the narrator while he is speaking, then up. The app's voice is
       // the evidence; the narration is the frame around it, and they must not
@@ -235,9 +264,23 @@ const Caption: React.FC<{ text: string }> = ({ text }) => (
   </AbsoluteFill>
 );
 
-/** Which surface a clip is of, so a viewer is never guessing. */
+/**
+ * Which surface a clip is of, so a viewer is never guessing.
+ *
+ * The fall-through is the hazard here: a clip nobody added a rule for is
+ * labelled as the family's phone, and a Console recording captioned "the
+ * family · phone" tells the viewer something false about who is looking at
+ * what. It happened — the addendum's eight clips were all labelled that way
+ * on the first cut. New clips go above the fall-through, not after it.
+ */
 const whichSurface = (clip: string) => {
   if (/hospital-leave|written-back|appointments/.test(clip)) return "The hospital · OpenEMR";
+  if (/vendor-applies/.test(clip)) return "A vendor · partner app";
+  if (/directory-switched-off|review-queue|letting-them-in/.test(clip)) {
+    return "The administrator · Console";
+  }
+  if (/no-consent|hold-a-finding|already-done/.test(clip)) return "The doctor · Console";
+  if (/its-own-consent/.test(clip)) return "The navigator · Console";
   if (/board|person-agrees|planner|approves|pretend|worth/.test(clip)) return "The navigator · Console";
   if (/partner/.test(clip)) return "A partner";
   if (/without-a-smartphone/.test(clip)) return "The family · browser";
@@ -266,6 +309,7 @@ const Reel: React.FC<{ of: Line[] }> = ({ of: reel }) => {
                   speed={speedFor(line)}
                   audible={isAudible(line)}
                   narrationFrames={Math.round(((line.seconds ?? 4) + TAIL) * FPS)}
+                  trimFrames={Math.round((line.trim ?? 0) * FPS)}
                 />
               ) : Scene ? (
                 <Scene />
@@ -285,3 +329,4 @@ const Reel: React.FC<{ of: Line[] }> = ({ of: reel }) => {
 
 export const Demo: React.FC = () => <Reel of={lines} />;
 export const Roadmap: React.FC = () => <Reel of={nextLines} />;
+export const Built: React.FC = () => <Reel of={builtLines} />;

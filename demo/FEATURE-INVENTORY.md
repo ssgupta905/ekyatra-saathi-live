@@ -146,6 +146,7 @@ Operator, Configuration, Audit, Boards, Cohort, Issues, Story.
 | **Molecular register** — which panels a patient has had, which lab, and where the report is. Doctor-only, its own consent purpose, and withdrawal deletes the rows | real |
 | The register **holds no result, and has nowhere to put one** — every free-text field is screened and a note that reads like a finding is refused, naming the word | real |
 | The planner, orchestrator and live layer **cannot import it** — enforced by a module-level rule, not a convention | real |
+| The register **does not survive a restart** — `InMemoryMolecularRegister` is the only adapter; there is no SQL one. Consent does survive (it is rebuilt from the ledger), so after a redeploy a family still shows as having agreed while their tests are gone | honest limit |
 | Structured molecular results from the HMS | absent, and not a gap we can close — OpenEMR has no genomics resource at all: `MolecularSequence` returns 404 because the route does not exist |
 | A timeline of variants, or contribution to a genomic data commons | absent — the film's roadmap scene describes this, and it is not built |
 
@@ -167,3 +168,13 @@ Operator, Configuration, Audit, Boards, Cohort, Issues, Story.
    not see the Homebrew JDK.
 6. **Deleting an appointment is invisible** — `diff()` only walks what the
    hospital returns. Cancelling is caught; deleting is not.
+7. **The molecular register is in memory only.** Every API redeploy empties
+   it. Found while filming: two panels recorded for a clip were gone by the
+   next clip, three pushes later. Needs the SQL adapter the other stores
+   already have.
+8. **A vendor's own signed-in screens cannot be shown on the hosted stack**
+   — its rates, standing and earnings. A vendor is identified by the
+   account it signs in with, and the deployed API runs with login off
+   (`/api/auth/config` → `required: false`), so there are no accounts and
+   `/partner/me` fails closed. Needs `SAATHI_AUTH` set on the Render
+   service. The application and review half films fine.

@@ -130,5 +130,37 @@ export const CLIPS: Record<string, Clip> = {
   "32-what-it-adds-up-to": {
     "file": "32-what-it-adds-up-to.mp4",
     "seconds": 24.73
+  },
+  "33-a-vendor-applies": {
+    "file": "33-a-vendor-applies.mp4",
+    "seconds": 25
+  },
+  "34-in-the-directory-switched-off": {
+    "file": "34-in-the-directory-switched-off.mp4",
+    "seconds": 21.93
+  },
+  "35-the-review-queue": {
+    "file": "35-the-review-queue.mp4",
+    "seconds": 20.47
+  },
+  "36-letting-them-in": {
+    "file": "36-letting-them-in.mp4",
+    "seconds": 38.33
+  },
+  "37-no-consent-is-not-no-tests": {
+    "file": "37-no-consent-is-not-no-tests.mp4",
+    "seconds": 24.17
+  },
+  "38-its-own-consent": {
+    "file": "38-its-own-consent.mp4",
+    "seconds": 26.6
+  },
+  "39-what-was-already-done": {
+    "file": "39-what-was-already-done.mp4",
+    "seconds": 50.37
+  },
+  "40-it-will-not-hold-a-finding": {
+    "file": "40-it-will-not-hold-a-finding.mp4",
+    "seconds": 33.57
   }
 };

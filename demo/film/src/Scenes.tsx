@@ -806,3 +806,136 @@ export const PartnerNext: React.FC = () => (
     </div>
   </Shell>
 );
+
+/* ─────────────────── and then they were built, said so ────────────────── */
+
+/**
+ * The counterpart to `NotBuilt`.
+ *
+ * The roadmap slides are deliberately unmistakable, and that cuts both ways:
+ * having spent seventy seconds insisting two things do not exist, a later
+ * reel claiming they do has to be at least as clear, or it reads as the same
+ * pitch with the caveat quietly dropped. Green rather than amber, and the
+ * word that matters is "running".
+ */
+const NowBuilt: React.FC = () => (
+  <div
+    style={{
+      position: "absolute",
+      top: 44,
+      right: 56,
+      padding: "11px 22px",
+      borderRadius: 999,
+      background: C.go,
+      color: "#fff",
+      fontFamily: FONT,
+      fontSize: 20,
+      fontWeight: 650,
+      letterSpacing: 2,
+    }}
+  >
+    BUILT · RUNNING
+  </div>
+);
+
+/** Opens the addendum: the two slides, revisited. */
+export const BuiltDivider: React.FC = () => (
+  <Shell dark>
+    <Rise style={{ fontSize: 24, letterSpacing: 3, color: C.go, marginBottom: 26 }}>
+      AN ADDENDUM TO THE TWO SLIDES AT THE END
+    </Rise>
+    <Head>Both of them now exist.</Head>
+    <Rise
+      delay={18}
+      style={{ fontSize: 32, color: "rgba(247,248,251,.72)", marginTop: 36, maxWidth: 1460, lineHeight: 1.5 }}
+    >
+      Narrower than the slides promised, and every frame after this one is the
+      deployed system doing it.
+    </Rise>
+  </Shell>
+);
+
+/**
+ * What is still missing.
+ *
+ * Placed before the closing card rather than after it, because a limitation
+ * read out over the credits is a limitation nobody hears. The slide it
+ * answers made five claims; three of them are still only claims, and saying
+ * which is the only thing that makes the other two believable.
+ */
+export const BuiltLimits: React.FC = () => (
+  <Shell>
+    <NowBuilt />
+    <Kicker>Still not built</Kicker>
+    <Head delay={4}>What the slides promised that this does not do</Head>
+    <div style={{ display: "flex", gap: 20, marginTop: 44 }}>
+      {[
+        {
+          head: "No genomics feed",
+          body:
+            "OpenEMR exposes no genomics resource — MolecularSequence is a 404, " +
+            "measured, not assumed. The register records that a test happened, " +
+            "never a variant, and there is no timeline of alterations.",
+        },
+        {
+          head: "No research contribution",
+          body:
+            "Nothing is contributed to a genomic data commons. The separate " +
+            "consent purpose exists and is revocable; what it governs is a list " +
+            "of tests, not findings.",
+        },
+        {
+          head: "Licences read, not verified",
+          body:
+            "A reviewer reads what an applicant typed and decides. Nothing is " +
+            "checked against a licensing register, and the screen says so rather " +
+            "than implying a check happened.",
+        },
+      ].map((card, i) => (
+        <Rise
+          key={card.head}
+          delay={14 + i * 7}
+          style={{
+            flex: 1,
+            background: "#fff",
+            borderLeft: `4px solid ${C.warn}`,
+            borderRadius: 14,
+            padding: "26px 28px",
+          }}
+        >
+          <div style={{ fontSize: 27, fontWeight: 650, color: C.ink, marginBottom: 14 }}>
+            {card.head}
+          </div>
+          <div style={{ fontSize: 22, color: C.inkSoft, lineHeight: 1.5 }}>{card.body}</div>
+        </Rise>
+      ))}
+    </div>
+    <Rise delay={40} style={{ fontSize: 24, color: C.inkSoft, marginTop: 40, maxWidth: 1560, lineHeight: 1.5 }}>
+      Two more, for completeness. The vendor's own signed-in screens — its
+      rates, its standing, its earnings — are built and tested but are not in
+      this reel: the hosted demo runs with login off, and a vendor is
+      identified by the account it signs in with. And the register is held in
+      memory, so every deployment empties it.
+    </Rise>
+  </Shell>
+);
+
+/** The close. */
+export const BuiltClose: React.FC = () => (
+  <Shell dark>
+    <NowBuilt />
+    <Rise style={{ fontSize: 24, letterSpacing: 3, color: C.go, marginBottom: 26 }}>
+      RECORDED ON THE DEPLOYED STACK
+    </Rise>
+    <Head>Three bugs found by pointing a camera at it.</Head>
+    <Rise
+      delay={18}
+      style={{ fontSize: 28, color: "rgba(247,248,251,.72)", marginTop: 36, maxWidth: 1500, lineHeight: 1.55 }}
+    >
+      A directory that showed an approval as though it had failed. A status
+      chip that called an approved vendor an applicant. And a refusal that
+      said “422” instead of naming the word it objected to — on the one screen
+      whose whole purpose is to name it. All three fixed before this was cut.
+    </Rise>
+  </Shell>
+);

@@ -1,7 +1,7 @@
 {
   "title": "EKYATRA Saathi",
   "engine": "kokoro · am_michael",
-  "total_seconds": 800.3,
+  "total_seconds": 1051.7,
   "lines": [
     {
       "id": "01",
@@ -299,6 +299,107 @@
       "scene": "next-partners",
       "text": "The second is a vendor login. Today a cab firm or a hotel desk sees only its own jobs. Next, any service a journey needs joins one verified network — labs, pharmacies, stays and dharamshalas, cabs and ambulances, home nursing, scheme help desks, insurers. Self-onboarding with licence checks, their own prices and patient-family rates, and a partner who sees a first name, a district and a day, with a phone number only if the family agrees. More options for the budget agent to find something cheaper and closer, ratings that feed the ranking, and a capped commission that is never added to the family's price.",
       "seconds": 39.05
+    },
+    {
+      "id": "41a",
+      "part": "built",
+      "scene": "built-divider",
+      "text": "The film you have just seen ends with two slides marked NOT BUILT. This is a note added afterwards, because both of them now are — and the honest thing to do with a roadmap slide is to stop describing it and show it instead.",
+      "seconds": 14.3
+    },
+    {
+      "id": "41b",
+      "part": "built",
+      "clip": "37-no-consent-is-not-no-tests",
+      "text": "The first was a molecular profile. What got built is narrower than the slide, and the hospital system decided that. OpenEMR has no genomics resource at all — asking its FHIR interface for a molecular sequence returns a four-oh-four, because the route does not exist. There is no structured result to fetch. So what Saathi holds is not the science. It is the fact of the test.",
+      "seconds": 24.925,
+      "trim": 11
+    },
+    {
+      "id": "41c",
+      "part": "built",
+      "clip": "37-no-consent-is-not-no-tests",
+      "text": "Here is Kamla Devi, opened by her surgeon. A navigator does not see this layer at all. And the answer it gives is not an empty list — it says nobody has asked this family yet. That distinction is the whole feature. No consent and no tests look identical in a table, and they are opposite conclusions.",
+      "seconds": 20.075,
+      "trim": 11
+    },
+    {
+      "id": "41d",
+      "part": "built",
+      "clip": "38-its-own-consent",
+      "text": "So it is asked for. Its own purpose, separate from everything else the family has agreed to: consenting here does not touch their visit coordination, and withdrawing it later does not touch their care. The navigator asks. The family answers on their own phone.",
+      "seconds": 17.5,
+      "trim": 11
+    },
+    {
+      "id": "41e",
+      "part": "built",
+      "clip": "39-what-was-already-done",
+      "text": "Now the register can be filled in. An immunohistochemistry panel at the district medical college in Gaya, November last year. A targeted panel at Tata Memorial in March. Which test, which lab, who ordered it, and where the report is.",
+      "seconds": 16.05,
+      "trim": 11
+    },
+    {
+      "id": "41f",
+      "part": "built",
+      "clip": "39-what-was-already-done",
+      "text": "And the number the screen leads with: one report cannot be fetched from here. That is the one that costs money. A test listed as done is only a reason not to repeat it if the report can actually be produced — and a repeat panel is twenty-five to eighty thousand rupees, in a household counting a nine-hundred-rupee bus fare.",
+      "seconds": 21.05,
+      "trim": 11
+    },
+    {
+      "id": "41g",
+      "part": "built",
+      "clip": "40-it-will-not-hold-a-finding",
+      "text": "It holds no result, and there is nowhere in it to put one. Type a finding into the note — E G F R positive, start targeted therapy — and the server refuses it, naming the word that tripped it. Crude on purpose. A false refusal costs somebody a rephrase. A false accept puts a clinical claim inside a logistics system.",
+      "seconds": 21.625,
+      "trim": 11
+    },
+    {
+      "id": "41h",
+      "part": "built",
+      "clip": "33-a-vendor-applies",
+      "text": "The second was a vendor login. Until now a cab firm saw its own jobs and nothing else, and somebody at the hospital had to create its account first. This is a car service in Gaya applying with no account and no introduction — saying what it covers, what it offers, and what it charges.",
+      "seconds": 18.9,
+      "trim": 1
+    },
+    {
+      "id": "41i",
+      "part": "built",
+      "clip": "34-in-the-directory-switched-off",
+      "text": "That route needs no sign-in, which is only safe because of what it creates. The applicant is already in the directory — and switched off. Every rule that picks a vendor for a family checks that flag, so nothing can route to them, no family can be sent to them, and they can see nothing. Six firms here are active. This one is not.",
+      "seconds": 20.475,
+      "trim": 8
+    },
+    {
+      "id": "41j",
+      "part": "built",
+      "clip": "35-the-review-queue",
+      "text": "A person decides. The reviewer sees everything the vendor said about itself, including its prices — which is the part that can actually be checked, against what families already report paying for the same journey.",
+      "seconds": 13.55,
+      "trim": 7
+    },
+    {
+      "id": "41k",
+      "part": "built",
+      "clip": "36-letting-them-in",
+      "text": "Terms are agreed and the flag changes. Five per cent commission, capped in the code at eight, and taken off our side rather than added to theirs: the family is told the vendor's price and pays the vendor's price. The directory now says so in the row — five per cent commission, ours not theirs.",
+      "seconds": 18.9,
+      "trim": 5
+    },
+    {
+      "id": "41l",
+      "part": "built",
+      "scene": "built-limits",
+      "text": "What is not built, said plainly. There is no genomics feed, no timeline of variants, and no contribution to a research data commons — the register records that tests happened, nothing more. Vendor licences are read by a person, not verified against a register. The vendor's own signed-in screens exist and are tested, but could not be filmed here, because the hosted demo runs with login switched off and a vendor is identified by the account it signs in with. And the register itself lives in memory: every deployment empties it.",
+      "seconds": 33.525
+    },
+    {
+      "id": "41m",
+      "part": "built",
+      "scene": "built-close",
+      "text": "Everything else you have just watched is the deployed system, recorded as it happened. Three bugs were found by pointing a camera at it, and fixed before this was cut.",
+      "seconds": 10.525
     }
   ]
 }
