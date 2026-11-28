@@ -135,7 +135,7 @@ export const consent = {
   grant: (
     patientId: string,
     requestId: string,
-    body: { granted_by: string; capacity: ConsentCapacity; channel: "whatsapp" | "ivr"; days?: number },
+    body: { granted_by: string; capacity: ConsentCapacity; channel: "whatsapp" | "ivr" | "app"; days?: number },
   ) =>
     request<ConsentGrantView>(`/patients/${patientId}/consent/requests/${requestId}/grant`, {
       method: "POST",

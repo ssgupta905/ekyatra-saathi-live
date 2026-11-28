@@ -25,7 +25,7 @@ export interface FamilyMember {
   role: string;
   name: string;
   phone: string;
-  preferred_channel: "whatsapp" | "ivr";
+  preferred_channel: "whatsapp" | "ivr" | "app";
   language: "hi" | "bn" | "or" | "ta" | "en";
 }
 

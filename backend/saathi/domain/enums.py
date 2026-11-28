@@ -136,6 +136,13 @@ class Language(StrEnum):
 class Channel(StrEnum):
     WHATSAPP = "whatsapp"
     IVR = "ivr"
+    #: The family answered in their own app, with their own thumb.
+    #:
+    #: A separate value because how consent arrived is part of what makes it
+    #: consent. Recording an in-app tap as "whatsapp" would misdescribe the
+    #: provenance to anybody auditing it later, and the whole point of this
+    #: field is that somebody can tell afterwards how the family was asked.
+    APP = "app"
 
 
 class SourceSystem(StrEnum):

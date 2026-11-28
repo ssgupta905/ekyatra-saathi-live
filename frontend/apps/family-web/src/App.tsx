@@ -8,6 +8,7 @@ import { Journey } from "./Journey";
 import { PlanStrip } from "./PlanStrip";
 import { Thread } from "./Thread";
 import { Budget } from "./Budget";
+import { Consent } from "./Consent";
 import { Composer } from "./Composer";
 import { Kharcha } from "./Kharcha";
 import { Doc, Inbox, Pin, Shield, Spark } from "@saathi/ui-web";
@@ -186,9 +187,13 @@ export default function FamilyApp() {
 
         {tab === "journey" ? (
           <>
-            {/* Above the journey, because it is the one thing here the family
-                has to answer rather than read. It disappears once they have. */}
+            {/* Above the journey, because these are the things here the family
+                has to answer rather than read. Both disappear once they have. */}
             <Budget patientId={patientId} lang={lang} s={s} onAnswered={refresh} />
+            {/* Consent used to be answerable only in the hospital's console,
+                with a navigator typing in what the family had said on a call.
+                Now they answer it themselves, and the grant records that. */}
+            <Consent patientId={patientId} lang={lang} revision={world.revisionFor(patientId)} />
             <Journey guide={home?.guide} lang={lang} s={s} />
           </>
         ) : tab === "plan" ? (

@@ -961,3 +961,58 @@
 /* The page root is a flex item of body; without this it grows to its widest
    child (the header) and a 375px phone scrolls sideways. */
 #root { min-width: 0; }
+
+/* — consent, answered by the family ————————————————————————————
+   Same weight as the budget question above it: something to answer, not
+   something to read. The agree and withdraw buttons are the same size on
+   purpose — consent that is easy to give and buried to take back is not
+   consent. */
+
+.fx-consent { margin: 0 0 18px; }
+.fx-consent-title {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 4px; font-size: 17px; font-weight: 650;
+}
+.fx-consent-head {
+  margin: 16px 0 8px; font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .07em; color: var(--ink-3, #6e6e73);
+}
+
+.fx-ask, .fx-grant {
+  border: 1px solid var(--line, #d2d2d7);
+  border-radius: var(--r-lg, 16px);
+  padding: 14px 15px; margin-bottom: 10px; background: var(--surface, #fff);
+}
+.fx-grant { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+.fx-ask-what { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+.fx-ask-cats { margin: 6px 0 0; font-size: 14px; color: var(--ink-2, #424245); }
+.fx-ask-who { margin: 14px 0 6px; font-size: 13px; color: var(--ink-3, #6e6e73); }
+.fx-ask-who-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.fx-chip {
+  min-height: 40px; padding: 0 14px;
+  border: 1px solid var(--line, #d2d2d7); border-radius: var(--r-pill, 980px);
+  background: var(--surface, #fff); color: var(--ink, #1d1d1f);
+  font: inherit; font-size: 14px; cursor: pointer;
+}
+.fx-chip.on { border-color: var(--blue-500, #0071e3); background: var(--blue-100, #eef4ff); font-weight: 600; }
+
+.fx-ask-name { display: flex; flex-direction: column; gap: 5px; margin-top: 14px; font-size: 13px; color: var(--ink-3, #6e6e73); }
+.fx-ask-name input {
+  min-height: 44px; padding: 10px 13px;
+  border: 1px solid var(--line, #d2d2d7); border-radius: var(--r-md, 12px);
+  font: inherit; font-size: 16px;
+}
+
+.fx-ask-actions { display: flex; gap: 8px; margin-top: 14px; }
+.fx-btn {
+  flex: 1 1 auto; min-height: 48px; padding: 0 16px;
+  border: 1px solid var(--line, #d2d2d7); border-radius: var(--r-pill, 980px);
+  background: var(--surface, #fff); color: var(--ink, #1d1d1f);
+  font: inherit; font-size: 16px; font-weight: 500; cursor: pointer;
+}
+.fx-btn:disabled { opacity: .45; }
+.fx-btn.agree { background: var(--go, #15803d); border-color: var(--go, #15803d); color: #fff; }
+.fx-btn.withdraw { flex: 0 0 auto; min-height: 40px; font-size: 14px; }
+.fx-never { margin-top: 10px; font-size: 13px; }
