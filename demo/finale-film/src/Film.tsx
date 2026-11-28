@@ -92,7 +92,11 @@ export const Film: React.FC = () => (
         const next = SCENES[i + 1];
         // Slide when the stage changes kind (screen ↔ phone ↔ illustration); fade within a kind.
         const kind = (s: Scene) => (s.visual === "screen" || s.visual === "phone" ? s.visual : "illo");
-        const presentation = next && kind(next) !== kind(scene) ? slide({ direction: "from-right" }) : fade();
+        // Chapter cards always fade: a slide clips their title mid-move.
+        const presentation =
+          next && kind(next) !== kind(scene) && next.visual !== "chapter" && scene.visual !== "chapter"
+            ? slide({ direction: "from-right" })
+            : fade();
         return (
           <React.Fragment key={scene.id}>
             <TransitionSeries.Sequence durationInFrames={scene.frames}>

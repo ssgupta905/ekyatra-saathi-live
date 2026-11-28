@@ -60,6 +60,8 @@ def records(since: str) -> None:
             ("approvals", "delete from approvals where patient_id like 'EKY-%' and approved_at >= :t"),
             ("option_sets", "delete from option_sets where patient_id like 'EKY-%'"),
             ("stay spends", "delete from spend_entries where source_ref like 'stay-%'"),
+            ("family spends", "delete from spend_entries where patient_id like 'EKY-%' and source = 'family_stated'"),
+            ("stated limits", "delete from stated_limits where patient_id like 'EKY-%'"),
         ):
             print(f"{label}:", c.execute(sa.text(sql), {"t": since}).rowcount)
 

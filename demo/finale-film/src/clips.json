@@ -2,14 +2,16 @@
  "S06-registries": {
   "file": "S06-registries.mp4",
   "kind": "screen",
-  "from": 1,
-  "to": 17.5
+  "from": 1.5,
+  "to": 19.2,
+  "ratio": 1.5009
  },
  "S07-directory": {
   "file": "S07-directory.mp4",
   "kind": "screen",
-  "from": 1,
-  "to": 36
+  "from": 1.5,
+  "to": 48.6,
+  "ratio": 1.5009
  },
  "S11-onboarding": {
   "file": "S11-onboarding.mp4",
@@ -32,14 +34,16 @@
  "S14-hospital-now": {
   "file": "S14-hospital-now.mp4",
   "kind": "screen",
-  "from": 4,
-  "to": 20
+  "from": 1.5,
+  "to": 13.5,
+  "ratio": 1.5009
  },
  "S16-today": {
   "file": "S16-today.mp4",
   "kind": "screen",
-  "from": 4,
-  "to": 12
+  "from": 1.5,
+  "to": 10.2,
+  "ratio": 1.5009
  },
  "S17-journey": {
   "file": "S12-phone-tour.mp4",
@@ -56,8 +60,9 @@
  "S28-families-boards": {
   "file": "S28-families-boards.mp4",
   "kind": "screen",
-  "from": 4,
-  "to": 33
+  "from": 1.5,
+  "to": 27.9,
+  "ratio": 1.5009
  },
  "S20-leave": {
   "file": "S20-leave.mp4",
@@ -86,14 +91,16 @@
  "S08-config": {
   "file": "S08-config.mp4",
   "kind": "screen",
-  "from": 5,
-  "to": 21.5
+  "from": 1.5,
+  "to": 13.6,
+  "ratio": 1.5009
  },
  "S19b-reports-cohort": {
   "file": "S19-reports-cohort.mp4",
   "kind": "screen",
-  "from": 3,
-  "to": 24
+  "from": 1.5,
+  "to": 19.3,
+  "ratio": 1.5009
  },
  "S24-plan": {
   "file": "S24-plan.mp4",
@@ -134,14 +141,16 @@
  "S30-audit": {
   "file": "S30-audit.mp4",
   "kind": "screen",
-  "from": 3,
-  "to": 16
+  "from": 1.5,
+  "to": 11.7,
+  "ratio": 1.5009
  },
  "S31-research": {
   "file": "S31-research.mp4",
   "kind": "screen",
-  "from": 3,
-  "to": 16
+  "from": 1.5,
+  "to": 10.5,
+  "ratio": 1.5009
  },
  "S19-kharcha": {
   "file": "S27-confirmed.mp4",
@@ -158,19 +167,81 @@
  "S17c-irctc": {
   "file": "S17b-handoffs.mp4",
   "kind": "phone",
-  "from": 97,
-  "to": 110.6
+  "from": 108.8,
+  "to": 111.0
  },
  "S07b-partners": {
   "file": "S07b-partners.mp4",
   "kind": "screen",
-  "from": 2,
-  "to": 38.4
+  "from": 1.5,
+  "to": 34.3,
+  "ratio": 1.5009
  },
  "S16b-network": {
   "file": "S16b-network.mp4",
   "kind": "screen",
-  "from": 2,
-  "to": 50.5
+  "from": 1.5,
+  "to": 49.0,
+  "ratio": 1.5009
+ },
+ "S19c-add": {
+  "file": "S19-kharcha-spends.mp4",
+  "kind": "phone",
+  "from": 11,
+  "to": 47
+ },
+ "S19d-confirm": {
+  "file": "S19-kharcha-spends.mp4",
+  "kind": "phone",
+  "from": 48,
+  "to": 71
+ },
+ "S19e-limit": {
+  "file": "S19-kharcha-spends.mp4",
+  "kind": "phone",
+  "from": 84,
+  "to": 124
+ },
+ "S17d-mmt": {
+  "file": "S17d-apps.mp4",
+  "kind": "phone",
+  "from": 4.0,
+  "to": 10.5
+ },
+ "S17e-ola": {
+  "file": "S17d-apps.mp4",
+  "kind": "phone",
+  "from": 141,
+  "to": 166,
+  "blurTop": 0.37,
+  "blurAfter": 159.5
+ },
+ "N1-register": {
+  "file": "N1-register.mp4",
+  "kind": "screen",
+  "from": 0.3,
+  "to": 43.7,
+  "ratio": 1.9776
+ },
+ "N2-tests": {
+  "file": "N2-tests.mp4",
+  "kind": "screen",
+  "from": 0.3,
+  "to": 30.7,
+  "ratio": 1.9776
+ },
+ "N3-apply": {
+  "file": "N3-apply.mp4",
+  "kind": "screen",
+  "from": 0.3,
+  "to": 15.3,
+  "ratio": 0.8731
+ },
+ "N4-approve": {
+  "file": "N4-approve.mp4",
+  "kind": "screen",
+  "from": 0.3,
+  "to": 35.7,
+  "ratio": 1.9776
  }
 }

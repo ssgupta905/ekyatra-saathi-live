@@ -4,13 +4,17 @@ import clips from "./clips.json";
 
 export const FPS = 30;
 /** Breath after each line, so scenes never talk over each other. */
-const TAIL_S = 0.9;
+const TAIL_S = 0.55;
 /** A chapter title card between chapters: silent, a beat to breathe. */
-const CHAPTER_S = 2.6;
+const CHAPTER_S = 1.9;
 /** Frames two neighbouring scenes overlap while one hands over to the next. */
-export const TRANSITION = 18;
+export const TRANSITION = 14;
 
-export type Clip = { file: string; kind: "screen" | "phone"; from: number; to: number };
+export type Clip = {
+  file: string; kind: "screen" | "phone"; from: number; to: number; ratio?: number;
+  /** Blur the top part of the phone screen (a fraction) from this clip second on: another app's map of where the phone is. */
+  blurTop?: number; blurAfter?: number;
+};
 export type Scene = {
   id: string;
   chapter: string;
